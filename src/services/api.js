@@ -189,6 +189,7 @@ export const getGeographic = (params) => api.get('dashboard/geographic', { param
 export const getColourAnalysis = (params) => api.get('dashboard/colour-analysis', { params });
 export const getSizeAnalysis = (params) => api.get('dashboard/size-analysis', { params });
 export const getFilters = () => api.get('dashboard/filters');
+export const getProductComparison = (params) => api.get('dashboard/product-comparison', { params });
 
 // Salesperson
 export const getSalespersonList = (params) => api.get('salesperson/list', { params });

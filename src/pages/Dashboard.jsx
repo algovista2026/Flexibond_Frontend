@@ -9,6 +9,7 @@ import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
+import { averageLinePlugin } from '../utils/averageLinePlugin';
 import {
   getDashboardSummary,
   getRevenueTrend,
@@ -26,8 +27,8 @@ const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    startDate: '', endDate: '', salesperson: '', category: '', state: '',
-    product: '', thickness: '', dimensions: ''
+    startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+    format: '', product: '', thickness: '', dimensions: ''
   });
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
@@ -88,9 +89,9 @@ const Dashboard = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
-      setFilters({ 
-        startDate: '', endDate: '', salesperson: '', category: '', state: '',
-        product: '', thickness: '', dimensions: ''
+      setFilters({
+        startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+        format: '', product: '', thickness: '', dimensions: ''
       });
     } else {
       setFilters(prev => ({ ...prev, ...newFilters }));
@@ -269,7 +270,16 @@ const Dashboard = () => {
               </div>
             }
           >
-            <Line data={trendChartData} options={{ maintainAspectRatio: false }} />
+            <Line
+              data={trendChartData}
+              plugins={[averageLinePlugin]}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) }
+                }
+              }}
+            />
           </ChartCard>
         )}
         
@@ -277,12 +287,16 @@ const Dashboard = () => {
           <ChartSkeleton />
         ) : (
           <ChartCard title={`Top Products (${metricLabel})`} aiContext={data.products} aiType="Top Products Comparison">
-            <Bar 
-              data={productsChartData} 
-              options={{ 
+            <Bar
+              data={productsChartData}
+              plugins={[averageLinePlugin]}
+              options={{
                 maintainAspectRatio: false,
-                indexAxis: 'y', 
-                plugins: { legend: { display: false } },
+                indexAxis: 'y',
+                plugins: {
+                  legend: { display: false },
+                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) }
+                },
                 scales: {
                   y: {
                     ticks: {
@@ -294,7 +308,7 @@ const Dashboard = () => {
                     }
                   }
                 }
-              }} 
+              }}
             />
           </ChartCard>
         )}
@@ -351,12 +365,16 @@ const Dashboard = () => {
           <ChartSkeleton />
         ) : (
           <ChartCard title={`${metricLabel} by State`} aiContext={data.geo} aiType="Geographic Breakdown">
-            <Bar 
-              data={geoChartData} 
-              options={{ 
+            <Bar
+              data={geoChartData}
+              plugins={[averageLinePlugin]}
+              options={{
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-              }} 
+                plugins: {
+                  legend: { display: false },
+                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) }
+                }
+              }}
             />
           </ChartCard>
         )}

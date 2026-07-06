@@ -9,6 +9,7 @@ import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
+import { averageLinePlugin } from '../utils/averageLinePlugin';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 
@@ -37,7 +38,7 @@ const Salesperson = () => {
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [filters, setFilters] = useState({
-    startDate: '', endDate: '', category: '', state: '',
+    startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
     product: '', thickness: '', dimensions: '', city: ''
   });
   const [filterOptions, setFilterOptions] = useState({});
@@ -137,7 +138,7 @@ const Salesperson = () => {
         onFilterChange={(newFilters, clear) => {
           if (clear) {
             setFilters({
-              startDate: '', endDate: '', category: '', state: '',
+              startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
               product: '', thickness: '', dimensions: '', city: ''
             });
           } else {
@@ -278,7 +279,7 @@ const Salesperson = () => {
                     </div>
                   }
                 >
-                  <Line 
+                  <Line
                     data={{
                       labels: details.revenueTrend.map(d => d._id),
                       datasets: [{
@@ -290,8 +291,14 @@ const Salesperson = () => {
                         fill: true,
                         tension: 0.4
                       }]
-                    }} 
-                    options={{ maintainAspectRatio: false }} 
+                    }}
+                    plugins={[averageLinePlugin]}
+                    options={{
+                      maintainAspectRatio: false,
+                      plugins: {
+                        averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : `${Math.round(v)}` }
+                      }
+                    }}
                   />
                 </ChartCard>
 

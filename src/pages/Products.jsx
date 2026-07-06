@@ -25,9 +25,9 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [metric, setMetric] = useState('revenue');
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
-  const [filters, setFilters] = useState({ 
-    startDate: '', endDate: '', salesperson: '', category: '', state: '',
-    product: '', thickness: '', dimensions: '' 
+  const [filters, setFilters] = useState({
+    startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+    format: '', product: '', thickness: '', dimensions: ''
   });
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
@@ -78,9 +78,9 @@ const Products = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
-      setFilters({ 
-        startDate: '', endDate: '', salesperson: '', category: '', state: '',
-        product: '', thickness: '', dimensions: ''
+      setFilters({
+        startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+        format: '', product: '', thickness: '', dimensions: ''
       });
     } else {
       setFilters(prev => ({ ...prev, ...newFilters }));

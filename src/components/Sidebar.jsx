@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiLayers } from 'react-icons/fi';
 import NotificationPanel from './NotificationPanel';
 import './Sidebar.css';
 
@@ -34,10 +34,16 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           </NavLink>
         )}
         {(isAdmin || permissions.includes('products')) && (
-          <NavLink to="/products" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <FiBox className="nav-icon" />
-            <span>Products</span>
-          </NavLink>
+          <>
+            <NavLink to="/products" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <FiBox className="nav-icon" />
+              <span>Products</span>
+            </NavLink>
+            <NavLink to="/product-comparison" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <FiLayers className="nav-icon" />
+              <span>Product Comparison</span>
+            </NavLink>
+          </>
         )}
         {(isAdmin || permissions.includes('salesperson')) && (
           <>

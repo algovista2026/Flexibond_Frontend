@@ -26,7 +26,7 @@ const Comparison = () => {
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({
-    startDate: '', endDate: '', category: '', state: '',
+    startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
     product: '', thickness: '', dimensions: '', city: ''
   });
   const [filterOptions, setFilterOptions] = useState({});
@@ -213,7 +213,7 @@ const Comparison = () => {
         onFilterChange={(newFilters, clear) => {
           if (clear) {
             setFilters({
-              startDate: '', endDate: '', category: '', state: '',
+              startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
               product: '', thickness: '', dimensions: '', city: ''
             });
           } else {

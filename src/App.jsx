@@ -14,6 +14,7 @@ import Products from './pages/Products';
 import Salesperson from './pages/Salesperson';
 import Geographic from './pages/Geographic';
 import Comparison from './pages/Comparison';
+import ProductComparison from './pages/ProductComparison';
 import AdminPanel from './pages/AdminPanel';
 import LogsPanel from './pages/LogsPanel';
 import Financial from './pages/Financial';
@@ -131,6 +132,7 @@ const App = () => {
           <Route path="/salesperson" element={<ProtectedView permission="salesperson"><Salesperson /></ProtectedView>} />
           <Route path="/geographic" element={<ProtectedView permission="salesperson"><Geographic /></ProtectedView>} />
           <Route path="/comparison" element={<ProtectedView permission="comparison"><Comparison /></ProtectedView>} />
+          <Route path="/product-comparison" element={<ProtectedView permission="products"><ProductComparison /></ProtectedView>} />
           <Route path="/upload" element={<ProtectedView permission="upload"><Upload /></ProtectedView>} />
           <Route path="/financial" element={<ProtectedView permission="financials"><Financial /></ProtectedView>} />
           <Route path="/channel" element={<ProtectedView permission="channel"><Channel /></ProtectedView>} />
