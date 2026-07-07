@@ -1,4 +1,5 @@
 import React from 'react';
+import { FiInfo } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
 
 const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }) => {
@@ -53,12 +54,20 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
       )}
 
       {options?.grades && options.grades.length > 0 && (
-        <MultiSelect
-          label="All Grades"
-          options={options.grades}
-          selected={filters.grade}
-          onChange={(vals) => onFilterChange({ grade: vals })}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <MultiSelect
+            label="All Grades"
+            options={options.grades}
+            selected={filters.grade}
+            onChange={(vals) => onFilterChange({ grade: vals })}
+          />
+          <span
+            title="Grade is a per-line-item attribute (one invoice can span several grades). When you filter by Grade — like Category or Product — revenue is calculated from line items and shown tax-inclusive, so grade totals add up to the overall Total Revenue (a small ~0.4% rounding difference is normal)."
+            style={{ display: 'inline-flex', alignItems: 'center', cursor: 'help', color: 'var(--text-muted)' }}
+          >
+            <FiInfo size={15} />
+          </span>
+        </div>
       )}
 
       {options?.zones && options.zones.length > 0 && (
