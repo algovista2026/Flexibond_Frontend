@@ -185,6 +185,8 @@ export const getRevenueTrend = (params) => api.get('dashboard/revenue-trend', { 
 export const getTopProducts = (params) => api.get('dashboard/top-products', { params });
 export const getTopCustomers = (params) => api.get('dashboard/top-customers', { params });
 export const getCategoryBreakdown = (params) => api.get('dashboard/category-breakdown', { params });
+export const getGradeBreakdown = (params) => api.get('dashboard/grade-breakdown', { params });
+export const getZoneAnalysis = (params) => api.get('dashboard/zone-analysis', { params });
 export const getGeographic = (params) => api.get('dashboard/geographic', { params });
 export const getColourAnalysis = (params) => api.get('dashboard/colour-analysis', { params });
 export const getSizeAnalysis = (params) => api.get('dashboard/size-analysis', { params });

@@ -18,6 +18,7 @@ import {
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
+import { formatINRShort, formatShort } from '../utils/numberFormat';
 
 const Products = () => {
   const location = useLocation();
@@ -90,6 +91,9 @@ const Products = () => {
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const formatNumber = (val) => new Intl.NumberFormat('en-IN').format(val || 0);
   const metricLabel = metric === 'revenue' ? 'Revenue' : 'Quantity';
+  const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
+  const valScale = { ticks: { callback: v => axisFmt(v) } };
+  const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
   // KPI summaries
   const totalProducts = data.products?.length || 0;
@@ -233,8 +237,9 @@ const Products = () => {
               options={{
                 maintainAspectRatio: false,
                 indexAxis: 'y',
-                plugins: { legend: { display: false } },
+                plugins: { legend: { display: false }, tooltip: metricTooltip },
                 scales: {
+                  x: { ticks: { callback: v => axisFmt(v) } },
                   y: {
                     ticks: {
                       callback: function(value) {
@@ -313,7 +318,8 @@ const Products = () => {
               options={{
                 maintainAspectRatio: false,
                 indexAxis: 'y',
-                plugins: { legend: { display: false } }
+                plugins: { legend: { display: false }, tooltip: metricTooltip },
+                scales: { x: { ticks: { callback: v => axisFmt(v) } } }
               }}
             />
           </ChartCard>
@@ -327,7 +333,8 @@ const Products = () => {
               data={thicknessChartData}
               options={{
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
+                plugins: { legend: { display: false }, tooltip: metricTooltip },
+                scales: { y: valScale }
               }}
             />
           </ChartCard>
@@ -342,8 +349,9 @@ const Products = () => {
               options={{
                 maintainAspectRatio: false,
                 indexAxis: 'y',
-                plugins: { legend: { display: false } },
+                plugins: { legend: { display: false }, tooltip: metricTooltip },
                 scales: {
+                  x: { ticks: { callback: v => axisFmt(v) } },
                   y: {
                     ticks: {
                       callback: function(value) {

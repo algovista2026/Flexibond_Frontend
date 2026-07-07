@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FiZap, FiX, FiRefreshCw } from 'react-icons/fi';
 import { getAIInsights } from '../services/api';
 import { renderInsightsText } from '../utils/aiUtils.jsx';
+import { enrichForAI } from '../utils/numberFormat';
 
 const AIInsightButton = ({ contextData, contextType, title = 'Generate Insights', isBanner = false, onToggle }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +14,7 @@ const AIInsightButton = ({ contextData, contextType, title = 'Generate Insights'
     try {
       setLoading(true);
       setError(null);
-      const res = await getAIInsights(contextData, contextType);
+      const res = await getAIInsights(enrichForAI(contextData), contextType);
       setInsights(res.data.data);
       if (onToggle) {
         onToggle(true, res.data.data);

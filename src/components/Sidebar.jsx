@@ -46,21 +46,21 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           </>
         )}
         {(isAdmin || permissions.includes('salesperson')) && (
-          <>
-            <NavLink to="/salesperson" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <FiUsers className="nav-icon" />
-              <span>Salesperson</span>
-            </NavLink>
-            <NavLink to="/geographic" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <FiMap className="nav-icon" />
-              <span>Geographic</span>
-            </NavLink>
-          </>
+          <NavLink to="/salesperson" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiUsers className="nav-icon" />
+            <span>Salesperson</span>
+          </NavLink>
         )}
         {(isAdmin || permissions.includes('comparison')) && (
           <NavLink to="/comparison" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiBarChart2 className="nav-icon" />
-            <span>Comparison</span>
+            <span>Salesperson Comparison</span>
+          </NavLink>
+        )}
+        {(isAdmin || permissions.includes('salesperson')) && (
+          <NavLink to="/geographic" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiMap className="nav-icon" />
+            <span>Geographic</span>
           </NavLink>
         )}
         {(isAdmin || permissions.includes('financials')) && (

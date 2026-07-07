@@ -11,6 +11,8 @@ import {
   getFinancialInvoices, getFinancialFilters
 } from '../services/api';
 
+import { formatINRShort } from '../utils/numberFormat';
+
 const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#f59e0b'];
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
@@ -39,6 +41,8 @@ const Financial = () => {
 
   const formatCurrency = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
   const formatNumber = (v) => new Intl.NumberFormat('en-IN').format(v || 0);
+  const moneyScaleY = { ticks: { callback: v => formatINRShort(v) } };
+  const moneyTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${formatCurrency(ctx.raw)}` } };
 
   useEffect(() => {
     getFinancialFilters().then(r => setFilterOptions(r.data.data)).catch(() => {});
@@ -414,8 +418,8 @@ const Financial = () => {
               data={trendLineData}
               options={{
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
-                scales: { y: { ticks: { callback: v => `₹${(v / 1000).toFixed(0)}K` } } }
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
+                scales: { y: moneyScaleY }
               }}
             />
           </ChartCard>
@@ -435,9 +439,9 @@ const Financial = () => {
               data={stateBarData}
               options={{
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: { legend: { display: false }, tooltip: moneyTooltip },
                 scales: {
-                  y: { ticks: { callback: v => `₹${(v / 1000).toFixed(0)}K` } },
+                  y: moneyScaleY,
                   x: { ticks: { font: { size: 9 } } }
                 }
               }}
@@ -457,8 +461,8 @@ const Financial = () => {
               data={gstTypeBarData}
               options={{
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
-                scales: { y: { ticks: { callback: v => `₹${(v / 1000).toFixed(0)}K` } } }
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
+                scales: { y: moneyScaleY }
               }}
             />
           </ChartCard>

@@ -9,6 +9,7 @@ import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import FilterBar from '../components/FilterBar';
 import { getSalespersonList, getSalespersonComparison, getSalespersonPerformance, getFilters } from '../services/api';
+import { formatINRShort, formatShort } from '../utils/numberFormat';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
 
@@ -101,6 +102,9 @@ const Comparison = () => {
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const formatNumber = (val) => new Intl.NumberFormat('en-IN').format(val || 0);
   const metricLabel = metric === 'revenue' ? 'Revenue' : 'Quantity';
+  const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
+  const metricScale = { ticks: { callback: v => axisFmt(v) } };
+  const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
   const filteredSP = allSP.filter(s => s._id.toLowerCase().includes(search.toLowerCase()));
 
@@ -239,15 +243,30 @@ const Comparison = () => {
             <FiUserCheck style={{ marginRight: '8px', verticalAlign: 'middle' }} />
             Select Salespersons to Compare ({selected.length}/8)
           </h3>
-          <div style={{ position: 'relative', flex: '1 1 160px', maxWidth: '220px' }}>
-            <FiSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '100%', padding: '6px 12px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem', outline: 'none' }}
-            />
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Quick-add dropdown */}
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) toggleSP(e.target.value); }}
+              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem', outline: 'none', background: 'var(--bg-card)', color: 'var(--text-primary)', cursor: 'pointer', maxWidth: '200px' }}
+            >
+              <option value="">+ Add salesperson…</option>
+              {allSP
+                .filter(sp => !selected.includes(sp._id))
+                .map((sp, i) => (
+                  <option key={i} value={sp._id} disabled={selected.length >= 8}>{sp._id}</option>
+                ))}
+            </select>
+            <div style={{ position: 'relative', flex: '1 1 160px', maxWidth: '220px' }}>
+              <FiSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ width: '100%', padding: '6px 12px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem', outline: 'none' }}
+              />
+            </div>
           </div>
         </div>
         <div style={{ padding: '12px 20px', display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
@@ -341,7 +360,8 @@ const Comparison = () => {
                     data={revenueCompData}
                     options={{
                       maintainAspectRatio: false,
-                      plugins: { legend: { display: false } }
+                      plugins: { legend: { display: false }, tooltip: metricTooltip },
+                      scales: { y: metricScale }
                     }}
                   />
                 </ChartCard>
@@ -379,7 +399,8 @@ const Comparison = () => {
                     data={trendCompData}
                     options={{
                       maintainAspectRatio: false,
-                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: metricTooltip },
+                      scales: { y: metricScale }
                     }}
                   />
                 </ChartCard>
@@ -389,8 +410,9 @@ const Comparison = () => {
                     data={productCompData}
                     options={{
                       maintainAspectRatio: false,
-                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: metricTooltip },
                       scales: {
+                        y: metricScale,
                         x: {
                           ticks: {
                             callback: function(value) {
@@ -410,7 +432,8 @@ const Comparison = () => {
                     data={cityCompData}
                     options={{
                       maintainAspectRatio: false,
-                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: metricTooltip },
+                      scales: { y: metricScale }
                     }}
                   />
                 </ChartCard>

@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, GeoJSON, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { getSalespersonList, getGeoAnalytics } from '../services/api';
-import { FiUsers, FiMap, FiLayers, FiInfo, FiTrendingUp } from 'react-icons/fi';
+import { Bar } from 'react-chartjs-2';
+import { getSalespersonList, getGeoAnalytics, getZoneAnalysis, getFilters } from '../services/api';
+import { FiUsers, FiMap, FiLayers, FiInfo, FiTrendingUp, FiGlobe } from 'react-icons/fi';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import ExportControls from '../components/ExportControls';
+import ChartCard from '../components/ChartCard';
+import { formatINRShort } from '../utils/numberFormat';
+
+// Categorical palette for sales zones on the map / charts.
+const ZONE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
 
 // India Center Coordinates
 const INDIA_CENTER = [20.5937, 78.9629];
@@ -26,6 +32,37 @@ const Geographic = () => {
   const [metric, setMetric] = useState('revenue');
   const [indiaGeoJSON, setIndiaGeoJSON] = useState(null);
   const [mapType, setMapType] = useState('normal'); // 'normal' or 'satellite'
+
+  // Zone Analysis mode
+  const [view, setView] = useState('salesperson'); // 'salesperson' | 'zone'
+  const [zoneData, setZoneData] = useState(null);
+  const [gradeFilter, setGradeFilter] = useState([]); // selected grades (OR)
+  const [gradeOptions, setGradeOptions] = useState([]);
+  const [zoneLoading, setZoneLoading] = useState(false);
+
+  // Load available grades for the zone-mode filter
+  useEffect(() => {
+    getFilters()
+      .then(res => setGradeOptions(res.data.data?.grades || []))
+      .catch(err => console.error('Error loading grades:', err));
+  }, []);
+
+  // Fetch zone analysis whenever zone view is active or the grade filter changes
+  useEffect(() => {
+    if (view !== 'zone') return;
+    const fetchZones = async () => {
+      try {
+        setZoneLoading(true);
+        const res = await getZoneAnalysis(gradeFilter.length ? { grade: gradeFilter } : {});
+        setZoneData(res.data.data);
+      } catch (err) {
+        console.error('Error fetching zone analysis:', err);
+      } finally {
+        setZoneLoading(false);
+      }
+    };
+    fetchZones();
+  }, [view, gradeFilter]);
 
   // Fetch GeoJSON once from local public folder
   useEffect(() => {
@@ -164,51 +201,120 @@ const Geographic = () => {
     );
   };
 
+  // ---- Zone Analysis derived data ----
+  const zoneColorMap = useMemo(() => {
+    const m = {};
+    (zoneData?.zones || []).forEach((z, i) => { m[z._id] = ZONE_COLORS[i % ZONE_COLORS.length]; });
+    return m;
+  }, [zoneData]);
+
+  const stateZoneMap = useMemo(() => {
+    const m = {};
+    (zoneData?.stateZone || []).forEach(s => { if (s.state) m[normalizeStateName(s.state)] = s.zone; });
+    return m;
+  }, [zoneData]);
+
+  const getZoneStyle = (stateName) => {
+    const zone = stateZoneMap[normalizeStateName(stateName)];
+    if (zone && zoneColorMap[zone]) {
+      return { fillColor: zoneColorMap[zone], weight: 1.5, opacity: 1, color: '#ffffff', fillOpacity: 0.75 };
+    }
+    return { fillColor: '#f1f5f9', weight: 1, opacity: 1, color: '#e2e8f0', fillOpacity: 0.4 };
+  };
+
+  // Revenue-by-zone bar
+  const zoneBarData = {
+    labels: (zoneData?.zones || []).map(z => z._id),
+    datasets: [{
+      label: 'Revenue',
+      data: (zoneData?.zones || []).map(z => z.totalRevenue),
+      backgroundColor: (zoneData?.zones || []).map(z => zoneColorMap[z._id]),
+      borderRadius: 6
+    }]
+  };
+
+  // Zone x grade stacked bar
+  const zoneGradeGrades = [...new Set((zoneData?.zoneGrade || []).map(g => g.grade))];
+  const zoneGradeZones = (zoneData?.zones || []).map(z => z._id);
+  const zoneGradeData = {
+    labels: zoneGradeZones,
+    datasets: zoneGradeGrades.map((grade, i) => ({
+      label: grade,
+      data: zoneGradeZones.map(zone => {
+        const cell = (zoneData?.zoneGrade || []).find(g => g.zone === zone && g.grade === grade);
+        return cell ? cell.revenue : 0;
+      }),
+      backgroundColor: ZONE_COLORS[i % ZONE_COLORS.length],
+      borderRadius: 4
+    }))
+  };
+
+  const currencyTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${formatCurrency(ctx.raw)}` } };
+  const currencyScale = { ticks: { callback: v => formatINRShort(v) } };
+
   return (
     <div className="page-content">
       <div className="page-header">
         <div>
           <h1>Geographic Intelligence</h1>
-          <p>Compare salesperson reach and market penetration across India.</p>
+          <p>{view === 'zone' ? 'Compare sales zones across India — top sellers, revenue and grade mix.' : 'Compare salesperson reach and market penetration across India.'}</p>
         </div>
         <div className="page-controls">
           <div className="metric-toggle" style={{ marginRight: '12px' }}>
-            <button 
-              className={metric === 'revenue' ? 'active' : ''} 
-              onClick={() => setMetric('revenue')}
+            <button
+              className={view === 'salesperson' ? 'active' : ''}
+              onClick={() => setView('salesperson')}
             >
-              Revenue
+              <FiUsers style={{ marginRight: 6 }} /> Salesperson
             </button>
-            <button 
-              className={metric === 'qty' ? 'active' : ''} 
-              onClick={() => setMetric('qty')}
+            <button
+              className={view === 'zone' ? 'active' : ''}
+              onClick={() => setView('zone')}
             >
-              Quantity
+              <FiGlobe style={{ marginRight: 6 }} /> Zone Analysis
             </button>
           </div>
 
+          {view === 'salesperson' && (
+            <div className="metric-toggle" style={{ marginRight: '12px' }}>
+              <button
+                className={metric === 'revenue' ? 'active' : ''}
+                onClick={() => setMetric('revenue')}
+              >
+                Revenue
+              </button>
+              <button
+                className={metric === 'qty' ? 'active' : ''}
+                onClick={() => setMetric('qty')}
+              >
+                Quantity
+              </button>
+            </div>
+          )}
+
           <div className="metric-toggle">
-            <button 
-              className={mapType === 'normal' ? 'active' : ''} 
+            <button
+              className={mapType === 'normal' ? 'active' : ''}
               onClick={() => setMapType('normal')}
               title="Normal View"
             >
               <FiMap style={{ marginRight: 6 }} /> Atlas
             </button>
-            <button 
-              className={mapType === 'satellite' ? 'active' : ''} 
+            <button
+              className={mapType === 'satellite' ? 'active' : ''}
               onClick={() => setMapType('satellite')}
               title="Satellite View"
             >
               <FiLayers style={{ marginRight: 6 }} /> Satellite
             </button>
           </div>
-          
+
           <ExportControls pageTitle="Geographic_Analytics" />
           {user.role === 'admin' && <NotificationPanel />}
         </div>
       </div>
 
+      {view === 'salesperson' && (<>
       {/* Horizontal Selection Bar */}
       <div className="selection-bar-card shadow-sm">
         <div className="selection-header">
@@ -328,6 +434,177 @@ const Geographic = () => {
           </div>
         )}
       </div>
+      </>)}
+
+      {view === 'zone' && (
+        <div className="zone-view">
+          {/* Grade filter */}
+          <div className="selection-bar-card shadow-sm">
+            <div className="selection-header" style={{ marginBottom: 0, flexWrap: 'wrap', gap: '12px' }}>
+              <div className="selection-title">
+                <FiGlobe />
+                <span>Zone Comparison{gradeFilter.length ? ` · ${gradeFilter.join(', ')}` : ' · All Grades'}</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Grade:</span>
+                <button
+                  className={`selection-chip ${gradeFilter.length === 0 ? 'active' : ''}`}
+                  onClick={() => setGradeFilter([])}
+                >All</button>
+                {gradeOptions.map(g => (
+                  <button
+                    key={g}
+                    className={`selection-chip ${gradeFilter.includes(g) ? 'active' : ''}`}
+                    onClick={() => setGradeFilter(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g])}
+                  >{g}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {zoneLoading && !zoneData ? (
+            <Skeleton className="skeleton-chart" style={{ height: '500px' }} />
+          ) : !zoneData || zoneData.zones.length === 0 ? (
+            <div className="no-selection-placeholder" style={{ height: '400px' }}>
+              <FiGlobe className="placeholder-icon" />
+              <h2>No Zone Data</h2>
+              <p>No segregated-format records with a zone match the current grade filter.</p>
+            </div>
+          ) : (
+            <>
+              {/* AI insight for zone comparison */}
+              {/* Map + summary */}
+              <div className="map-card shadow-sm" style={{ marginBottom: '24px', height: '520px' }}>
+                <div className="map-header">
+                  <h3>Sales Zones across India</h3>
+                  <div className="map-summary">
+                    <span>{zoneData.zones.length} zones</span>
+                    <span>Total: {formatCurrency(zoneData.zones.reduce((s, z) => s + z.totalRevenue, 0))}</span>
+                  </div>
+                </div>
+                <div className="map-container-wrapper">
+                  {!indiaGeoJSON ? (
+                    <Skeleton style={{ height: '100%', width: '100%' }} />
+                  ) : (
+                    <MapContainer center={INDIA_CENTER} zoom={INDIA_ZOOM} style={{ height: '100%', width: '100%' }}>
+                      {mapType === 'normal' ? (
+                        <TileLayer
+                          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        />
+                      ) : (
+                        <TileLayer
+                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                          attribution='&copy; Esri'
+                        />
+                      )}
+                      <GeoJSON
+                        key={`zone-${mapType}-${zoneData.stateZone.length}-${gradeFilter.join(',')}`}
+                        data={indiaGeoJSON}
+                        style={(feature) => getZoneStyle(feature.properties.NAME_1 || feature.properties.ST_NM || feature.properties.state_name)}
+                        onEachFeature={(feature, layer) => {
+                          const stateName = feature.properties.NAME_1 || feature.properties.ST_NM || feature.properties.state_name;
+                          const zone = stateZoneMap[normalizeStateName(stateName)];
+                          if (zone) {
+                            const zStat = zoneData.zones.find(z => z._id === zone);
+                            const seller = zoneData.topSellerByZone?.[zone];
+                            const tooltipContent = `
+                              <div class="map-tooltip">
+                                <strong>${stateName}</strong>
+                                <div class="stat-row"><span>Zone:</span> <span>${zone}</span></div>
+                                <div class="stat-row"><span>Zone Revenue:</span> <span>${formatCurrency(zStat?.totalRevenue || 0)}</span></div>
+                                <hr/>
+                                <small>Top Seller in Zone:</small>
+                                <div class="stat-row"><span>${seller?.salesperson || '—'}</span> <span>${formatCurrency(seller?.revenue || 0)}</span></div>
+                              </div>`;
+                            layer.bindTooltip(tooltipContent, { sticky: true, className: 'leaflet-custom-tooltip' });
+                            layer.on({
+                              mouseover: (e) => { e.target.setStyle({ weight: 2.5, color: '#1e293b', fillOpacity: 0.95 }); e.target.bringToFront(); },
+                              mouseout: (e) => { e.target.setStyle(getZoneStyle(stateName)); }
+                            });
+                          } else {
+                            layer.bindTooltip(`<strong>${stateName}</strong><br/>No zone activity`, { sticky: true, className: 'leaflet-custom-tooltip' });
+                          }
+                        }}
+                      />
+                    </MapContainer>
+                  )}
+                  {/* Zone colour legend */}
+                  <div className="map-legend shadow-sm">
+                    <div className="legend-title">Zones</div>
+                    <div className="legend-items">
+                      {zoneData.zones.map(z => (
+                        <div key={z._id} className="legend-item">
+                          <div className="legend-color" style={{ background: zoneColorMap[z._id] }}></div>
+                          <span>{z._id}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div className="charts-grid" style={{ marginBottom: '24px' }}>
+                <ChartCard title="Revenue by Zone" aiContext={zoneData.zones} aiType="Zone-wise Revenue Comparison">
+                  <Bar
+                    data={zoneBarData}
+                    options={{
+                      maintainAspectRatio: false,
+                      plugins: { legend: { display: false }, tooltip: currencyTooltip },
+                      scales: { y: currencyScale }
+                    }}
+                  />
+                </ChartCard>
+
+                <ChartCard title="Zone × Grade Revenue Mix" aiContext={zoneData.zoneGrade} aiType="Zone by Grade Revenue Breakdown">
+                  <Bar
+                    data={zoneGradeData}
+                    options={{
+                      maintainAspectRatio: false,
+                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: currencyTooltip },
+                      scales: { x: { stacked: true }, y: { stacked: true, ...currencyScale } }
+                    }}
+                  />
+                </ChartCard>
+              </div>
+
+              {/* Top seller / top state per zone */}
+              <div className="data-table-wrapper" style={{ marginBottom: '24px' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0 }}>Zone Leaders</h3>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table" style={{ minWidth: '600px' }}>
+                    <thead>
+                      <tr>
+                        <th>Zone</th>
+                        <th>Revenue</th>
+                        <th>Orders</th>
+                        <th>Customers</th>
+                        <th>Top Salesperson</th>
+                        <th>Top State</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {zoneData.zones.map((z, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 700, color: zoneColorMap[z._id] }}>{z._id}</td>
+                          <td style={{ fontWeight: 600 }}>{formatCurrency(z.totalRevenue)}</td>
+                          <td>{z.totalOrders}</td>
+                          <td>{z.customerCount}</td>
+                          <td>{zoneData.topSellerByZone?.[z._id]?.salesperson || '—'}</td>
+                          <td>{zoneData.topStateByZone?.[z._id]?.state || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <style>{`
         .selection-bar-card {

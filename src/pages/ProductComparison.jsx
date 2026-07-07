@@ -8,6 +8,7 @@ import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import FilterBar from '../components/FilterBar';
 import { getTopProducts, getProductComparison, getFilters } from '../services/api';
+import { formatINRShort, formatShort } from '../utils/numberFormat';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
 
@@ -92,6 +93,11 @@ const ProductComparison = () => {
   const formatNumber = (val) => new Intl.NumberFormat('en-IN').format(val || 0);
   const metricLabel = metric === 'revenue' ? 'Revenue' : 'Quantity';
   const mVal = (d) => metric === 'revenue' ? d.totalRevenue : d.totalQty;
+  const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
+  const metricScale = { ticks: { callback: v => axisFmt(v) } };
+  const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
+  const currencyScale = { ticks: { callback: v => formatINRShort(v) } };
+  const currencyTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${formatCurrency(ctx.raw)}` } };
 
   const filteredProducts = allProducts.filter(p => p._id.toLowerCase().includes(search.toLowerCase()));
 
@@ -298,7 +304,7 @@ const ProductComparison = () => {
             ) : (
               <>
                 <ChartCard title={`${metricLabel} Comparison`} aiContext={comparisonData} aiType="Product Performance Comparison">
-                  <Bar data={totalsData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} />
+                  <Bar data={totalsData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: metricTooltip }, scales: { y: metricScale } }} />
                 </ChartCard>
 
                 <ChartCard
@@ -312,15 +318,15 @@ const ProductComparison = () => {
                     </div>
                   }
                 >
-                  <Line data={trendData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }} />
+                  <Line data={trendData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: metricTooltip }, scales: { y: metricScale } }} />
                 </ChartCard>
 
                 <ChartCard title="Average Rate (₹) Comparison" aiContext={comparisonData} aiType="Product Average Rate Comparison">
-                  <Bar data={rateData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} />
+                  <Bar data={rateData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: currencyTooltip }, scales: { y: currencyScale } }} />
                 </ChartCard>
 
                 <ChartCard title={`State-wise ${metricLabel}`} aiContext={comparisonData} aiType="Product State Breakdown Comparison" fullWidth>
-                  <Bar data={stateData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }} />
+                  <Bar data={stateData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: metricTooltip }, scales: { y: metricScale } }} />
                 </ChartCard>
               </>
             )}

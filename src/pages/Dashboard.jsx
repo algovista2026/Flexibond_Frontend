@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
 import { FiDollarSign, FiShoppingCart, FiUsers, FiPackage, FiTrendingUp } from 'react-icons/fi';
 import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
@@ -10,6 +10,7 @@ import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import { averageLinePlugin } from '../utils/averageLinePlugin';
+import { formatINRShort, formatShort } from '../utils/numberFormat';
 import {
   getDashboardSummary,
   getRevenueTrend,
@@ -17,7 +18,8 @@ import {
   getTopCustomers,
   getGeographic,
   getSalespersonList,
-  getFilters
+  getFilters,
+  getGradeBreakdown
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
@@ -39,7 +41,8 @@ const Dashboard = () => {
     products: null,
     customers: null,
     geo: null,
-    salespersons: null
+    salespersons: null,
+    grades: null
   });
 
   const fetchData = async () => {
@@ -47,7 +50,7 @@ const Dashboard = () => {
       setLoading(true);
       const [
         summaryRes, trendRes, productsRes,
-        customersRes, geoRes, spRes, filtersRes
+        customersRes, geoRes, spRes, gradeRes, filtersRes
       ] = await Promise.all([
         getDashboardSummary(filters),
         getRevenueTrend({ ...filters, groupBy: trendGroupBy }),
@@ -55,6 +58,7 @@ const Dashboard = () => {
         getTopCustomers({ ...filters, limit: 20, sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
         getGeographic({ ...filters, groupBy: 'state', sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
         getSalespersonList({ ...filters, sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
+        getGradeBreakdown(filters),
         getFilters()
       ]);
 
@@ -64,7 +68,8 @@ const Dashboard = () => {
         products: productsRes.data.data,
         customers: customersRes.data.data,
         geo: geoRes.data.data,
-        salespersons: spRes.data.data
+        salespersons: spRes.data.data,
+        grades: gradeRes.data.data
       });
       setFilterOptions(filtersRes.data.data);
     } catch (error) {
@@ -101,6 +106,10 @@ const Dashboard = () => {
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const formatNumber = (val) => new Intl.NumberFormat('en-IN').format(val || 0);
   const metricLabel = metric === 'revenue' ? 'Revenue' : 'Quantity';
+  // Metric-aware Indian-notation formatters for chart axes/tooltips.
+  const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
+  const metricScale = { ticks: { callback: v => axisFmt(v) } };
+  const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
   // Chart Configs
   const trendChartData = {
@@ -146,6 +155,20 @@ const Dashboard = () => {
       data: data.geo?.map(d => metric === 'revenue' ? d.totalRevenue : d.totalQty) || [],
       backgroundColor: '#f59e0b',
       borderRadius: 4
+    }]
+  };
+
+  // Grade-wise revenue distribution (segregated format). Click a legend entry to
+  // toggle that grade off the pie (native Chart.js legend behaviour).
+  const GRADE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+  const gradeChartData = {
+    labels: data.grades?.map(g => g._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.grades?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
+      backgroundColor: (data.grades || []).map((_, i) => GRADE_COLORS[i % GRADE_COLORS.length]),
+      borderWidth: 2,
+      borderColor: '#fff'
     }]
   };
 
@@ -276,13 +299,15 @@ const Dashboard = () => {
               options={{
                 maintainAspectRatio: false,
                 plugins: {
-                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) }
-                }
+                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
+                  tooltip: metricTooltip
+                },
+                scales: { y: metricScale }
               }}
             />
           </ChartCard>
         )}
-        
+
         {loading && !data.products ? (
           <ChartSkeleton />
         ) : (
@@ -295,9 +320,11 @@ const Dashboard = () => {
                 indexAxis: 'y',
                 plugins: {
                   legend: { display: false },
-                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) }
+                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
+                  tooltip: metricTooltip
                 },
                 scales: {
+                  x: { ticks: { callback: v => axisFmt(v) } },
                   y: {
                     ticks: {
                       callback: function(value) {
@@ -372,12 +399,45 @@ const Dashboard = () => {
                 maintainAspectRatio: false,
                 plugins: {
                   legend: { display: false },
-                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) }
-                }
+                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
+                  tooltip: metricTooltip
+                },
+                scales: { y: metricScale }
               }}
             />
           </ChartCard>
         )}
+
+        {loading && !data.grades ? (
+          <ChartSkeleton />
+        ) : (data.grades && data.grades.length > 0) ? (
+          <ChartCard
+            title={`Grade-wise ${metricLabel} Distribution`}
+            aiContext={data.grades}
+            aiType="Grade-wise Revenue Distribution"
+            extra={<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a grade to toggle</span>}
+          >
+            <Pie
+              data={gradeChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => {
+                        const val = ctx.raw || 0;
+                        const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                        return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+                      }
+                    }
+                  }
+                }
+              }}
+            />
+          </ChartCard>
+        ) : null}
 
         {loading && !data.customers ? (
           <TableSkeleton />

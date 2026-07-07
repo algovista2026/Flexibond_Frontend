@@ -14,6 +14,7 @@ const B2B_COLOR = '#2563eb';
 const B2C_COLOR = '#10b981';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
+import { formatINRShort } from '../utils/numberFormat';
 
 const Channel = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
@@ -125,7 +126,8 @@ const Channel = () => {
     ]
   };
 
-  const chartYTicks = { ticks: { callback: v => `₹${(v / 1000).toFixed(0)}K` } };
+  const chartYTicks = { ticks: { callback: v => formatINRShort(v) } };
+  const moneyTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${formatCurrency(ctx.raw)}` } };
 
 
   return (
@@ -306,7 +308,7 @@ const Channel = () => {
           >
             <Line data={trendLineData} options={{
               maintainAspectRatio: false,
-              plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+              plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
               scales: { y: chartYTicks }
             }} />
           </ChartCard>
@@ -321,7 +323,7 @@ const Channel = () => {
           <ChartCard title="State-wise Revenue by Channel" aiContext={stateData} aiType="State-wise B2B vs B2C Revenue Breakdown">
             <Bar data={stateBarData} options={{
               maintainAspectRatio: false,
-              plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+              plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
               scales: { y: chartYTicks, x: { ticks: { font: { size: 9 } } } }
             }} />
           </ChartCard>
@@ -333,7 +335,7 @@ const Channel = () => {
           <ChartCard title="Category Revenue by Channel" aiContext={categories} aiType="Product Category B2B vs B2C Revenue">
             <Bar data={categoryBarData} options={{
               maintainAspectRatio: false,
-              plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+              plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
               scales: { y: chartYTicks }
             }} />
           </ChartCard>
@@ -345,7 +347,7 @@ const Channel = () => {
         <ChartCard title="Top Products by Channel" aiContext={products} aiType="Top Products Comparison B2B vs B2C" fullWidth>
           <Bar data={productBarData} options={{
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
             scales: {
               y: chartYTicks,
               x: { ticks: { font: { size: 9 }, callback: function(val) { const l = this.getLabelForValue(val); return l && l.length > 18 ? l.slice(0,16)+'…' : l; } } }

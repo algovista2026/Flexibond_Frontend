@@ -12,6 +12,7 @@ import NotificationPanel from '../components/NotificationPanel';
 import { averageLinePlugin } from '../utils/averageLinePlugin';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
+import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
 
 const SalespersonListSkeleton = () => (
   <div className="sp-list-scroll-area">
@@ -99,6 +100,9 @@ const Salesperson = () => {
   };
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
+  const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
+  const metricScaleY = { ticks: { callback: v => axisFmt(v) } };
+  const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatCount(ctx.raw) + ' units'}` } };
 
   return (
     <div className="page-content">
@@ -296,8 +300,10 @@ const Salesperson = () => {
                     options={{
                       maintainAspectRatio: false,
                       plugins: {
-                        averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : `${Math.round(v)}` }
-                      }
+                        averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : `${Math.round(v)}` },
+                        tooltip: metricTooltip
+                      },
+                      scales: { y: metricScaleY }
                     }}
                   />
                 </ChartCard>
@@ -313,10 +319,11 @@ const Salesperson = () => {
                       }]
                     }}
                     options={{ 
-                      maintainAspectRatio: false, 
+                      maintainAspectRatio: false,
                       indexAxis: 'y',
-                      plugins: { legend: { display: false } },
+                      plugins: { legend: { display: false }, tooltip: metricTooltip },
                       scales: {
+                        x: { ticks: { callback: v => axisFmt(v) } },
                         y: {
                           ticks: {
                             callback: function(value) {
