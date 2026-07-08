@@ -1,10 +1,11 @@
 import React from 'react';
-import { FiInfo } from 'react-icons/fi';
+import { FiInfo, FiX } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
 
 const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }) => {
   return (
-    <div className="filter-bar">
+    <>
+      <div className="filter-bar">
       <input
         type={filters.startDate ? "date" : "text"}
         name="startDate"
@@ -79,6 +80,25 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
         />
       )}
 
+      {options?.colours && options.colours.length > 0 && (
+        <MultiSelect
+          label="All Colours"
+          options={options.colours}
+          selected={filters.colour}
+          onChange={(vals) => onFilterChange({ colour: vals })}
+        />
+      )}
+
+      {options?.thickness && options.thickness.length > 0 && (
+        <MultiSelect
+          label="All Thicknesses"
+          options={options.thickness}
+          selected={filters.thickness}
+          formatOption={(v) => `${v} MM`}
+          onChange={(vals) => onFilterChange({ thickness: vals })}
+        />
+      )}
+
       {/* Old-vs-new data comparison toggle (single-select) */}
       <select
         value={filters.format || ''}
@@ -93,10 +113,86 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
       <button
         className="btn-secondary"
         onClick={() => onFilterChange({
-          startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], format: ''
+          startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+          colour: [], thickness: [], format: '', product: '', dimensions: '', city: ''
         }, true)}
       >
         Clear Filters
+      </button>
+      </div>
+
+      <AppliedFilters filters={filters} onFilterChange={onFilterChange} />
+    </>
+  );
+};
+
+// Field labels + how each active filter is rendered as a removable chip below the bar.
+const CHIP_LABELS = {
+  salesperson: 'Salesperson', category: 'Category', state: 'State', grade: 'Grade',
+  zone: 'Zone', colour: 'Colour', thickness: 'Thickness', product: 'Product',
+  dimensions: 'Size', city: 'City'
+};
+
+const AppliedFilters = ({ filters, onFilterChange }) => {
+  const chips = [];
+  if (filters.startDate) chips.push({ key: 'startDate', scalar: true, text: `From ${filters.startDate}` });
+  if (filters.endDate) chips.push({ key: 'endDate', scalar: true, text: `To ${filters.endDate}` });
+
+  Object.entries(CHIP_LABELS).forEach(([key, label]) => {
+    const v = filters[key];
+    if (Array.isArray(v)) {
+      v.forEach(val => chips.push({ key, val, text: `${label}: ${key === 'thickness' ? `${val} MM` : val}` }));
+    } else if (v) {
+      chips.push({ key, scalar: true, text: `${label}: ${v}` });
+    }
+  });
+  if (filters.format) {
+    chips.push({ key: 'format', scalar: true, text: `Format: ${filters.format === 'segregated' ? 'New' : 'Legacy'}` });
+  }
+
+  if (chips.length === 0) return null;
+
+  const removeChip = (chip) => {
+    if (chip.scalar) {
+      onFilterChange({ [chip.key]: '' });
+    } else {
+      const cur = Array.isArray(filters[chip.key]) ? filters[chip.key] : [];
+      onFilterChange({ [chip.key]: cur.filter(x => x !== chip.val) });
+    }
+  };
+
+  const clearAll = () => onFilterChange({
+    startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+    colour: [], thickness: [], format: '', product: '', dimensions: '', city: ''
+  }, true);
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', margin: '-8px 0 20px' }}>
+      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Applied:</span>
+      {chips.map((chip, i) => (
+        <span
+          key={`${chip.key}-${chip.val ?? 'scalar'}-${i}`}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 6px 3px 10px',
+            borderRadius: '14px', background: 'var(--primary-50, #eff6ff)', color: 'var(--primary-600)',
+            border: '1px solid var(--primary-200, #bfdbfe)', fontSize: '0.78rem', fontWeight: 600
+          }}
+        >
+          {chip.text}
+          <button
+            onClick={() => removeChip(chip)}
+            title="Remove filter"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--primary-600)', cursor: 'pointer', padding: 0 }}
+          >
+            <FiX size={13} />
+          </button>
+        </span>
+      ))}
+      <button
+        onClick={clearAll}
+        style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: '2px 4px' }}
+      >
+        Clear all
       </button>
     </div>
   );

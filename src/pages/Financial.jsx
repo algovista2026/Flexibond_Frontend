@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
-import { FiDollarSign, FiPercent, FiFileText, FiTrendingUp, FiChevronLeft, FiChevronRight, FiSearch, FiX } from 'react-icons/fi';
+import { FiDollarSign, FiPercent, FiFileText, FiTrendingUp, FiChevronLeft, FiChevronRight, FiSearch, FiX, FiDownload } from 'react-icons/fi';
 import ChartCard from '../components/ChartCard';
 import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
@@ -8,7 +8,7 @@ import NotificationPanel from '../components/NotificationPanel';
 import {
   getFinancialSummary, getFinancialTaxTrend,
   getFinancialStateWiseTax, getFinancialGSTTypeSplit,
-  getFinancialInvoices, getFinancialFilters
+  getFinancialInvoices, getFinancialInvoicesAll, getFinancialFilters
 } from '../services/api';
 
 import { formatINRShort } from '../utils/numberFormat';
@@ -38,6 +38,7 @@ const Financial = () => {
 
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const formatCurrency = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
   const formatNumber = (v) => new Intl.NumberFormat('en-IN').format(v || 0);
@@ -91,6 +92,69 @@ const Financial = () => {
     searchDebounceRef.current = setTimeout(() => {
       fetchInvoices(1, appliedFilters, value);
     }, 400);
+  };
+
+  // Download the ENTIRE filtered invoice register (all pages) as Excel or PDF.
+  const buildExportRows = (rows) => rows.map(inv => ({
+    'Date': new Date(inv.date).toLocaleDateString('en-IN'),
+    'Invoice No': inv.invoiceNo,
+    'CR/DR': inv.crDr || '',
+    'Customer': inv.customerName || '',
+    'City': inv.city || '',
+    'State': inv.state || '',
+    'GST Type': inv.gstType || '',
+    'Salesperson': inv.salesperson || '',
+    'Assessable': inv.assessableAmount || 0,
+    'CGST': inv.cgst || 0,
+    'SGST': inv.sgst || 0,
+    'IGST': inv.igst || 0,
+    'Cess': inv.gstCess || 0,
+    'Bill Amount': inv.billAmount || 0
+  }));
+
+  const downloadInvoices = async (format) => {
+    try {
+      setDownloading(true);
+      const res = await getFinancialInvoicesAll({ ...appliedFilters, ...(tableSearch ? { search: tableSearch } : {}) });
+      const rows = res.data.data || [];
+      if (rows.length === 0) { alert('No invoices to download.'); return; }
+      const stamp = new Date().toISOString().split('T')[0];
+      const exportRows = buildExportRows(rows);
+
+      if (format === 'excel') {
+        const XLSX = window.XLSX;
+        if (!XLSX) { alert('Excel library failed to load. Check your connection and retry.'); return; }
+        const ws = XLSX.utils.json_to_sheet(exportRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Invoice Register');
+        XLSX.writeFile(wb, `Invoice_Register_${stamp}.xlsx`);
+      } else {
+        const { jsPDF } = window.jspdf || {};
+        if (!jsPDF) { alert('PDF library failed to load. Check your connection and retry.'); return; }
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+        if (typeof doc.autoTable !== 'function') { alert('PDF table plugin failed to load.'); return; }
+        const headers = Object.keys(exportRows[0]);
+        const money = new Set(['Assessable', 'CGST', 'SGST', 'IGST', 'Cess', 'Bill Amount']);
+        const body = exportRows.map(r => headers.map(h => (money.has(h) ? formatCurrency(r[h]) : r[h])));
+        doc.setFontSize(13);
+        doc.text('Invoice Register', 40, 30);
+        doc.setFontSize(9);
+        doc.text(`${rows.length} invoices · Generated ${stamp}`, 40, 44);
+        doc.autoTable({
+          head: [headers],
+          body,
+          startY: 54,
+          styles: { fontSize: 7, cellPadding: 3 },
+          headStyles: { fillColor: [37, 99, 235] }
+        });
+        doc.save(`Invoice_Register_${stamp}.pdf`);
+      }
+    } catch (err) {
+      console.error('Invoice download error:', err);
+      alert('Failed to download invoices.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   useEffect(() => {
@@ -183,9 +247,15 @@ const Financial = () => {
     }]
   };
 
-  // Bar: GST type split
+  // Bar: GST type split. "Regular" (registered) is relabelled B2B, "Unregistered" B2C.
+  const gstTypeLabel = (t) => {
+    const s = String(t || '').toLowerCase();
+    if (s.includes('regular')) return 'B2B';
+    if (s.includes('unregist')) return 'B2C';
+    return t;
+  };
   const gstTypeBarData = {
-    labels: gstTypeSplit.map(g => g._id),
+    labels: gstTypeSplit.map(g => gstTypeLabel(g._id)),
     datasets: [
       {
         label: 'Assessable Value',
@@ -278,10 +348,34 @@ const Financial = () => {
       ) : summary && (
         <div className="kpi-grid">
           <div className="kpi-card">
+            <div className="kpi-icon green"><FiDollarSign /></div>
+            <div className="kpi-label">Total Bill Amount</div>
+            <div className="kpi-value">{formatCurrency(summary.totalBill)}</div>
+            <div className="kpi-sub">Incl. taxes & other charges</div>
+          </div>
+          <div className="kpi-card">
             <div className="kpi-icon blue"><FiDollarSign /></div>
-            <div className="kpi-label">Assessable Value</div>
+            <div className="kpi-label">Assessable Values</div>
             <div className="kpi-value">{formatCurrency(summary.totalAssessable)}</div>
             <div className="kpi-sub">{formatNumber(summary.invoiceCount)} invoices</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-icon blue"><FiFileText /></div>
+            <div className="kpi-label">CGST</div>
+            <div className="kpi-value">{formatCurrency(summary.totalCGST)}</div>
+            <div className="kpi-sub">Intra-state</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-icon green"><FiFileText /></div>
+            <div className="kpi-label">SGST</div>
+            <div className="kpi-value">{formatCurrency(summary.totalSGST)}</div>
+            <div className="kpi-sub">Intra-state</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-icon orange"><FiFileText /></div>
+            <div className="kpi-label">IGST</div>
+            <div className="kpi-value">{formatCurrency(summary.totalIGST)}</div>
+            <div className="kpi-sub">Inter-state</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-icon orange"><FiTrendingUp /></div>
@@ -290,28 +384,10 @@ const Financial = () => {
             <div className="kpi-sub">CGST + SGST + IGST + Cess</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon green"><FiDollarSign /></div>
-            <div className="kpi-label">Total Bill Amount</div>
-            <div className="kpi-value">{formatCurrency(summary.totalBill)}</div>
-            <div className="kpi-sub">Incl. taxes & other charges</div>
-          </div>
-          <div className="kpi-card">
             <div className="kpi-icon red"><FiPercent /></div>
             <div className="kpi-label">Effective Tax Rate</div>
             <div className="kpi-value">{summary.effectiveTaxRate}%</div>
             <div className="kpi-sub">Tax / Assessable Value</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-icon blue"><FiFileText /></div>
-            <div className="kpi-label">CGST + SGST</div>
-            <div className="kpi-value">{formatCurrency(summary.totalCGST + summary.totalSGST)}</div>
-            <div className="kpi-sub">Intra-state transactions</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-icon orange"><FiFileText /></div>
-            <div className="kpi-label">IGST</div>
-            <div className="kpi-value">{formatCurrency(summary.totalIGST)}</div>
-            <div className="kpi-sub">Inter-state transactions</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-icon green"><FiFileText /></div>
@@ -321,9 +397,9 @@ const Financial = () => {
           </div>
           <div className="kpi-card">
             <div className="kpi-icon red"><FiFileText /></div>
-            <div className="kpi-label">GST Cess</div>
-            <div className="kpi-value">{formatCurrency(summary.totalCess)}</div>
-            <div className="kpi-sub">Additional cess collected</div>
+            <div className="kpi-label">Debit Note</div>
+            <div className="kpi-value">{formatNumber(summary.debitNotes)}</div>
+            <div className="kpi-sub">DR entries</div>
           </div>
         </div>
       )}
@@ -389,41 +465,6 @@ const Financial = () => {
           </ChartCard>
         )}
 
-        {loading && taxTrend.length === 0 ? (
-          <ChartSkeleton />
-        ) : (
-          <ChartCard
-            title="Tax Trend"
-            aiContext={taxTrend}
-            aiType="Monthly Tax Trend (CGST, SGST, IGST)"
-            extra={
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {['month', 'day'].map(g => (
-                  <button
-                    key={g}
-                    onClick={() => setTrendGroupBy(g)}
-                    style={{
-                      padding: '5px 12px', fontSize: '0.8rem', borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      background: trendGroupBy === g ? 'var(--primary-600)' : 'var(--bg-card)',
-                      color: trendGroupBy === g ? '#fff' : 'var(--text-primary)',
-                      cursor: 'pointer', fontWeight: 500
-                    }}
-                  >{g === 'month' ? 'Monthly' : 'Daily'}</button>
-                ))}
-              </div>
-            }
-          >
-            <Line
-              data={trendLineData}
-              options={{
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
-                scales: { y: moneyScaleY }
-              }}
-            />
-          </ChartCard>
-        )}
       </div>
 
       <div className="charts-grid" style={{ marginBottom: '24px' }}>
@@ -511,6 +552,25 @@ const Financial = () => {
                 disabled={invoicePage >= invoiceTotalPages || tableLoading}
                 style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', cursor: invoicePage >= invoiceTotalPages ? 'not-allowed' : 'pointer', opacity: invoicePage >= invoiceTotalPages ? 0.4 : 1 }}
               ><FiChevronRight /></button>
+            </div>
+            {/* Download all pages (respects current filters + search) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => downloadInvoices('excel')}
+                disabled={downloading}
+                title="Download entire filtered register as Excel"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--text-primary)', fontSize: '0.82rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer' }}
+              >
+                <FiDownload size={14} /> Excel
+              </button>
+              <button
+                onClick={() => downloadInvoices('pdf')}
+                disabled={downloading}
+                title="Download entire filtered register as PDF"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--text-primary)', fontSize: '0.82rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer' }}
+              >
+                <FiFileText size={14} /> {downloading ? 'Preparing…' : 'PDF'}
+              </button>
             </div>
           </div>
         </div>

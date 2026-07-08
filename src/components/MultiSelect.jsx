@@ -5,12 +5,14 @@ import { FiChevronDown, FiCheck } from 'react-icons/fi';
  * Lightweight multi-select dropdown (checkbox list) styled to match FilterBar.
  *
  * Props:
- *  - label:     placeholder shown when nothing is selected (e.g. "All Salespersons")
- *  - options:   string[] of selectable values
- *  - selected:  string[] currently-selected values (tolerates a bare string too)
- *  - onChange:  (nextArray) => void
+ *  - label:        placeholder shown when nothing is selected (e.g. "All Salespersons")
+ *  - options:      string[] of selectable values
+ *  - selected:     string[] currently-selected values (tolerates a bare string too)
+ *  - onChange:     (nextArray) => void
+ *  - formatOption: optional (value) => string for DISPLAY only (e.g. thickness "3" -> "3 MM").
+ *                  Selection values sent back through onChange stay the raw option.
  */
-const MultiSelect = ({ label, options = [], selected, onChange }) => {
+const MultiSelect = ({ label, options = [], selected, onChange, formatOption }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -31,20 +33,23 @@ const MultiSelect = ({ label, options = [], selected, onChange }) => {
     else onChange([...sel, val]);
   };
 
+  const fmt = (o) => (formatOption ? formatOption(o) : String(o));
+  const allSelected = options.length > 0 && sel.length === options.length;
+
   const display = sel.length === 0
     ? label
     : sel.length === 1
-      ? sel[0]
+      ? fmt(sel[0])
       : `${sel.length} selected`;
 
-  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+  const filtered = options.filter(o => fmt(o).toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div ref={ref} style={{ position: 'relative', minWidth: '150px' }}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        title={sel.length > 1 ? sel.join(', ') : undefined}
+        title={sel.length > 1 ? sel.map(fmt).join(', ') : undefined}
         style={{
           height: '42px', width: '100%', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', gap: '6px', padding: '0 12px',
@@ -77,15 +82,24 @@ const MultiSelect = ({ label, options = [], selected, onChange }) => {
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: '100%', padding: '6px 10px', marginBottom: '6px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', fontSize: '0.85rem' }}
           />
-          {sel.length > 0 && (
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
             <button
               type="button"
-              onClick={() => onChange([])}
-              style={{ width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' }}
+              onClick={() => onChange(allSelected ? [] : [...options])}
+              style={{ flex: 1, textAlign: 'center', padding: '6px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-light, #f8fafc)', color: 'var(--primary-600)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
             >
-              Clear selection
+              {allSelected ? 'Unselect all' : 'Select all'}
             </button>
-          )}
+            {sel.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                style={{ flex: 1, textAlign: 'center', padding: '6px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
           {filtered.length === 0 && (
             <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No matches</div>
           )}
@@ -100,7 +114,7 @@ const MultiSelect = ({ label, options = [], selected, onChange }) => {
                 <span style={{ width: '16px', height: '16px', borderRadius: '4px', border: `1.5px solid ${isSel ? 'var(--primary-600)' : 'var(--border-color)'}`, background: isSel ? 'var(--primary-600)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {isSel && <FiCheck size={12} color="#fff" />}
                 </span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmt(opt)}</span>
               </div>
             );
           })}

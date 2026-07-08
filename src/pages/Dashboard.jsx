@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
-import { FiDollarSign, FiShoppingCart, FiUsers, FiPackage, FiTrendingUp } from 'react-icons/fi';
-import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
 import FilterBar from '../components/FilterBar';
 import AIInsightButton from '../components/AIInsightButton';
@@ -19,7 +17,8 @@ import {
   getGeographic,
   getSalespersonList,
   getFilters,
-  getGradeBreakdown
+  getGradeBreakdown,
+  getZoneAnalysis
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
@@ -30,7 +29,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-    format: '', product: '', thickness: '', dimensions: ''
+    colour: [], thickness: [], format: '', product: '', dimensions: ''
   });
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
@@ -42,7 +41,8 @@ const Dashboard = () => {
     customers: null,
     geo: null,
     salespersons: null,
-    grades: null
+    grades: null,
+    zones: null
   });
 
   const fetchData = async () => {
@@ -50,7 +50,7 @@ const Dashboard = () => {
       setLoading(true);
       const [
         summaryRes, trendRes, productsRes,
-        customersRes, geoRes, spRes, gradeRes, filtersRes
+        customersRes, geoRes, spRes, gradeRes, zoneRes, filtersRes
       ] = await Promise.all([
         getDashboardSummary(filters),
         getRevenueTrend({ ...filters, groupBy: trendGroupBy }),
@@ -59,6 +59,7 @@ const Dashboard = () => {
         getGeographic({ ...filters, groupBy: 'state', sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
         getSalespersonList({ ...filters, sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
         getGradeBreakdown(filters),
+        getZoneAnalysis(filters),
         getFilters()
       ]);
 
@@ -69,7 +70,8 @@ const Dashboard = () => {
         customers: customersRes.data.data,
         geo: geoRes.data.data,
         salespersons: spRes.data.data,
-        grades: gradeRes.data.data
+        grades: gradeRes.data.data,
+        zones: zoneRes.data.data?.zones || []
       });
       setFilterOptions(filtersRes.data.data);
     } catch (error) {
@@ -158,6 +160,17 @@ const Dashboard = () => {
     }]
   };
 
+  // Revenue-by-Zone bar (segregated-format data only; zone is not on legacy records).
+  const zoneChartData = {
+    labels: data.zones?.map(z => z._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.zones?.map(z => metric === 'revenue' ? z.totalRevenue : z.totalQty) || [],
+      backgroundColor: '#8b5cf6',
+      borderRadius: 4
+    }]
+  };
+
   // Grade-wise revenue distribution (segregated format). Click a legend entry to
   // toggle that grade off the pie (native Chart.js legend behaviour).
   const GRADE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -216,36 +229,34 @@ const Dashboard = () => {
         <KPISkeleton />
       ) : data.summary && (
         <div className="kpi-grid">
-          <KPICard
-            title="Total Revenue"
-            value={formatCurrency(data.summary.totalRevenue)}
-            icon={<FiDollarSign />}
-            color="blue"
-          />
-          <KPICard
-            title="Total Orders"
-            value={formatNumber(data.summary.totalOrders)}
-            icon={<FiShoppingCart />}
-            color="green"
-          />
-          <KPICard
-            title="Avg Order Value"
-            value={formatCurrency(data.summary.avgOrderValue)}
-            icon={<FiTrendingUp />}
-            color="orange"
-          />
-          <KPICard
-            title="Unique Customers"
-            value={formatNumber(data.summary.uniqueCustomers)}
-            icon={<FiUsers />}
-            color="red"
-          />
-          <KPICard
-            title="Quantity Sold"
-            value={formatNumber(data.summary.totalQty)}
-            icon={<FiPackage />}
-            color="blue"
-          />
+          <div className="kpi-card">
+            <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
+            <div className="kpi-value">{formatCurrency(data.summary.totalRevenue)}</div>
+            <div className="kpi-sub">Bill amount</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Total Revenue (Excl. Taxes)</div>
+            <div className="kpi-value">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
+            <div className="kpi-sub">Assessable value</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Outstanding Amount</div>
+            <div className="kpi-value" style={{ color: 'var(--text-muted)' }}>—</div>
+            <div className="kpi-sub">Data coming soon</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Unique Customers</div>
+            <div className="kpi-value">{formatNumber(data.summary.uniqueCustomers)}</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Quantity Sold</div>
+            <div className="kpi-value">{formatNumber(data.summary.totalQty)}</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Top State by Revenue</div>
+            <div className="kpi-value" style={{ fontSize: '1.25rem' }}>{data.summary.topState || 'N/A'}</div>
+            <div className="kpi-sub">{formatCurrency(data.summary.topStateRevenue)}</div>
+          </div>
         </div>
       )}
 
@@ -259,37 +270,30 @@ const Dashboard = () => {
             aiType="Revenue Trend Data"
             fullWidth 
             extra={
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  onClick={() => setTrendGroupBy('day')} 
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: trendGroupBy === 'day' ? 'var(--primary-600)' : 'var(--bg-card)',
-                    color: trendGroupBy === 'day' ? '#fff' : 'var(--text-primary)',
-                    cursor: 'pointer',
-                    fontWeight: 500
-                  }}
-                >
-                  Days
-                </button>
-                <button 
-                  onClick={() => setTrendGroupBy('month')} 
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: trendGroupBy === 'month' ? 'var(--primary-600)' : 'var(--bg-card)',
-                    color: trendGroupBy === 'month' ? '#fff' : 'var(--text-primary)',
-                    cursor: 'pointer',
-                    fontWeight: 500
-                  }}
-                >
-                  Months
-                </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { k: 'day', label: 'Days' },
+                  { k: 'month', label: 'Months' },
+                  { k: 'quarter', label: 'Quarterly' },
+                  { k: 'halfyear', label: 'Half-Yearly' }
+                ].map(({ k, label }) => (
+                  <button
+                    key={k}
+                    onClick={() => setTrendGroupBy(k)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.85rem',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: trendGroupBy === k ? 'var(--primary-600)' : 'var(--bg-card)',
+                      color: trendGroupBy === k ? '#fff' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                      fontWeight: 500
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             }
           >
@@ -407,6 +411,26 @@ const Dashboard = () => {
             />
           </ChartCard>
         )}
+
+        {loading && !data.zones ? (
+          <ChartSkeleton />
+        ) : (data.zones && data.zones.length > 0) ? (
+          <ChartCard title={`${metricLabel} by Zone`} aiContext={data.zones} aiType="Zone-wise Revenue">
+            <Bar
+              data={zoneChartData}
+              plugins={[averageLinePlugin]}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false },
+                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
+                  tooltip: metricTooltip
+                },
+                scales: { y: metricScale }
+              }}
+            />
+          </ChartCard>
+        ) : null}
 
         {loading && !data.grades ? (
           <ChartSkeleton />

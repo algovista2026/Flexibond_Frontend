@@ -200,6 +200,10 @@ export const getSalespersonPerformance = (name, params) =>
   api.get(`salesperson/${encodeURIComponent(name)}/performance`, { params });
 export const getSalespersonComparison = (params) => api.get('salesperson/compare/all', { params });
 
+// Salesperson Targets
+export const getSalespersonTargets = (params) => api.get('salesperson/targets', { params });
+export const setSalespersonTarget = (payload) => api.put('salesperson/target', payload);
+
 // Channel (B2B vs B2C)
 export const getChannelSummary = (params) => api.get('channel/summary', { params });
 export const getChannelTrend = (params) => api.get('channel/trend', { params });
@@ -214,6 +218,7 @@ export const getFinancialTaxTrend = (params) => api.get('financials/tax-trend', 
 export const getFinancialStateWiseTax = (params) => api.get('financials/state-wise-tax', { params });
 export const getFinancialGSTTypeSplit = (params) => api.get('financials/gst-type-split', { params });
 export const getFinancialInvoices = (params) => api.get('financials/invoices', { params });
+export const getFinancialInvoicesAll = (params) => api.get('financials/invoices/all', { params });
 export const getFinancialFilters = () => api.get('financials/filters');
 
 // AI Insights
