@@ -71,10 +71,14 @@ const GlobalSearch = ({ onSearchSelect }) => {
       }
     });
 
-    // Search Thickness
+    // Search Thickness ("Type" column, e.g. "3 MM"). Thickness values are numeric (3, 4, 6),
+    // so match "3", "3mm" and "3 mm" (any case/spacing) — not just the bare number.
+    const qNumeric = lowerQuery.replace(/\s+/g, '').replace(/mm$/, '');  // "3 mm"/"3mm"/"3" -> "3"
     (data.thickness || []).forEach(thick => {
-      if (String(thick).toLowerCase().includes(lowerQuery)) {
-        results.push({ type: 'thickness', label: `${thick} mm`, raw: thick, icon: <FiGrid color="#8b5cf6" /> });
+      const t = String(thick).toLowerCase();            // "3"
+      // Exact or prefix match on the number so "3" → 3 (and 3.x) but "30" ≠ 3.
+      if (qNumeric !== '' && (t === qNumeric || t.startsWith(qNumeric))) {
+        results.push({ type: 'thickness', label: `${thick} MM`, raw: thick, icon: <FiGrid color="#8b5cf6" /> });
       }
     });
 
@@ -105,7 +109,9 @@ const GlobalSearch = ({ onSearchSelect }) => {
       salesperson: item.type === 'salesperson' ? item.label : '',
       product: item.type === 'product' ? item.label : '',
       category: item.type === 'category' ? item.label : '',
-      thickness: item.type === 'thickness' ? item.raw : '',
+      // Send as an array to match the multi-select thickness model (nicer "Thickness: 3 MM"
+      // chip + backend $in handling).
+      thickness: item.type === 'thickness' ? [item.raw] : '',
       dimensions: item.type === 'dimensions' ? item.label : '',
       city: item.type === 'city' ? item.label : ''
     };

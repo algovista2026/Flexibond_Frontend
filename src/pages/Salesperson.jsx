@@ -11,6 +11,7 @@ import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import { averageLinePlugin } from '../utils/averageLinePlugin';
 import { targetLinePlugin } from '../utils/targetLinePlugin';
+import TargetAmountInput, { SALESPERSON_TARGET_PRESETS } from '../components/TargetAmountInput';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
@@ -388,17 +389,11 @@ const Salesperson = () => {
                       ))}
                     </div>
 
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      {targetForm.mode === 'yearly' ? 'Annual target (₹)' : 'Monthly target (₹)'}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
+                    <TargetAmountInput
                       value={targetForm.amount}
-                      onChange={(e) => setTargetForm(f => ({ ...f, amount: e.target.value }))}
-                      placeholder="e.g. 500000"
-                      autoFocus
-                      style={{ width: '100%', padding: '10px 12px', margin: '6px 0 20px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                      onChange={(v) => setTargetForm(f => ({ ...f, amount: v }))}
+                      presets={SALESPERSON_TARGET_PRESETS}
+                      label={targetForm.mode === 'yearly' ? 'Annual target (₹)' : 'Monthly target (₹)'}
                     />
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
 import ChartCard from '../components/ChartCard';
 import FilterBar from '../components/FilterBar';
+import TargetAmountInput, { TURNOVER_TARGET_PRESETS } from '../components/TargetAmountInput';
 import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
@@ -349,15 +350,11 @@ const Dashboard = () => {
               Company-wide turnover target for the current fiscal year (April–March). The
               dashboard bar shows total revenue against this target.
             </p>
-            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Target amount (₹)</label>
-            <input
-              type="number"
-              min="0"
+            <TargetAmountInput
               value={targetForm}
-              onChange={(e) => setTargetForm(e.target.value)}
-              placeholder="e.g. 50000000"
-              autoFocus
-              style={{ width: '100%', padding: '10px 12px', margin: '6px 0 20px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
+              onChange={setTargetForm}
+              presets={TURNOVER_TARGET_PRESETS}
+              label="Target amount (₹)"
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button

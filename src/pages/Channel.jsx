@@ -151,6 +151,11 @@ const Channel = () => {
         <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>To</label>
         <input type="date" value={filters.endDate} onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))}
           style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', background: '#fff' }} />
+        {/* Master Product — placeholder, no behaviour yet */}
+        <button type="button" title="Master Product (coming soon)"
+          style={{ padding: '8px 14px', border: '1px dashed var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-light, #f8fafc)', cursor: 'not-allowed', whiteSpace: 'nowrap' }}>
+          Master Product
+        </button>
         <button onClick={applyFilters} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: 'var(--primary-500)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}>Apply</button>
         <button onClick={clearFilters} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}>Clear</button>
       </div>

@@ -23,6 +23,19 @@ export const formatINRShort = (v) => {
   return `${sign}₹${Math.round(a)}`;
 };
 
+// Spell out a rupee amount in Indian words, e.g. 1000000 -> "10 Lakh rupees",
+// 15000000 -> "1.5 Crore rupees", 50000 -> "50 Thousand rupees", 500 -> "500 rupees".
+// Used as a QoL hint under target-amount inputs. Returns '' for 0/blank.
+const trimNum = (x) => parseFloat(x.toFixed(2)).toLocaleString('en-IN');
+export const toIndianWords = (v) => {
+  const n = Math.round(Number(v) || 0);
+  if (n <= 0) return '';
+  if (n >= 1e7) return `${trimNum(n / 1e7)} Crore rupees`;
+  if (n >= 1e5) return `${trimNum(n / 1e5)} Lakh rupees`;
+  if (n >= 1e3) return `${trimNum(n / 1e3)} Thousand rupees`;
+  return `${n} rupees`;
+};
+
 // Same as above but without the ₹ symbol (for plain-quantity axes).
 export const formatShort = (v) => {
   const n = Number(v) || 0;

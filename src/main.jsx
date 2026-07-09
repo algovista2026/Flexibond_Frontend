@@ -16,6 +16,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import { percentBarPlugin } from './utils/percentBarPlugin';
 
 ChartJS.register(
   CategoryScale,
@@ -27,7 +28,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  percentBarPlugin
 );
 
 // Set default ChartJS styles

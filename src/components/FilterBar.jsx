@@ -27,6 +27,15 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
         style={{ height: '42px' }}
       />
 
+      {/* Master Product — placeholder, no behaviour yet */}
+      <button
+        type="button"
+        title="Master Product (coming soon)"
+        style={{ height: '42px', padding: '0 14px', borderRadius: '8px', border: '1px dashed var(--border-color)', background: 'var(--bg-light, #f8fafc)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', cursor: 'not-allowed', whiteSpace: 'nowrap' }}
+      >
+        Master Product
+      </button>
+
       {!hideSalesperson && options?.salespersons && options.salespersons.length > 0 && (
         <MultiSelect
           label="All Salespersons"

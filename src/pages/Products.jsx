@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Doughnut, Pie } from 'react-chartjs-2';
 import { FiBox, FiLayers, FiGrid, FiDroplet, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
@@ -14,7 +14,9 @@ import {
   getCategoryBreakdown,
   getColourAnalysis,
   getSizeAnalysis,
-  getFilters
+  getFilters,
+  getGradeBreakdown,
+  getZoneAnalysis
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
@@ -36,18 +38,22 @@ const Products = () => {
     categories: null,
     colours: null,
     thickness: null,
-    dimensions: null
+    dimensions: null,
+    zones: null,
+    grades: null
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const sortBy = metric === 'revenue' ? 'totalAmount' : 'totalQty';
-      const [productsRes, catRes, colourRes, sizeRes, filtersRes] = await Promise.all([
+      const [productsRes, catRes, colourRes, sizeRes, zoneRes, gradeRes, filtersRes] = await Promise.all([
         getTopProducts({ ...filters, limit: 15, sortBy, sortOrder }),
         getCategoryBreakdown({ ...filters, sortBy }),
         getColourAnalysis({ ...filters, limit: 15, sortBy }),
         getSizeAnalysis({ ...filters, sortBy }),
+        getZoneAnalysis(filters),
+        getGradeBreakdown(filters),
         getFilters()
       ]);
 
@@ -56,7 +62,9 @@ const Products = () => {
         categories: catRes.data.data,
         colours: colourRes.data.data,
         thickness: sizeRes.data.data.thickness,
-        dimensions: sizeRes.data.data.dimensions
+        dimensions: sizeRes.data.data.dimensions,
+        zones: zoneRes.data.data?.zones || [],
+        grades: gradeRes.data.data || []
       });
       setFilterOptions(filtersRes.data.data);
     } catch (error) {
@@ -133,6 +141,28 @@ const Products = () => {
       data: data.colours?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
       backgroundColor: '#10b981',
       borderRadius: 4
+    }]
+  };
+
+  const zoneChartData = {
+    labels: data.zones?.map(z => z._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.zones?.map(z => metric === 'revenue' ? z.totalRevenue : z.totalQty) || [],
+      backgroundColor: '#0ea5e9',
+      borderRadius: 4
+    }]
+  };
+
+  const GRADE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+  const gradeChartData = {
+    labels: data.grades?.map(g => g._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.grades?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
+      backgroundColor: (data.grades || []).map((_, i) => GRADE_COLORS[i % GRADE_COLORS.length]),
+      borderWidth: 2,
+      borderColor: '#fff'
     }]
   };
 
@@ -324,6 +354,47 @@ const Products = () => {
             />
           </ChartCard>
         )}
+
+        {loading && !data.zones ? (
+          <ChartSkeleton />
+        ) : (data.zones && data.zones.length > 0) ? (
+          <ChartCard title={`${metricLabel} by Zone`} aiContext={data.zones} aiType="Zone-wise Revenue">
+            <Bar
+              data={zoneChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: metricTooltip },
+                scales: { y: valScale }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {loading && !data.grades ? (
+          <ChartSkeleton />
+        ) : (data.grades && data.grades.length > 0) ? (
+          <ChartCard title={`Grade-wise ${metricLabel} Distribution`} aiContext={data.grades} aiType="Grade-wise Revenue Distribution">
+            <Pie
+              data={gradeChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => {
+                        const val = ctx.raw || 0;
+                        const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                        return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+                      }
+                    }
+                  }
+                }
+              }}
+            />
+          </ChartCard>
+        ) : null}
 
         {loading && !data.thickness ? (
           <ChartSkeleton />
