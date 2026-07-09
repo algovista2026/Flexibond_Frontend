@@ -50,6 +50,18 @@ const GlobalSearch = ({ onSearchSelect }) => {
     const lowerQuery = query.toLowerCase();
     const results = [];
 
+    // Search Thickness ("Type" column, e.g. "3 MM") FIRST so it always leads the results
+    // and is never pushed off by the 15-item cap when many products contain "3 mm".
+    // Thickness values are numeric (3, 4, 6); match "3", "3mm" and "3 mm" (any case/spacing).
+    const qNumeric = lowerQuery.replace(/\s+/g, '').replace(/mm$/, '');  // "3 mm"/"3mm"/"3" -> "3"
+    (data.thickness || []).forEach(thick => {
+      const t = String(thick).toLowerCase();            // "3"
+      // Exact or prefix match on the number so "3" → 3 (and 3.x) but "30" ≠ 3.
+      if (qNumeric !== '' && (t === qNumeric || t.startsWith(qNumeric))) {
+        results.push({ type: 'thickness', label: `${thick} MM`, raw: thick, icon: <FiGrid color="#8b5cf6" /> });
+      }
+    });
+
     // Search Salespersons
     (data.salespersons || []).forEach(name => {
       if (name.toLowerCase().includes(lowerQuery)) {
@@ -68,17 +80,6 @@ const GlobalSearch = ({ onSearchSelect }) => {
     (data.categories || []).forEach(cat => {
       if (cat.toLowerCase().includes(lowerQuery)) {
         results.push({ type: 'category', label: cat, icon: <FiBox color="#f59e0b" /> });
-      }
-    });
-
-    // Search Thickness ("Type" column, e.g. "3 MM"). Thickness values are numeric (3, 4, 6),
-    // so match "3", "3mm" and "3 mm" (any case/spacing) — not just the bare number.
-    const qNumeric = lowerQuery.replace(/\s+/g, '').replace(/mm$/, '');  // "3 mm"/"3mm"/"3" -> "3"
-    (data.thickness || []).forEach(thick => {
-      const t = String(thick).toLowerCase();            // "3"
-      // Exact or prefix match on the number so "3" → 3 (and 3.x) but "30" ≠ 3.
-      if (qNumeric !== '' && (t === qNumeric || t.startsWith(qNumeric))) {
-        results.push({ type: 'thickness', label: `${thick} MM`, raw: thick, icon: <FiGrid color="#8b5cf6" /> });
       }
     });
 
