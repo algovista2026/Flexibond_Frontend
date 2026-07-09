@@ -18,7 +18,9 @@ import {
   getSalespersonList,
   getFilters,
   getGradeBreakdown,
-  getZoneAnalysis
+  getZoneAnalysis,
+  getCompanyTarget,
+  setCompanyTarget
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
@@ -34,6 +36,11 @@ const Dashboard = () => {
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [filterOptions, setFilterOptions] = useState({});
+  const [companyTarget, setCompanyTargetState] = useState(null);
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [targetForm, setTargetForm] = useState('');
+  const [targetSaving, setTargetSaving] = useState(false);
+  const isAdmin = user.role === 'admin';
   const [data, setData] = useState({
     summary: null,
     trend: null,
@@ -102,6 +109,38 @@ const Dashboard = () => {
       });
     } else {
       setFilters(prev => ({ ...prev, ...newFilters }));
+    }
+  };
+
+  const fetchCompanyTarget = async () => {
+    try {
+      const res = await getCompanyTarget();
+      setCompanyTargetState(res.data.data);
+    } catch (err) {
+      console.error('Company target fetch error:', err);
+    }
+  };
+
+  useEffect(() => { fetchCompanyTarget(); }, []);
+
+  const openTargetModal = () => {
+    setTargetForm(companyTarget && companyTarget.amount ? String(companyTarget.amount) : '');
+    setShowTargetModal(true);
+  };
+
+  const saveCompanyTarget = async () => {
+    const amt = Number(targetForm);
+    if (!isFinite(amt) || amt < 0) return;
+    try {
+      setTargetSaving(true);
+      const res = await setCompanyTarget({ amount: amt });
+      setCompanyTargetState(res.data.data);
+      setShowTargetModal(false);
+    } catch (err) {
+      console.error(err);
+      alert(err?.response?.data?.message || 'Failed to save target');
+    } finally {
+      setTargetSaving(false);
     }
   };
 
@@ -229,6 +268,40 @@ const Dashboard = () => {
         <KPISkeleton />
       ) : data.summary && (
         <div className="kpi-grid">
+          {(() => {
+            const target = companyTarget?.amount || 0;
+            const achieved = data.summary.totalRevenue || 0;
+            const pct = target > 0 ? (achieved / target) * 100 : 0;
+            return (
+              <div className="kpi-card" style={{ gridColumn: 'span 2' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <div className="kpi-label">
+                    Target Turnover{companyTarget?.fiscalYear ? ` (FY ${companyTarget.fiscalYear})` : ''}
+                  </div>
+                  {isAdmin && (
+                    <button
+                      onClick={openTargetModal}
+                      title="Set target turnover"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--primary-600)', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      {target > 0 ? 'Edit' : 'Set'}
+                    </button>
+                  )}
+                </div>
+                <div className="kpi-value">{target > 0 ? formatCurrency(target) : '—'}</div>
+                <div style={{ marginTop: '10px' }}>
+                  <div style={{ height: '8px', borderRadius: '6px', background: 'var(--bg-light, #eef2f7)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct >= 100 ? 'var(--success)' : 'var(--primary-500)', borderRadius: '6px', transition: 'width 0.4s ease' }} />
+                  </div>
+                  <div className="kpi-sub" style={{ marginTop: '6px' }}>
+                    {target > 0
+                      ? `${formatCurrency(achieved)} achieved · ${Math.round(pct)}%`
+                      : (isAdmin ? 'Set a target to track achievement' : 'No target set')}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenue)}</div>
@@ -256,6 +329,51 @@ const Dashboard = () => {
             <div className="kpi-label">Top State by Revenue</div>
             <div className="kpi-value" style={{ fontSize: '1.25rem' }}>{data.summary.topState || 'N/A'}</div>
             <div className="kpi-sub">{formatCurrency(data.summary.topStateRevenue)}</div>
+          </div>
+        </div>
+      )}
+
+      {showTargetModal && (
+        <div
+          onClick={() => setShowTargetModal(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', padding: '24px', width: '100%', maxWidth: '420px', boxShadow: 'var(--shadow-md, 0 10px 30px rgba(0,0,0,0.2))' }}
+          >
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '4px' }}>
+              Set Target Turnover{companyTarget?.fiscalYear ? ` — FY ${companyTarget.fiscalYear}` : ''}
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '18px' }}>
+              Company-wide turnover target for the current fiscal year (April–March). The
+              dashboard bar shows total revenue against this target.
+            </p>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Target amount (₹)</label>
+            <input
+              type="number"
+              min="0"
+              value={targetForm}
+              onChange={(e) => setTargetForm(e.target.value)}
+              placeholder="e.g. 50000000"
+              autoFocus
+              style={{ width: '100%', padding: '10px 12px', margin: '6px 0 20px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setShowTargetModal(false)}
+                style={{ padding: '9px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCompanyTarget}
+                disabled={targetSaving || targetForm === ''}
+                style={{ padding: '9px 18px', borderRadius: '8px', border: 'none', background: 'var(--primary-600)', color: '#fff', cursor: targetSaving ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: (targetSaving || targetForm === '') ? 0.6 : 1 }}
+              >
+                {targetSaving ? 'Saving…' : 'Save Target'}
+              </button>
+            </div>
           </div>
         </div>
       )}

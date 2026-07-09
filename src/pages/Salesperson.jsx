@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FilterBar from '../components/FilterBar';
 import { getSalespersonList, getSalespersonPerformance, getFilters, setSalespersonTarget } from '../services/api';
 import { Bar, Doughnut, Line, Pie } from 'react-chartjs-2';
 import ChartCard from '../components/ChartCard';
-import { FiUsers, FiTarget, FiEdit2 } from 'react-icons/fi';
+import { FiUsers, FiTarget, FiEdit2, FiSearch, FiChevronDown } from 'react-icons/fi';
 import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
@@ -28,6 +28,57 @@ const SalespersonListSkeleton = () => (
     ))}
   </div>
 );
+
+// Searchable single-select dropdown to jump straight to a salesperson.
+const SalespersonPicker = ({ list, selected, onSelect }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  const names = (list || []).map(s => s._id);
+  const filtered = names.filter(n => String(n).toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div ref={ref} style={{ position: 'relative', minWidth: '260px', maxWidth: '380px', flex: '1 1 260px' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ height: '42px', width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', color: selected ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem' }}
+      >
+        <FiSearch size={15} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected || 'Search salesperson…'}</span>
+        <FiChevronDown size={16} style={{ flexShrink: 0 }} />
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50, width: '100%', maxHeight: '300px', overflowY: 'auto', background: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.12))', padding: '8px' }}>
+          <input
+            type="text"
+            autoFocus
+            placeholder="Type a name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '6px 10px', marginBottom: '6px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box' }}
+          />
+          {filtered.length === 0 && (
+            <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No matches</div>
+          )}
+          {filtered.map(n => (
+            <div
+              key={n}
+              onClick={() => { onSelect(n); setOpen(false); setSearch(''); }}
+              style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', background: n === selected ? 'var(--primary-50, #eff6ff)' : 'transparent', fontWeight: n === selected ? 600 : 400 }}
+            >
+              {n}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Salesperson = () => {
   const navigate = useNavigate();
@@ -193,6 +244,11 @@ const Salesperson = () => {
         }} 
         hideSalesperson={true}
       />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 20px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Jump to salesperson:</span>
+        <SalespersonPicker list={list} selected={selectedSP} onSelect={handleSelectSP} />
+      </div>
 
       <div className="salesperson-layout">
         {/* Left Sidebar - List */}

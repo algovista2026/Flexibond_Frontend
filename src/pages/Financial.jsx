@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
-import { FiDollarSign, FiPercent, FiFileText, FiTrendingUp, FiChevronLeft, FiChevronRight, FiSearch, FiX, FiDownload } from 'react-icons/fi';
+import { FiFileText, FiChevronLeft, FiChevronRight, FiSearch, FiX, FiDownload } from 'react-icons/fi';
 import ChartCard from '../components/ChartCard';
 import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
@@ -348,55 +348,46 @@ const Financial = () => {
       ) : summary && (
         <div className="kpi-grid">
           <div className="kpi-card">
-            <div className="kpi-icon green"><FiDollarSign /></div>
             <div className="kpi-label">Total Bill Amount</div>
             <div className="kpi-value">{formatCurrency(summary.totalBill)}</div>
             <div className="kpi-sub">Incl. taxes & other charges</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon blue"><FiDollarSign /></div>
             <div className="kpi-label">Assessable Values</div>
             <div className="kpi-value">{formatCurrency(summary.totalAssessable)}</div>
             <div className="kpi-sub">{formatNumber(summary.invoiceCount)} invoices</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon blue"><FiFileText /></div>
             <div className="kpi-label">CGST</div>
             <div className="kpi-value">{formatCurrency(summary.totalCGST)}</div>
             <div className="kpi-sub">Intra-state</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon green"><FiFileText /></div>
             <div className="kpi-label">SGST</div>
             <div className="kpi-value">{formatCurrency(summary.totalSGST)}</div>
             <div className="kpi-sub">Intra-state</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon orange"><FiFileText /></div>
             <div className="kpi-label">IGST</div>
             <div className="kpi-value">{formatCurrency(summary.totalIGST)}</div>
             <div className="kpi-sub">Inter-state</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon orange"><FiTrendingUp /></div>
             <div className="kpi-label">Total Tax Collected</div>
             <div className="kpi-value">{formatCurrency(summary.totalTax)}</div>
             <div className="kpi-sub">CGST + SGST + IGST + Cess</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon red"><FiPercent /></div>
             <div className="kpi-label">Effective Tax Rate</div>
             <div className="kpi-value">{summary.effectiveTaxRate}%</div>
             <div className="kpi-sub">Tax / Assessable Value</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon green"><FiFileText /></div>
             <div className="kpi-label">Credit Notes</div>
             <div className="kpi-value">{formatNumber(summary.creditNotes)}</div>
             <div className="kpi-sub">CR entries</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-icon red"><FiFileText /></div>
             <div className="kpi-label">Debit Note</div>
             <div className="kpi-value">{formatNumber(summary.debitNotes)}</div>
             <div className="kpi-sub">DR entries</div>
