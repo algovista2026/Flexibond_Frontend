@@ -16,6 +16,7 @@ import {
   getSizeAnalysis,
   getFilters,
   getGradeBreakdown,
+  getGroupBreakdown,
   getZoneAnalysis
 } from '../services/api';
 
@@ -40,20 +41,26 @@ const Products = () => {
     thickness: null,
     dimensions: null,
     zones: null,
-    grades: null
+    grades: null,
+    groups: null
   });
+  // Drill-down pie: which group is expanded, and its per-product distribution.
+  const [drillGroup, setDrillGroup] = useState(null);
+  const [drillData, setDrillData] = useState(null);
+  const [drillLoading, setDrillLoading] = useState(false);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const sortBy = metric === 'revenue' ? 'totalAmount' : 'totalQty';
-      const [productsRes, catRes, colourRes, sizeRes, zoneRes, gradeRes, filtersRes] = await Promise.all([
+      const [productsRes, catRes, colourRes, sizeRes, zoneRes, gradeRes, groupRes, filtersRes] = await Promise.all([
         getTopProducts({ ...filters, limit: 15, sortBy, sortOrder }),
         getCategoryBreakdown({ ...filters, sortBy }),
         getColourAnalysis({ ...filters, limit: 15, sortBy }),
         getSizeAnalysis({ ...filters, sortBy }),
         getZoneAnalysis(filters),
         getGradeBreakdown(filters),
+        getGroupBreakdown(filters),
         getFilters()
       ]);
 
@@ -64,8 +71,12 @@ const Products = () => {
         thickness: sizeRes.data.data.thickness,
         dimensions: sizeRes.data.data.dimensions,
         zones: zoneRes.data.data?.zones || [],
-        grades: gradeRes.data.data || []
+        grades: gradeRes.data.data || [],
+        groups: groupRes.data.data || []
       });
+      // Any filter/metric change invalidates the open drill-down.
+      setDrillGroup(null);
+      setDrillData(null);
       setFilterOptions(filtersRes.data.data);
     } catch (error) {
       console.error('Error fetching product data:', error);
@@ -93,6 +104,23 @@ const Products = () => {
       });
     } else {
       setFilters(prev => ({ ...prev, ...newFilters }));
+    }
+  };
+
+  // Drill into a group slice → fetch that group's per-product distribution for the 2nd pie.
+  const handleGroupDrill = async (group) => {
+    if (!group) return;
+    if (group === drillGroup) { setDrillGroup(null); setDrillData(null); return; } // toggle off
+    setDrillGroup(group);
+    setDrillLoading(true);
+    try {
+      const res = await getGroupBreakdown({ ...filters, drillGroup: group });
+      setDrillData(res.data.data || []);
+    } catch (error) {
+      console.error('Error fetching group drill-down:', error);
+      setDrillData([]);
+    } finally {
+      setDrillLoading(false);
     }
   };
 
@@ -164,6 +192,39 @@ const Products = () => {
       borderWidth: 2,
       borderColor: '#fff'
     }]
+  };
+
+  // Group distribution pie (FB / FM / FN / Base …) — click a slice to drill down.
+  const GROUP_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+  const groupChartData = {
+    labels: data.groups?.map(g => g._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.groups?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
+      backgroundColor: (data.groups || []).map((_, i) => GROUP_COLORS[i % GROUP_COLORS.length]),
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  };
+  const groupDrillChartData = {
+    labels: drillData?.map(d => d._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: drillData?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
+      backgroundColor: (drillData || []).map((_, i) => GROUP_COLORS[i % GROUP_COLORS.length]),
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  };
+  const piePctTooltip = {
+    callbacks: {
+      label: (ctx) => {
+        const val = ctx.raw || 0;
+        const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+        return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+      }
+    }
   };
 
   const thicknessChartData = {
@@ -394,6 +455,73 @@ const Products = () => {
               }}
             />
           </ChartCard>
+        ) : null}
+
+        {loading && !data.groups ? (
+          <ChartSkeleton />
+        ) : (data.groups && data.groups.length > 0) ? (
+          <div style={{ gridColumn: drillGroup ? '1 / -1' : 'auto', display: 'grid', gridTemplateColumns: drillGroup ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: '20px' }}>
+            <ChartCard
+              title={`Group-wise ${metricLabel} Distribution`}
+              aiContext={data.groups}
+              aiType="Group-wise Distribution"
+              extra={<span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Click a slice to drill in</span>}
+            >
+              <Pie
+                data={groupChartData}
+                options={{
+                  maintainAspectRatio: false,
+                  onClick: (_evt, elements) => {
+                    if (elements && elements.length > 0) {
+                      handleGroupDrill(data.groups[elements[0].index]?._id);
+                    }
+                  },
+                  onHover: (evt, elements) => {
+                    evt.native.target.style.cursor = elements && elements.length ? 'pointer' : 'default';
+                  },
+                  plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                    tooltip: piePctTooltip
+                  }
+                }}
+              />
+            </ChartCard>
+
+            {drillGroup && (
+              drillLoading ? (
+                <ChartSkeleton />
+              ) : (
+                <ChartCard
+                  title={`${drillGroup} — Product Distribution`}
+                  aiContext={drillData}
+                  aiType={`Products within group ${drillGroup}`}
+                  extra={
+                    <button
+                      onClick={() => { setDrillGroup(null); setDrillData(null); }}
+                      style={{ border: '1px solid var(--border-color)', borderRadius: '6px', background: '#fff', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', padding: '4px 10px' }}
+                    >
+                      ✕ Close
+                    </button>
+                  }
+                >
+                  {(drillData && drillData.length > 0) ? (
+                    <Pie
+                      data={groupDrillChartData}
+                      options={{
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 11 } } },
+                          tooltip: piePctTooltip
+                        }
+                      }}
+                    />
+                  ) : (
+                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>No products in this group.</p>
+                  )}
+                </ChartCard>
+              )
+            )}
+          </div>
         ) : null}
 
         {loading && !data.thickness ? (
