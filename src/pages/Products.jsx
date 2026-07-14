@@ -29,7 +29,7 @@ const Products = () => {
   const [metric, setMetric] = useState('revenue');
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
   const [filters, setFilters] = useState({
-    startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+    startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
     format: '', product: '', thickness: '', dimensions: ''
   });
   const [filterOptions, setFilterOptions] = useState({});
@@ -205,7 +205,7 @@ const Products = () => {
         </div>
       </div>
 
-      <FilterBar filters={filters} options={filterOptions} onFilterChange={handleFilterChange} />
+      <FilterBar filters={filters} options={filterOptions} onFilterChange={handleFilterChange} showGroup />
 
       {data.products && (
         <div style={{ marginBottom: '24px' }}>

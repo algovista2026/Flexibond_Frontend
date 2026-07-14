@@ -151,6 +151,9 @@ const Dashboard = () => {
   // Metric-aware Indian-notation formatters for chart axes/tooltips.
   const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
   const metricScale = { ticks: { callback: v => axisFmt(v) } };
+  // Force every category label to render (no auto-skip) so narrow/mobile widths
+  // don't hide states/zones; Chart.js only rotates steeper when it needs to.
+  const categoryScale = { ticks: { autoSkip: false, maxRotation: 90, minRotation: 0, font: { size: 11 } } };
   const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
   // Chart Configs
@@ -521,7 +524,7 @@ const Dashboard = () => {
                   averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
                   tooltip: metricTooltip
                 },
-                scales: { y: metricScale }
+                scales: { y: metricScale, x: categoryScale }
               }}
             />
           </ChartCard>
@@ -541,7 +544,7 @@ const Dashboard = () => {
                   averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
                   tooltip: metricTooltip
                 },
-                scales: { y: metricScale }
+                scales: { y: metricScale, x: categoryScale }
               }}
             />
           </ChartCard>

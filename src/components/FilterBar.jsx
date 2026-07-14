@@ -2,7 +2,7 @@ import React from 'react';
 import { FiInfo, FiX } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
 
-const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }) => {
+const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, showGroup = false }) => {
   return (
     <>
       <div className="filter-bar">
@@ -80,6 +80,15 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
         </div>
       )}
 
+      {showGroup && options?.groups && options.groups.length > 0 && (
+        <MultiSelect
+          label="All Groups"
+          options={options.groups}
+          selected={filters.group}
+          onChange={(vals) => onFilterChange({ group: vals })}
+        />
+      )}
+
       {options?.zones && options.zones.length > 0 && (
         <MultiSelect
           label="All Zones"
@@ -123,7 +132,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
         className="btn-secondary"
         onClick={() => onFilterChange({
           startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-          colour: [], thickness: [], format: '', product: '', dimensions: '', city: ''
+          colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: []
         }, true)}
       >
         Clear Filters
@@ -139,7 +148,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
 const CHIP_LABELS = {
   salesperson: 'Salesperson', category: 'Category', state: 'State', grade: 'Grade',
   zone: 'Zone', colour: 'Colour', thickness: 'Thickness', product: 'Product',
-  dimensions: 'Size', city: 'City'
+  dimensions: 'Size', city: 'City', group: 'Group'
 };
 
 const AppliedFilters = ({ filters, onFilterChange }) => {
