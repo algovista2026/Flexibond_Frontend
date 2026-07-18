@@ -11,8 +11,10 @@ import { FiChevronDown, FiCheck } from 'react-icons/fi';
  *  - onChange:     (nextArray) => void
  *  - formatOption: optional (value) => string for DISPLAY only (e.g. thickness "3" -> "3 MM").
  *                  Selection values sent back through onChange stay the raw option.
+ *  - accent:       optional hex colour (e.g. "#d97706") to render this dropdown prominently
+ *                  (coloured border/fill), used to make the Master filter stand out.
  */
-const MultiSelect = ({ label, options = [], selected, onChange, formatOption }) => {
+const MultiSelect = ({ label, options = [], selected, onChange, formatOption, accent }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -44,6 +46,15 @@ const MultiSelect = ({ label, options = [], selected, onChange, formatOption }) 
 
   const filtered = options.filter(o => fmt(o).toLowerCase().includes(search.toLowerCase()));
 
+  // When `accent` is set, the control renders prominently in that colour (always tinted,
+  // bolder when a value is chosen) so it visually stands out from the other filters.
+  const accentBtn = accent ? {
+    border: `2px solid ${accent}`,
+    background: sel.length ? `${accent}26` : `${accent}12`,
+    color: accent,
+    fontWeight: 600
+  } : {};
+
   return (
     <div ref={ref} style={{ position: 'relative', minWidth: '150px' }}>
       <button
@@ -57,7 +68,8 @@ const MultiSelect = ({ label, options = [], selected, onChange, formatOption }) 
           background: sel.length ? 'var(--primary-50, #eff6ff)' : '#fff',
           color: sel.length ? 'var(--primary-600)' : 'var(--text-primary)',
           fontWeight: sel.length ? 600 : 400, cursor: 'pointer', fontSize: '0.9rem',
-          whiteSpace: 'nowrap', overflow: 'hidden'
+          whiteSpace: 'nowrap', overflow: 'hidden',
+          ...accentBtn
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{display}</span>

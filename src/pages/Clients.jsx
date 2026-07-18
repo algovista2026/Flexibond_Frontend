@@ -34,10 +34,11 @@ const Clients = () => {
   const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
   const metricVal = (row) => metric === 'revenue' ? (row.revenue ?? row.totalAmount) : (row.qty ?? row.totalQty);
 
-  // Filter options + client leaderboard (re-fetched whenever filters change).
+  // Filter options — cascaded: re-fetched with the current filters so each dropdown only
+  // offers values that still return rows (e.g. Master trims the others).
   useEffect(() => {
-    getFilters().then(res => setFilterOptions(res.data.data)).catch(() => {});
-  }, []);
+    getFilters(filters).then(res => setFilterOptions(res.data.data)).catch(() => {});
+  }, [filters]);
 
   useEffect(() => {
     setListLoading(true);

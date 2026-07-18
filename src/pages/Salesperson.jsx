@@ -93,7 +93,7 @@ const Salesperson = () => {
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group1: [], master: []
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
   });
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetForm, setTargetForm] = useState({ amount: '', mode: 'monthly' });
@@ -113,7 +113,7 @@ const Salesperson = () => {
 
   const fetchOptions = async () => {
     try {
-      const res = await getFilters();
+      const res = await getFilters(filters);
       setFilterOptions(res.data.data);
     } catch (err) {
       console.error(err);

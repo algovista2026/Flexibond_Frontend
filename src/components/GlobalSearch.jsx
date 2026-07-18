@@ -50,15 +50,15 @@ const GlobalSearch = ({ onSearchSelect }) => {
     const lowerQuery = query.toLowerCase();
     const results = [];
 
-    // Search Thickness ("Type" column, e.g. "3 MM") FIRST so it always leads the results
-    // and is never pushed off by the 15-item cap when many products contain "3 mm".
-    // Thickness values are numeric (3, 4, 6); match "3", "3mm" and "3 mm" (any case/spacing).
-    const qNumeric = lowerQuery.replace(/\s+/g, '').replace(/mm$/, '');  // "3 mm"/"3mm"/"3" -> "3"
+    // Search Thickness ("Type" column) FIRST so it always leads the results and is never
+    // pushed off by the 15-item cap. Values are now the RAW Type-column strings ("4 MM",
+    // "150 mm x 60 mm"); match on a space-insensitive substring so "4mm" finds "4 MM".
+    const qNorm = lowerQuery.replace(/\s+/g, '');
     (data.thickness || []).forEach(thick => {
-      const t = String(thick).toLowerCase();            // "3"
-      // Exact or prefix match on the number so "3" → 3 (and 3.x) but "30" ≠ 3.
-      if (qNumeric !== '' && (t === qNumeric || t.startsWith(qNumeric))) {
-        results.push({ type: 'thickness', label: `${thick} MM`, raw: thick, icon: <FiGrid color="#8b5cf6" /> });
+      const t = String(thick);
+      const tNorm = t.toLowerCase().replace(/\s+/g, '');
+      if (qNorm !== '' && tNorm.includes(qNorm)) {
+        results.push({ type: 'thickness', label: t, raw: t, icon: <FiGrid color="#8b5cf6" /> });
       }
     });
 

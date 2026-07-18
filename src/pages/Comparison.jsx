@@ -28,7 +28,7 @@ const Comparison = () => {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
-    product: '', thickness: '', dimensions: '', city: ''
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
   });
   const [filterOptions, setFilterOptions] = useState({});
 
@@ -39,7 +39,7 @@ const Comparison = () => {
 
   const fetchOptions = async () => {
     try {
-      const res = await getFilters();
+      const res = await getFilters(filters);
       setFilterOptions(res.data.data);
     } catch (err) {
       console.error(err);
@@ -218,7 +218,7 @@ const Comparison = () => {
           if (clear) {
             setFilters({
               startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
-              product: '', thickness: '', dimensions: '', city: ''
+              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
             });
           } else {
             setFilters(prev => ({ ...prev, ...newFilters }));

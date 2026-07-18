@@ -27,6 +27,18 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         style={{ height: '42px' }}
       />
 
+      {/* Master — the headline product classification. Placed first (next to the dates) and
+          styled prominently in amber so it stands out from the other filters. */}
+      {options?.masters && options.masters.length > 0 && (
+        <MultiSelect
+          label="Master"
+          options={options.masters}
+          selected={filters.master}
+          accent="#d97706"
+          onChange={(vals) => onFilterChange({ master: vals })}
+        />
+      )}
+
       {!hideSalesperson && options?.salespersons && options.salespersons.length > 0 && (
         <MultiSelect
           label="All Salespersons"
@@ -71,7 +83,8 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         </div>
       )}
 
-      {showGroup && options?.groups && options.groups.length > 0 && (
+      {/* Group is now universal (all pages), not Products-only. */}
+      {options?.groups && options.groups.length > 0 && (
         <MultiSelect
           label="All Groups"
           options={options.groups}
@@ -86,15 +99,6 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           options={options.group1s}
           selected={filters.group1}
           onChange={(vals) => onFilterChange({ group1: vals })}
-        />
-      )}
-
-      {options?.masters && options.masters.length > 0 && (
-        <MultiSelect
-          label="All Master"
-          options={options.masters}
-          selected={filters.master}
-          onChange={(vals) => onFilterChange({ master: vals })}
         />
       )}
 
@@ -118,10 +122,9 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {options?.thickness && options.thickness.length > 0 && (
         <MultiSelect
-          label="All Thicknesses"
+          label="All Types"
           options={options.thickness}
           selected={filters.thickness}
-          formatOption={(v) => `${v} MM`}
           onChange={(vals) => onFilterChange({ thickness: vals })}
         />
       )}
@@ -169,7 +172,7 @@ const AppliedFilters = ({ filters, onFilterChange }) => {
   Object.entries(CHIP_LABELS).forEach(([key, label]) => {
     const v = filters[key];
     if (Array.isArray(v)) {
-      v.forEach(val => chips.push({ key, val, text: `${label}: ${key === 'thickness' ? `${val} MM` : val}` }));
+      v.forEach(val => chips.push({ key, val, text: `${label}: ${val}` }));
     } else if (v) {
       chips.push({ key, scalar: true, text: `${label}: ${v}` });
     }

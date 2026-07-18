@@ -61,7 +61,7 @@ const Products = () => {
         getZoneAnalysis(filters),
         getGradeBreakdown(filters),
         getGroupBreakdown(filters),
-        getFilters()
+        getFilters(filters)
       ]);
 
       setData({

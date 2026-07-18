@@ -191,7 +191,8 @@ export const getZoneAnalysis = (params) => api.get('dashboard/zone-analysis', { 
 export const getGeographic = (params) => api.get('dashboard/geographic', { params });
 export const getColourAnalysis = (params) => api.get('dashboard/colour-analysis', { params });
 export const getSizeAnalysis = (params) => api.get('dashboard/size-analysis', { params });
-export const getFilters = () => api.get('dashboard/filters');
+// Pass the current filters to get cascading (faceted) option lists; omit for the full set.
+export const getFilters = (params) => api.get('dashboard/filters', { params });
 export const getProductComparison = (params) => api.get('dashboard/product-comparison', { params });
 export const getCompanyTarget = (params) => api.get('dashboard/company-target', { params });
 export const setCompanyTarget = (payload) => api.put('dashboard/company-target', payload);
