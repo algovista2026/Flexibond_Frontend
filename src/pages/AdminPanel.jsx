@@ -43,6 +43,7 @@ const AdminPanel = () => {
     { id: 'products', label: 'Product Analytics' },
     { id: 'salesperson', label: 'Salesperson Performance' },
     { id: 'comparison', label: 'Salesperson Comparison' },
+    { id: 'clients', label: 'Client Analytics' },
     { id: 'financials', label: 'Financials (Tax & GST)' },
     { id: 'channel', label: 'Channel (B2B vs B2C)' },
     { id: 'upload', label: 'Data Upload Area' },

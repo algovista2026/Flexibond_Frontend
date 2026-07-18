@@ -196,6 +196,11 @@ export const getProductComparison = (params) => api.get('dashboard/product-compa
 export const getCompanyTarget = (params) => api.get('dashboard/company-target', { params });
 export const setCompanyTarget = (payload) => api.put('dashboard/company-target', payload);
 
+// Clients (Account-level analytics)
+export const getClients = (params) => api.get('clients', { params });
+export const getClientOrders = (name, params) => api.get(`clients/${encodeURIComponent(name)}/orders`, { params });
+export const getClientAnalysis = (name, params) => api.get(`clients/${encodeURIComponent(name)}/analysis`, { params });
+
 // Salesperson
 export const getSalespersonList = (params) => api.get('salesperson/list', { params });
 export const getGeoAnalytics = (params) => api.get('salesperson/geo-analytics', { params });

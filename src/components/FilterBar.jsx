@@ -27,15 +27,6 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         style={{ height: '42px' }}
       />
 
-      {/* Master Product — placeholder, no behaviour yet */}
-      <button
-        type="button"
-        title="Master Product (coming soon)"
-        style={{ height: '42px', padding: '0 14px', borderRadius: '8px', border: '1px dashed var(--border-color)', background: 'var(--bg-light, #f8fafc)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', cursor: 'not-allowed', whiteSpace: 'nowrap' }}
-      >
-        Master Product
-      </button>
-
       {!hideSalesperson && options?.salespersons && options.salespersons.length > 0 && (
         <MultiSelect
           label="All Salespersons"
@@ -89,6 +80,24 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         />
       )}
 
+      {options?.group1s && options.group1s.length > 0 && (
+        <MultiSelect
+          label="All Group 1"
+          options={options.group1s}
+          selected={filters.group1}
+          onChange={(vals) => onFilterChange({ group1: vals })}
+        />
+      )}
+
+      {options?.masters && options.masters.length > 0 && (
+        <MultiSelect
+          label="All Master"
+          options={options.masters}
+          selected={filters.master}
+          onChange={(vals) => onFilterChange({ master: vals })}
+        />
+      )}
+
       {options?.zones && options.zones.length > 0 && (
         <MultiSelect
           label="All Zones"
@@ -132,7 +141,8 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         className="btn-secondary"
         onClick={() => onFilterChange({
           startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-          colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: []
+          colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
+          group1: [], master: []
         }, true)}
       >
         Clear Filters
@@ -148,7 +158,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 const CHIP_LABELS = {
   salesperson: 'Salesperson', category: 'Category', state: 'State', grade: 'Grade',
   zone: 'Zone', colour: 'Colour', thickness: 'Thickness', product: 'Product',
-  dimensions: 'Size', city: 'City', group: 'Group'
+  dimensions: 'Size', city: 'City', group: 'Group', group1: 'Group 1', master: 'Master'
 };
 
 const AppliedFilters = ({ filters, onFilterChange }) => {
@@ -181,7 +191,8 @@ const AppliedFilters = ({ filters, onFilterChange }) => {
 
   const clearAll = () => onFilterChange({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', city: ''
+    colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
+    group1: [], master: []
   }, true);
 
   return (

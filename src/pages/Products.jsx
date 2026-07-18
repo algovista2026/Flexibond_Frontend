@@ -31,7 +31,7 @@ const Products = () => {
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    format: '', product: '', thickness: '', dimensions: ''
+    format: '', product: '', thickness: '', dimensions: '', group1: [], master: []
   });
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
@@ -99,8 +99,8 @@ const Products = () => {
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
       setFilters({
-        startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-        format: '', product: '', thickness: '', dimensions: ''
+        startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
+        format: '', product: '', thickness: '', dimensions: '', group1: [], master: []
       });
     } else {
       setFilters(prev => ({ ...prev, ...newFilters }));

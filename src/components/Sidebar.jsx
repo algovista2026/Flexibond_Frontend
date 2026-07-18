@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiLayers } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiLayers, FiBriefcase } from 'react-icons/fi';
 import NotificationPanel from './NotificationPanel';
 import './Sidebar.css';
 
@@ -17,7 +17,7 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   };
 
   const isAdmin = user.role === 'admin';
-  const permissions = user.permissions || ['overview', 'products', 'salesperson', 'comparison', 'upload', 'financials', 'channel'];
+  const permissions = user.permissions || ['overview', 'products', 'salesperson', 'comparison', 'clients', 'upload', 'financials', 'channel'];
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
@@ -55,6 +55,12 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           <NavLink to="/comparison" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiBarChart2 className="nav-icon" />
             <span>Salesperson Comparison</span>
+          </NavLink>
+        )}
+        {(isAdmin || permissions.includes('clients')) && (
+          <NavLink to="/clients" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiBriefcase className="nav-icon" />
+            <span>Clients</span>
           </NavLink>
         )}
         {(isAdmin || permissions.includes('salesperson')) && (

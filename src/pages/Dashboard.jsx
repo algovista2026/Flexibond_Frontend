@@ -32,7 +32,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: ''
+    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: []
   });
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
@@ -106,7 +106,7 @@ const Dashboard = () => {
     if (clear) {
       setFilters({
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-        format: '', product: '', thickness: '', dimensions: ''
+        format: '', product: '', thickness: '', dimensions: '', group1: [], master: []
       });
     } else {
       setFilters(prev => ({ ...prev, ...newFilters }));

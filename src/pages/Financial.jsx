@@ -300,14 +300,6 @@ const Financial = () => {
           onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))}
           style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', background: '#fff' }}
         />
-        {/* Master Product — placeholder, no behaviour yet */}
-        <button
-          type="button"
-          title="Master Product (coming soon)"
-          style={{ padding: '8px 14px', border: '1px dashed var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-light, #f8fafc)', cursor: 'not-allowed', whiteSpace: 'nowrap' }}
-        >
-          Master Product
-        </button>
         <select
           value={filters.salesperson}
           onChange={e => setFilters(f => ({ ...f, salesperson: e.target.value }))}
