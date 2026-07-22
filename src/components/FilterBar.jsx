@@ -41,7 +41,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {!hideSalesperson && options?.salespersons && options.salespersons.length > 0 && (
         <MultiSelect
-          label="All Salespersons"
+          label="Sales man"
           options={options.salespersons}
           selected={filters.salesperson}
           onChange={(vals) => onFilterChange({ salesperson: vals })}
@@ -50,7 +50,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {options?.categories && options.categories.length > 0 && (
         <MultiSelect
-          label="All Categories"
+          label="Categry"
           options={options.categories}
           selected={filters.category}
           onChange={(vals) => onFilterChange({ category: vals })}
@@ -59,7 +59,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {options?.states && options.states.length > 0 && (
         <MultiSelect
-          label="All States"
+          label="State"
           options={options.states}
           selected={filters.state}
           onChange={(vals) => onFilterChange({ state: vals })}
@@ -69,7 +69,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
       {options?.grades && options.grades.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <MultiSelect
-            label="All Grades"
+            label="Grade"
             options={options.grades}
             selected={filters.grade}
             onChange={(vals) => onFilterChange({ grade: vals })}
@@ -83,10 +83,11 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         </div>
       )}
 
-      {/* Group is now universal (all pages), not Products-only. */}
+      {/* Group is now universal (all pages), not Products-only. Sourced from the "TYpe1"
+          column now (was "Group"); labelled to match the sheet. */}
       {options?.groups && options.groups.length > 0 && (
         <MultiSelect
-          label="All Groups"
+          label="TYpe1"
           options={options.groups}
           selected={filters.group}
           onChange={(vals) => onFilterChange({ group: vals })}
@@ -95,7 +96,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {options?.group1s && options.group1s.length > 0 && (
         <MultiSelect
-          label="All Group 1"
+          label="TYpe2"
           options={options.group1s}
           selected={filters.group1}
           onChange={(vals) => onFilterChange({ group1: vals })}
@@ -104,7 +105,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {options?.zones && options.zones.length > 0 && (
         <MultiSelect
-          label="All Zones"
+          label="Zone"
           options={options.zones}
           selected={filters.zone}
           onChange={(vals) => onFilterChange({ zone: vals })}
@@ -113,7 +114,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {options?.colours && options.colours.length > 0 && (
         <MultiSelect
-          label="All Colours"
+          label="Colour"
           options={options.colours}
           selected={filters.colour}
           onChange={(vals) => onFilterChange({ colour: vals })}
@@ -122,7 +123,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
       {options?.thickness && options.thickness.length > 0 && (
         <MultiSelect
-          label="All Types"
+          label="Type"
           options={options.thickness}
           selected={filters.thickness}
           onChange={(vals) => onFilterChange({ thickness: vals })}
@@ -158,10 +159,11 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 };
 
 // Field labels + how each active filter is rendered as a removable chip below the bar.
+// Labels mirror the real spreadsheet column names (temporary — see imp.md).
 const CHIP_LABELS = {
-  salesperson: 'Salesperson', category: 'Category', state: 'State', grade: 'Grade',
-  zone: 'Zone', colour: 'Colour', thickness: 'Thickness', product: 'Product',
-  dimensions: 'Size', city: 'City', group: 'Group', group1: 'Group 1', master: 'Master'
+  salesperson: 'Sales man', category: 'Categry', state: 'State', grade: 'Grade',
+  zone: 'Zone', colour: 'Colour', thickness: 'Type', product: 'Product',
+  dimensions: 'Size', city: 'City', group: 'TYpe1', group1: 'TYpe2', master: 'Master'
 };
 
 const AppliedFilters = ({ filters, onFilterChange }) => {

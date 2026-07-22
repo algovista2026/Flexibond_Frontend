@@ -349,7 +349,7 @@ const Products = () => {
         {loading && !data.categories ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={filters.category ? `Products in ${filters.category}` : "Category Breakdown"} aiContext={data.categories} aiType="Product Categories">
+          <ChartCard title={filters.category?.length ? `Categories in ${filters.category.join(', ')}` : "Categories in"} aiContext={data.categories} aiType="Product Categories">
             <div className="donut-container">
               <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                 <Doughnut
@@ -588,7 +588,7 @@ const Products = () => {
                   {data.products?.map((p, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 500 }}>{p._id}</td>
-                      <td>{p.categoryCode || '—'}</td>
+                      <td>{p.category || '—'}</td>
                       <td>{formatNumber(p.totalQty)}</td>
                       <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>{formatCurrency(p.totalAmount)}</td>
                       <td>{formatCurrency(p.avgRate)}</td>
