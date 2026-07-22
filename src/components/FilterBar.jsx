@@ -130,17 +130,6 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         />
       )}
 
-      {/* Old-vs-new data comparison toggle (single-select) */}
-      <select
-        value={filters.format || ''}
-        onChange={(e) => onFilterChange({ format: e.target.value })}
-        title="Data format"
-      >
-        <option value="">All Data</option>
-        <option value="segregated">New format</option>
-        <option value="legacy">Legacy format</option>
-      </select>
-
       <button
         className="btn-secondary"
         onClick={() => onFilterChange({
@@ -179,10 +168,6 @@ const AppliedFilters = ({ filters, onFilterChange }) => {
       chips.push({ key, scalar: true, text: `${label}: ${v}` });
     }
   });
-  if (filters.format) {
-    chips.push({ key: 'format', scalar: true, text: `Format: ${filters.format === 'segregated' ? 'New' : 'Legacy'}` });
-  }
-
   if (chips.length === 0) return null;
 
   const removeChip = (chip) => {
