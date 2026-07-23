@@ -15,6 +15,7 @@ import TargetAmountInput, { SALESPERSON_TARGET_PRESETS } from '../components/Tar
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
+import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
 
 const SalespersonListSkeleton = () => (
   <div className="sp-list-scroll-area">
@@ -93,7 +94,7 @@ const Salesperson = () => {
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster()
   });
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetForm, setTargetForm] = useState({ amount: '', mode: 'monthly' });
@@ -235,14 +236,16 @@ const Salesperson = () => {
         options={filterOptions} 
         onFilterChange={(newFilters, clear) => {
           if (clear) {
+            setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
             setFilters({
               startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-              product: '', thickness: [], dimensions: '', city: ''
+              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
             });
           } else {
+            if ('master' in newFilters) setGlobalMaster(newFilters.master);
             setFilters(prev => ({ ...prev, ...newFilters }));
           }
-        }} 
+        }}
         hideSalesperson={true}
       />
 

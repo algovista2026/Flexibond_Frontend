@@ -20,9 +20,11 @@ import {
   getFilters,
   getGradeBreakdown,
   getZoneAnalysis,
+  getMasterBreakdown,
   getCompanyTarget,
   setCompanyTarget
 } from '../services/api';
+import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 
@@ -32,7 +34,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [], master: []
+    colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [],
+    master: getGlobalMaster()
   });
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
@@ -50,7 +53,8 @@ const Dashboard = () => {
     geo: null,
     salespersons: null,
     grades: null,
-    zones: null
+    zones: null,
+    masters: null
   });
 
   const fetchData = async () => {
@@ -58,7 +62,7 @@ const Dashboard = () => {
       setLoading(true);
       const [
         summaryRes, trendRes, productsRes,
-        customersRes, geoRes, spRes, gradeRes, zoneRes, filtersRes
+        customersRes, geoRes, spRes, gradeRes, zoneRes, masterRes, filtersRes
       ] = await Promise.all([
         getDashboardSummary(filters),
         getRevenueTrend({ ...filters, groupBy: trendGroupBy }),
@@ -68,6 +72,7 @@ const Dashboard = () => {
         getSalespersonList({ ...filters, sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
         getGradeBreakdown(filters),
         getZoneAnalysis(filters),
+        getMasterBreakdown(filters),
         getFilters(filters)
       ]);
 
@@ -79,7 +84,8 @@ const Dashboard = () => {
         geo: geoRes.data.data,
         salespersons: spRes.data.data,
         grades: gradeRes.data.data,
-        zones: zoneRes.data.data?.zones || []
+        zones: zoneRes.data.data?.zones || [],
+        masters: masterRes.data.data || []
       });
       setFilterOptions(filtersRes.data.data);
     } catch (error) {
@@ -104,11 +110,14 @@ const Dashboard = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
+      setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
       setFilters({
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-        format: '', product: '', thickness: '', dimensions: '', group: [], group1: [], master: []
+        colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [], master: []
       });
     } else {
+      // Master is a cross-page filter — persist it so it stays applied on other pages.
+      if ('master' in newFilters) setGlobalMaster(newFilters.master);
       setFilters(prev => ({ ...prev, ...newFilters }));
     }
   };
@@ -216,6 +225,19 @@ const Dashboard = () => {
 
   // Grade-wise revenue distribution (segregated format). Click a legend entry to
   // toggle that grade off the pie (native Chart.js legend behaviour).
+  // Master-wise distribution (ACP / PVC-WPC / SOFFIT …) — the headline product pie.
+  const MASTER_COLORS = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+  const masterChartData = {
+    labels: data.masters?.map(m => m._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.masters?.map(m => metric === 'revenue' ? m.totalAmount : m.totalQty) || [],
+      backgroundColor: (data.masters || []).map((_, i) => MASTER_COLORS[i % MASTER_COLORS.length]),
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  };
+
   const GRADE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
   const gradeChartData = {
     labels: data.grades?.map(g => g._id) || [],
@@ -379,11 +401,63 @@ const Dashboard = () => {
       )}
 
       <div className="charts-grid">
+        {loading && !data.masters ? (
+          <ChartSkeleton fullWidth />
+        ) : (data.masters && data.masters.length > 0) ? (
+          <ChartCard
+            title={`Master-wise ${metricLabel}`}
+            aiContext={data.masters}
+            aiType="Master-wise Distribution"
+            fullWidth
+          >
+            <div className="donut-container">
+              <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
+                <Pie
+                  data={masterChartData}
+                  options={{
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => {
+                            const val = ctx.raw || 0;
+                            const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+                            const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                            return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+                          }
+                        }
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <div className="custom-legend">
+                {(data.masters || []).map((m, i) => {
+                  const val = metric === 'revenue' ? m.totalAmount : m.totalQty;
+                  const total = (data.masters || []).reduce((acc, x) => acc + (metric === 'revenue' ? x.totalAmount : x.totalQty), 0);
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  const color = MASTER_COLORS[i % MASTER_COLORS.length];
+                  return (
+                    <div key={i} className="legend-item">
+                      <div className="legend-label">
+                        <div className="legend-dot" style={{ background: color }} />
+                        <span>{m._id}</span>
+                      </div>
+                      <span className="legend-percentage">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ChartCard>
+        ) : null}
+
         {loading && !data.trend ? (
           <ChartSkeleton fullWidth />
         ) : (
-          <ChartCard 
-            title={`${metricLabel} Trend`} 
+          <ChartCard
+            title={`${metricLabel} Trend`}
             aiContext={data.trend}
             aiType="Revenue Trend Data"
             fullWidth 

@@ -22,6 +22,7 @@ import {
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
+import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
 
 const Products = () => {
   const location = useLocation();
@@ -31,7 +32,7 @@ const Products = () => {
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    format: '', product: '', thickness: '', dimensions: '', group1: [], master: []
+    format: '', product: '', thickness: '', dimensions: '', group1: [], master: getGlobalMaster()
   });
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
@@ -98,11 +99,13 @@ const Products = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
+      setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
       setFilters({
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
         format: '', product: '', thickness: '', dimensions: '', group1: [], master: []
       });
     } else {
+      if ('master' in newFilters) setGlobalMaster(newFilters.master);
       setFilters(prev => ({ ...prev, ...newFilters }));
     }
   };
@@ -541,7 +544,7 @@ const Products = () => {
 
         {loading && !data.dimensions ? (
           <ChartSkeleton />
-        ) : (
+        ) : (data.dimensions && data.dimensions.length > 0) ? (
           <ChartCard title={`Dimensions Preference (${metricLabel})`} aiContext={data.dimensions} aiType="Size Dimensions Preference">
             <Bar
               data={dimensionsChartData}
@@ -564,7 +567,7 @@ const Products = () => {
               }}
             />
           </ChartCard>
-        )}
+        ) : null}
 
         {loading && !data.products ? (
           <TableSkeleton />

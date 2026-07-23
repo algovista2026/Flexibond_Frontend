@@ -10,6 +10,7 @@ import NotificationPanel from '../components/NotificationPanel';
 import FilterBar from '../components/FilterBar';
 import { getSalespersonList, getSalespersonComparison, getSalespersonPerformance, getFilters } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
+import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
 
@@ -28,7 +29,7 @@ const Comparison = () => {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster()
   });
   const [filterOptions, setFilterOptions] = useState({});
 
@@ -216,14 +217,16 @@ const Comparison = () => {
         options={filterOptions} 
         onFilterChange={(newFilters, clear) => {
           if (clear) {
+            setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
             setFilters({
               startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
               product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
             });
           } else {
+            if ('master' in newFilters) setGlobalMaster(newFilters.master);
             setFilters(prev => ({ ...prev, ...newFilters }));
           }
-        }} 
+        }}
         hideSalesperson={true}
       />
 

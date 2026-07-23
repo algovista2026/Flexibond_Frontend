@@ -7,13 +7,14 @@ import ExportControls from '../components/ExportControls';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
+import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
 
 const PIE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
 
 const Clients = () => {
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: []
+    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: getGlobalMaster()
   });
   const [filterOptions, setFilterOptions] = useState({});
   const [metric, setMetric] = useState('revenue');
@@ -67,11 +68,13 @@ const Clients = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
+      setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
       setFilters({
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
         colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: []
       });
     } else {
+      if ('master' in newFilters) setGlobalMaster(newFilters.master);
       setFilters(prev => ({ ...prev, ...newFilters }));
     }
   };
