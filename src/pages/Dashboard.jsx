@@ -21,6 +21,7 @@ import {
   getGradeBreakdown,
   getZoneAnalysis,
   getMasterBreakdown,
+  getGroupBreakdown,
   getCompanyTarget,
   setCompanyTarget
 } from '../services/api';
@@ -54,7 +55,8 @@ const Dashboard = () => {
     salespersons: null,
     grades: null,
     zones: null,
-    masters: null
+    masters: null,
+    groups: null
   });
 
   const fetchData = async () => {
@@ -62,7 +64,7 @@ const Dashboard = () => {
       setLoading(true);
       const [
         summaryRes, trendRes, productsRes,
-        customersRes, geoRes, spRes, gradeRes, zoneRes, masterRes, filtersRes
+        customersRes, geoRes, spRes, gradeRes, zoneRes, masterRes, groupRes, filtersRes
       ] = await Promise.all([
         getDashboardSummary(filters),
         getRevenueTrend({ ...filters, groupBy: trendGroupBy }),
@@ -73,6 +75,7 @@ const Dashboard = () => {
         getGradeBreakdown(filters),
         getZoneAnalysis(filters),
         getMasterBreakdown(filters),
+        getGroupBreakdown(filters),
         getFilters(filters)
       ]);
 
@@ -85,7 +88,8 @@ const Dashboard = () => {
         salespersons: spRes.data.data,
         grades: gradeRes.data.data,
         zones: zoneRes.data.data?.zones || [],
-        masters: masterRes.data.data || []
+        masters: masterRes.data.data || [],
+        groups: groupRes.data.data || []
       });
       setFilterOptions(filtersRes.data.data);
     } catch (error) {
@@ -236,6 +240,31 @@ const Dashboard = () => {
       borderWidth: 2,
       borderColor: '#fff'
     }]
+  };
+
+  // Group-wise distribution (FB / FM / FN / Base …) — cloned from the Products page (no drill).
+  const GROUP_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
+  const groupChartData = {
+    labels: data.groups?.map(g => g._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.groups?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
+      backgroundColor: (data.groups || []).map((_, i) => GROUP_COLORS[i % GROUP_COLORS.length]),
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  };
+
+  // Shared pie tooltip (respects legend-toggle for the % denominator).
+  const piePctTooltip = {
+    callbacks: {
+      label: (ctx) => {
+        const val = ctx.raw || 0;
+        const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+        return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+      }
+    }
   };
 
   const GRADE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -401,55 +430,47 @@ const Dashboard = () => {
       )}
 
       <div className="charts-grid">
+        {/* Master-wise pie — first, a normal half-width square (was full-width). */}
         {loading && !data.masters ? (
-          <ChartSkeleton fullWidth />
+          <ChartSkeleton />
         ) : (data.masters && data.masters.length > 0) ? (
           <ChartCard
             title={`Master-wise ${metricLabel}`}
             aiContext={data.masters}
             aiType="Master-wise Distribution"
-            fullWidth
           >
-            <div className="donut-container">
-              <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
-                <Pie
-                  data={masterChartData}
-                  options={{
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: { display: false },
-                      tooltip: {
-                        callbacks: {
-                          label: (ctx) => {
-                            const val = ctx.raw || 0;
-                            const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
-                            const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                            return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
-                          }
-                        }
-                      }
-                    }
-                  }}
-                />
-              </div>
-              <div className="custom-legend">
-                {(data.masters || []).map((m, i) => {
-                  const val = metric === 'revenue' ? m.totalAmount : m.totalQty;
-                  const total = (data.masters || []).reduce((acc, x) => acc + (metric === 'revenue' ? x.totalAmount : x.totalQty), 0);
-                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                  const color = MASTER_COLORS[i % MASTER_COLORS.length];
-                  return (
-                    <div key={i} className="legend-item">
-                      <div className="legend-label">
-                        <div className="legend-dot" style={{ background: color }} />
-                        <span>{m._id}</span>
-                      </div>
-                      <span className="legend-percentage">{pct}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <Pie
+              data={masterChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: piePctTooltip
+                }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {/* Group-wise pie — cloned from Products (no drill-down), sits beside the Master pie. */}
+        {loading && !data.groups ? (
+          <ChartSkeleton />
+        ) : (data.groups && data.groups.length > 0) ? (
+          <ChartCard
+            title={`Group-wise ${metricLabel}`}
+            aiContext={data.groups}
+            aiType="Group-wise Distribution"
+          >
+            <Pie
+              data={groupChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: piePctTooltip
+                }
+              }}
+            />
           </ChartCard>
         ) : null}
 

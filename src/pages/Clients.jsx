@@ -110,6 +110,17 @@ const Clients = () => {
     }]
   };
 
+  // Generic single-colour bar dataset (colour / thickness / dimension breakdowns).
+  const barData = (rows, color) => ({
+    labels: (rows || []).map(r => r._id || '—'),
+    datasets: [{
+      label: metricLabel,
+      data: (rows || []).map(metricVal),
+      backgroundColor: color,
+      borderRadius: 4
+    }]
+  });
+
   const pieOptions = {
     maintainAspectRatio: false,
     plugins: {
@@ -267,6 +278,51 @@ const Clients = () => {
                 {(analysis?.byMaster?.length > 0) && (
                   <ChartCard title={`Master ${metricLabel}`} aiContext={analysis.byMaster} aiType="Client Master mix">
                     <Pie data={pieData(analysis.byMaster)} options={pieOptions} />
+                  </ChartCard>
+                )}
+
+                {/* Colour preference — which colours this client buys (codes until name lookup). */}
+                {(analysis?.byColour?.length > 0) && (
+                  <ChartCard title={`Colour ${metricLabel}`} aiContext={analysis.byColour} aiType="Client colour preference">
+                    <Bar
+                      data={barData(analysis.byColour, '#10b981')}
+                      options={{
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false }, tooltip: barTooltip },
+                        scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
+                      }}
+                    />
+                  </ChartCard>
+                )}
+
+                {/* Thickness preference — which Type/thickness this client prefers. */}
+                {(analysis?.byThickness?.length > 0) && (
+                  <ChartCard title={`Thickness ${metricLabel}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
+                    <Bar
+                      data={barData(analysis.byThickness, '#8b5cf6')}
+                      options={{
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false }, tooltip: barTooltip },
+                        scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
+                      }}
+                    />
+                  </ChartCard>
+                )}
+
+                {/* Dimension preference — which sizes (mm) this client prefers. */}
+                {(analysis?.byDimension?.length > 0) && (
+                  <ChartCard title={`Dimensions ${metricLabel}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
+                    <Bar
+                      data={barData(analysis.byDimension, '#ec4899')}
+                      options={{
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false }, tooltip: barTooltip },
+                        scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
+                      }}
+                    />
                   </ChartCard>
                 )}
               </div>

@@ -651,6 +651,67 @@ const Salesperson = () => {
                     />
                   </ChartCard>
                 )}
+
+                {/* Group-wise distribution (FB/FM/FN/Base…) for this salesperson. */}
+                {details.groupBreakdown && details.groupBreakdown.length > 0 && (
+                  <ChartCard title={`Group-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}`} aiContext={details.groupBreakdown} aiType={`Group split for ${selectedSP}`}>
+                    <Pie
+                      data={{
+                        labels: details.groupBreakdown.map(g => g._id),
+                        datasets: [{
+                          label: metric === 'revenue' ? 'Revenue' : 'Quantity',
+                          data: details.groupBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
+                          backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'],
+                          borderWidth: 2,
+                          borderColor: '#fff'
+                        }]
+                      }}
+                      options={{
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                          tooltip: {
+                            callbacks: {
+                              label: (ctx) => {
+                                const val = ctx.raw || 0;
+                                const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : `${val} units`} (${pct}%)`;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  </ChartCard>
+                )}
+
+                {/* Colour breakdown (column chart) — colour codes until a name lookup exists. */}
+                {details.colourBreakdown && details.colourBreakdown.length > 0 && (
+                  <ChartCard title={`Colour Breakdown (${metric === 'revenue' ? 'Revenue' : 'Quantity'})`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
+                    {/* Horizontally scrollable — colour codes crowd the x-axis; give each bar room. */}
+                    <div style={{ position: 'absolute', inset: 0, overflowX: 'auto', overflowY: 'hidden' }}>
+                      <div style={{ height: '100%', minWidth: `${Math.max(details.colourBreakdown.length * 46, 100)}px` }}>
+                        <Bar
+                          data={{
+                            labels: details.colourBreakdown.map(c => String(c._id)),
+                            datasets: [{
+                              label: metric === 'revenue' ? 'Revenue' : 'Quantity',
+                              data: details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty),
+                              backgroundColor: '#10b981',
+                              borderRadius: 4
+                            }]
+                          }}
+                          options={{
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false }, tooltip: metricTooltip },
+                            scales: { y: metricScaleY, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </ChartCard>
+                )}
               </div>
 
               {/* Top Customers Table */}

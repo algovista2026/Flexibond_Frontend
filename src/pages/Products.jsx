@@ -37,6 +37,7 @@ const Products = () => {
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
     products: null,
+    allProducts: null,
     categories: null,
     colours: null,
     thickness: null,
@@ -45,6 +46,8 @@ const Products = () => {
     grades: null,
     groups: null
   });
+  // Search box for the full "All Products" table (client-side filter over allProducts).
+  const [tableSearch, setTableSearch] = useState('');
   // Drill-down pie: which group is expanded, and its per-product distribution.
   const [drillGroup, setDrillGroup] = useState(null);
   const [drillData, setDrillData] = useState(null);
@@ -54,8 +57,9 @@ const Products = () => {
     try {
       setLoading(true);
       const sortBy = metric === 'revenue' ? 'totalAmount' : 'totalQty';
-      const [productsRes, catRes, colourRes, sizeRes, zoneRes, gradeRes, groupRes, filtersRes] = await Promise.all([
+      const [productsRes, allProductsRes, catRes, colourRes, sizeRes, zoneRes, gradeRes, groupRes, filtersRes] = await Promise.all([
         getTopProducts({ ...filters, limit: 15, sortBy, sortOrder }),
+        getTopProducts({ ...filters, limit: 'all', sortBy, sortOrder }),
         getCategoryBreakdown({ ...filters, sortBy }),
         getColourAnalysis({ ...filters, limit: 15, sortBy }),
         getSizeAnalysis({ ...filters, sortBy }),
@@ -67,6 +71,7 @@ const Products = () => {
 
       setData({
         products: productsRes.data.data,
+        allProducts: allProductsRes.data.data,
         categories: catRes.data.data,
         colours: colourRes.data.data,
         thickness: sizeRes.data.data.thickness,
@@ -134,11 +139,18 @@ const Products = () => {
   const valScale = { ticks: { callback: v => axisFmt(v) } };
   const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
-  // KPI summaries
-  const totalProducts = data.products?.length || 0;
+  // KPI summaries — unique-product count reflects the full filtered set, not just the top 15.
+  const totalProducts = data.allProducts?.length ?? (data.products?.length || 0);
   const totalCategories = data.categories?.length || 0;
   const totalColours = data.colours?.length || 0;
   const topProduct = data.products?.[0] || null;
+
+  // Full products table (all filtered products) with a client-side search.
+  const tableProducts = (data.allProducts || []).filter(p =>
+    !tableSearch.trim() ||
+    String(p._id).toLowerCase().includes(tableSearch.trim().toLowerCase()) ||
+    String(p.category || '').toLowerCase().includes(tableSearch.trim().toLowerCase())
+  );
 
   // Chart data
   const productsChartData = {
@@ -531,14 +543,19 @@ const Products = () => {
           <ChartSkeleton />
         ) : (
           <ChartCard title={`Thickness Preference (${metricLabel})`} aiContext={data.thickness} aiType="Thickness Analysis">
-            <Bar
-              data={thicknessChartData}
-              options={{
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: metricTooltip },
-                scales: { y: valScale }
-              }}
-            />
+            {/* Horizontally scrollable — many Type values crowd the x-axis; give each bar room. */}
+            <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+              <div style={{ height: '100%', minWidth: `${Math.max((data.thickness?.length || 0) * 46, 100)}px` }}>
+                <Bar
+                  data={thicknessChartData}
+                  options={{
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: metricTooltip },
+                    scales: { y: valScale, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
+                  }}
+                />
+              </div>
+            </div>
           </ChartCard>
         )}
 
@@ -546,37 +563,53 @@ const Products = () => {
           <ChartSkeleton />
         ) : (data.dimensions && data.dimensions.length > 0) ? (
           <ChartCard title={`Dimensions Preference (${metricLabel})`} aiContext={data.dimensions} aiType="Size Dimensions Preference">
-            <Bar
-              data={dimensionsChartData}
-              options={{
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: { legend: { display: false }, tooltip: metricTooltip },
-                scales: {
-                  x: { ticks: { callback: v => axisFmt(v) } },
-                  y: {
-                    ticks: {
-                      callback: function(value) {
-                        const label = this.getLabelForValue(value);
-                        return label && label.length > 18 ? label.substring(0, 16) + '...' : label;
-                      },
-                      font: { size: 10 }
+            {/* Vertically scrollable — many dimension rows crowd the y-axis. Absolute-fill the
+                card body and give each row a fixed height so the content reliably overflows. */}
+            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+              <div style={{ width: '100%', height: `${Math.max((data.dimensions?.length || 0) * 34, 260)}px` }}>
+                <Bar
+                  data={dimensionsChartData}
+                  options={{
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false }, tooltip: metricTooltip },
+                    scales: {
+                      x: { ticks: { callback: v => axisFmt(v) } },
+                      y: {
+                        ticks: {
+                          autoSkip: false,
+                          callback: function(value) {
+                            const label = this.getLabelForValue(value);
+                            return label && label.length > 18 ? label.substring(0, 16) + '...' : label;
+                          },
+                          font: { size: 10 }
+                        }
+                      }
                     }
-                  }
-                }
-              }}
-            />
+                  }}
+                />
+              </div>
+            </div>
           </ChartCard>
         ) : null}
 
-        {loading && !data.products ? (
+        {loading && !data.allProducts ? (
           <TableSkeleton />
         ) : (
           <div className="data-table-wrapper" style={{ gridColumn: '1 / -1' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>All Products</h3>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                All Products {data.allProducts ? `(${tableProducts.length}${tableSearch.trim() ? ` of ${data.allProducts.length}` : ''})` : ''}
+              </h3>
+              <input
+                type="text"
+                value={tableSearch}
+                onChange={(e) => setTableSearch(e.target.value)}
+                placeholder="Search products…"
+                style={{ height: '38px', minWidth: '220px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}
+              />
             </div>
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div style={{ maxHeight: '460px', overflowY: 'auto' }}>
               <table className="data-table">
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
@@ -588,7 +621,7 @@ const Products = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.products?.map((p, i) => (
+                  {tableProducts.map((p, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 500 }}>{p._id}</td>
                       <td>{p.category || '—'}</td>
@@ -597,6 +630,11 @@ const Products = () => {
                       <td>{formatCurrency(p.avgRate)}</td>
                     </tr>
                   ))}
+                  {tableProducts.length === 0 && (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
+                      {tableSearch.trim() ? 'No products match your search.' : 'No products for the current filters.'}
+                    </td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
