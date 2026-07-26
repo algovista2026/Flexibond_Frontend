@@ -23,7 +23,9 @@ import {
   getMasterBreakdown,
   getGroupBreakdown,
   getCompanyTarget,
-  setCompanyTarget
+  setCompanyTarget,
+  getScopedTarget,
+  setScopedTarget
 } from '../services/api';
 import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
 
@@ -36,7 +38,7 @@ const Dashboard = () => {
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
     colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [],
-    master: getGlobalMaster()
+    master: getGlobalMaster(), company: []
   });
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
@@ -46,6 +48,11 @@ const Dashboard = () => {
   const [targetForm, setTargetForm] = useState('');
   const [targetSaving, setTargetSaving] = useState(false);
   const isAdmin = user.role === 'admin';
+  // Scoped accounts (company / zonal head) see + edit THEIR OWN target instead of the
+  // global company turnover; the middleware already scopes their revenue, so `achieved`
+  // (data.summary.totalRevenue) is their own figure.
+  const scoped = user.scopeType === 'company' || user.scopeType === 'zonal';
+  const canEditTarget = isAdmin || scoped;
   const [data, setData] = useState({
     summary: null,
     trend: null,
@@ -117,7 +124,7 @@ const Dashboard = () => {
       setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
       setFilters({
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-        colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [], master: []
+        colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [], master: [], company: []
       });
     } else {
       // Master is a cross-page filter — persist it so it stays applied on other pages.
@@ -128,10 +135,18 @@ const Dashboard = () => {
 
   const fetchCompanyTarget = async () => {
     try {
-      const res = await getCompanyTarget();
-      setCompanyTargetState(res.data.data);
+      if (scoped && user.id) {
+        // Scoped account: load its own target. Normalise to { amount, fiscalYear } where
+        // amount is the ANNUAL figure so the card's achieved/target math is consistent.
+        const res = await getScopedTarget(user.id);
+        const d = res.data.data;
+        setCompanyTargetState({ amount: d.annualTarget || 0, fiscalYear: d.fiscalYear, mode: d.mode });
+      } else {
+        const res = await getCompanyTarget();
+        setCompanyTargetState(res.data.data);
+      }
     } catch (err) {
-      console.error('Company target fetch error:', err);
+      console.error('Target fetch error:', err);
     }
   };
 
@@ -147,8 +162,14 @@ const Dashboard = () => {
     if (!isFinite(amt) || amt < 0) return;
     try {
       setTargetSaving(true);
-      const res = await setCompanyTarget({ amount: amt });
-      setCompanyTargetState(res.data.data);
+      if (scoped && user.id) {
+        // Scoped accounts store an annual target for themselves.
+        await setScopedTarget(user.id, { amount: amt, mode: 'yearly' });
+        await fetchCompanyTarget();
+      } else {
+        const res = await setCompanyTarget({ amount: amt });
+        setCompanyTargetState(res.data.data);
+      }
       setShowTargetModal(false);
     } catch (err) {
       console.error(err);
@@ -331,12 +352,12 @@ const Dashboard = () => {
               <div className="kpi-card" style={{ gridColumn: 'span 2' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                   <div className="kpi-label">
-                    Target Turnover{companyTarget?.fiscalYear ? ` (FY ${companyTarget.fiscalYear})` : ''}
+                    {scoped ? 'My Target (incl. GST)' : 'Target Turnover (incl. GST)'}{companyTarget?.fiscalYear ? ` (FY ${companyTarget.fiscalYear})` : ''}
                   </div>
-                  {isAdmin && (
+                  {canEditTarget && (
                     <button
                       onClick={openTargetModal}
-                      title="Set target turnover"
+                      title="Set target"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--primary-600)', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
                     >
                       {target > 0 ? 'Edit' : 'Set'}
@@ -351,7 +372,7 @@ const Dashboard = () => {
                   <div className="kpi-sub" style={{ marginTop: '6px' }}>
                     {target > 0
                       ? `${formatCurrency(achieved)} achieved · ${Math.round(pct)}%`
-                      : (isAdmin ? 'Set a target to track achievement' : 'No target set')}
+                      : (canEditTarget ? 'Set a target to track achievement' : 'No target set')}
                   </div>
                 </div>
               </div>
@@ -381,7 +402,7 @@ const Dashboard = () => {
             <div className="kpi-value">{formatNumber(data.summary.totalQty)}</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Top State by Revenue</div>
+            <div className="kpi-label">Top State by Revenue (incl. GST)</div>
             <div className="kpi-value" style={{ fontSize: '1.25rem' }}>{data.summary.topState || 'N/A'}</div>
             <div className="kpi-sub">{formatCurrency(data.summary.topStateRevenue)}</div>
           </div>
@@ -435,7 +456,7 @@ const Dashboard = () => {
           <ChartSkeleton />
         ) : (data.masters && data.masters.length > 0) ? (
           <ChartCard
-            title={`Master-wise ${metricLabel}`}
+            title={`Master-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`}
             aiContext={data.masters}
             aiType="Master-wise Distribution"
           >
@@ -457,7 +478,7 @@ const Dashboard = () => {
           <ChartSkeleton />
         ) : (data.groups && data.groups.length > 0) ? (
           <ChartCard
-            title={`Group-wise ${metricLabel}`}
+            title={`Group-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`}
             aiContext={data.groups}
             aiType="Group-wise Distribution"
           >
@@ -478,7 +499,7 @@ const Dashboard = () => {
           <ChartSkeleton fullWidth />
         ) : (
           <ChartCard
-            title={`${metricLabel} Trend`}
+            title={`${metricLabel} Trend${metric === 'revenue' ? ' (incl. GST)' : ''}`}
             aiContext={data.trend}
             aiType="Revenue Trend Data"
             fullWidth 
@@ -528,7 +549,7 @@ const Dashboard = () => {
         {loading && !data.products ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Top Products (${metricLabel})`} aiContext={data.products} aiType="Top Products Comparison">
+          <ChartCard title={`Top Products (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.products} aiType="Top Products Comparison">
             <Bar
               data={productsChartData}
               plugins={[averageLinePlugin]}
@@ -560,7 +581,7 @@ const Dashboard = () => {
         {loading && !data.salespersons ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Salesperson ${metricLabel}`} aiContext={data.salespersons} aiType="Salesperson Performance">
+          <ChartCard title={`Salesperson ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.salespersons} aiType="Salesperson Performance">
             <div className="donut-container">
               <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                 <Doughnut 
@@ -608,7 +629,7 @@ const Dashboard = () => {
         {loading && !data.geo ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`${metricLabel} by State`} aiContext={data.geo} aiType="Geographic Breakdown">
+          <ChartCard title={`${metricLabel} by State${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.geo} aiType="Geographic Breakdown">
             <Bar
               data={geoChartData}
               plugins={[averageLinePlugin]}
@@ -628,7 +649,7 @@ const Dashboard = () => {
         {loading && !data.zones ? (
           <ChartSkeleton />
         ) : (data.zones && data.zones.length > 0) ? (
-          <ChartCard title={`${metricLabel} by Zone`} aiContext={data.zones} aiType="Zone-wise Revenue">
+          <ChartCard title={`${metricLabel} by Zone${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.zones} aiType="Zone-wise Revenue">
             <Bar
               data={zoneChartData}
               plugins={[averageLinePlugin]}
@@ -649,7 +670,7 @@ const Dashboard = () => {
           <ChartSkeleton />
         ) : (data.grades && data.grades.length > 0) ? (
           <ChartCard
-            title={`Grade-wise ${metricLabel} Distribution`}
+            title={`Grade-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
             aiContext={data.grades}
             aiType="Grade-wise Revenue Distribution"
             extra={<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a grade to toggle</span>}

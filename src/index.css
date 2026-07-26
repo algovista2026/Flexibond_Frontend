@@ -935,6 +935,20 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   gap: 24px;
 }
 
+/* Left column wrapper: leaderboard (unchanged) + a snapshot card below it. The WRAPPER
+   is sticky (align-self:start so the grid cell shrinks to content instead of stretching to
+   the tall right column — a stretched grid item can't stick), so the leaderboard + snapshot
+   travel with the scroll and the column below the leaderboard is never a dead void. */
+.salesperson-left {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  align-self: start;
+  position: sticky;
+  top: 100px;
+}
+
 .salesperson-list-container {
   background: var(--bg-card);
   border-radius: var(--radius-md);
@@ -942,10 +956,28 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 100px);
-  position: sticky;
-  top: 100px;
+  flex: 0 0 auto;
+  /* Leave room under the leaderboard for the snapshot so both fit the sticky viewport
+     column. The internal sp-list-scroll-area still scrolls when there are many entries. */
+  max-height: calc(100vh - 300px);
 }
+
+/* Compact team-snapshot card that occupies the whitespace under the leaderboard. */
+.sp-snapshot {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+}
+.sp-snapshot h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; }
+.sp-snapshot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sp-snapshot-stat { display: flex; flex-direction: column; gap: 2px; }
+.sp-snapshot-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.sp-snapshot-value { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
 .sp-list-scroll-area {
   overflow-y: auto;
   flex: 1;
@@ -963,6 +995,7 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   .salesperson-layout > * {
     min-width: 0;
   }
+  .salesperson-left,
   .salesperson-list-container,
   .salesperson-details-container {
     height: auto;
@@ -971,9 +1004,14 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   .salesperson-details-container {
     order: 1;
   }
-  .salesperson-list-container {
+  .salesperson-left {
     order: 2;
     margin-top: 24px; /* Add some space when stacked */
+    position: static;
+    max-height: none;
+  }
+  .salesperson-list-container {
+    max-height: none;
   }
   .sp-list-scroll-area {
     overflow-y: visible;

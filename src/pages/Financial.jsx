@@ -348,12 +348,12 @@ const Financial = () => {
       ) : summary && (
         <div className="kpi-grid">
           <div className="kpi-card">
-            <div className="kpi-label">Total Bill Amount</div>
+            <div className="kpi-label">Total Bill Amount (incl. GST)</div>
             <div className="kpi-value">{formatCurrency(summary.totalBill)}</div>
             <div className="kpi-sub">Incl. taxes & other charges</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Assessable Values</div>
+            <div className="kpi-label">Assessable Values (excl. GST)</div>
             <div className="kpi-value">{formatCurrency(summary.totalAssessable)}</div>
             <div className="kpi-sub">{formatNumber(summary.invoiceCount)} invoices</div>
           </div>
@@ -580,12 +580,12 @@ const Financial = () => {
                   <th style={{ whiteSpace: 'nowrap' }}>State</th>
                   <th style={{ whiteSpace: 'nowrap' }}>GST Type</th>
                   <th style={{ whiteSpace: 'nowrap' }}>Salesperson</th>
-                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Assessable</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Assessable (excl. GST)</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>CGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>SGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>IGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Cess</th>
-                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Bill Amount</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Bill Amount (incl. GST)</th>
                 </tr>
               </thead>
               <tbody>

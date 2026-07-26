@@ -94,7 +94,7 @@ const Salesperson = () => {
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster()
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster(), company: []
   });
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetForm, setTargetForm] = useState({ amount: '', mode: 'monthly' });
@@ -239,7 +239,7 @@ const Salesperson = () => {
             setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
             setFilters({
               startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
+              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
             });
           } else {
             if ('master' in newFilters) setGlobalMaster(newFilters.master);
@@ -255,7 +255,8 @@ const Salesperson = () => {
       </div>
 
       <div className="salesperson-layout">
-        {/* Left Sidebar - List */}
+        {/* Left column: leaderboard (unchanged) + a snapshot card filling the space below */}
+        <div className="salesperson-left">
         <div className="salesperson-list-container">
           <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-light)' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 600 }}>Leaderboard</h3>
@@ -297,6 +298,44 @@ const Salesperson = () => {
               )}
             </div>
           )}
+        </div>
+
+        {/* Team snapshot — uses the whitespace under the leaderboard. Derived from the
+            already-loaded leaderboard list, so no extra fetch. */}
+        {!loading && list.length > 0 && (() => {
+          const teamRevenue = list.reduce((s, x) => s + (x.totalRevenue || 0), 0);
+          const teamOrders = list.reduce((s, x) => s + (x.totalOrders || 0), 0);
+          const count = list.length;
+          const avgPerSp = count ? teamRevenue / count : 0;
+          return (
+            <div className="sp-snapshot">
+              <h3>Team Snapshot</h3>
+              <div className="sp-snapshot-grid">
+                <div className="sp-snapshot-stat">
+                  <span className="sp-snapshot-label">Team Revenue (incl. GST)</span>
+                  <span className="sp-snapshot-value" style={{ color: 'var(--primary-600)' }}>{formatCurrency(teamRevenue)}</span>
+                </div>
+                <div className="sp-snapshot-stat">
+                  <span className="sp-snapshot-label">Salespeople</span>
+                  <span className="sp-snapshot-value">{count}</span>
+                </div>
+                <div className="sp-snapshot-stat">
+                  <span className="sp-snapshot-label">Total Orders</span>
+                  <span className="sp-snapshot-value">{teamOrders.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="sp-snapshot-stat">
+                  <span className="sp-snapshot-label">Avg / Person (incl. GST)</span>
+                  <span className="sp-snapshot-value">{formatCurrency(avgPerSp)}</span>
+                </div>
+              </div>
+              {list[0] && (
+                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  🏆 Top performer: <strong style={{ color: 'var(--text-primary)' }}>{list[0]._id}</strong> · {formatCurrency(list[0].totalRevenue)}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         </div>
 
         {/* Right Content - Details */}
@@ -420,7 +459,7 @@ const Salesperson = () => {
 
               <div className="kpi-grid">
                 <div className="kpi-card">
-                  <div className="kpi-label">Total Revenue</div>
+                  <div className="kpi-label">Total Revenue (incl. GST)</div>
                   <div className="kpi-value">{formatCurrency(details.stats.totalRevenue)}</div>
                 </div>
                 <div className="kpi-card">
@@ -432,7 +471,7 @@ const Salesperson = () => {
                   <div className="kpi-value">{details.stats.uniqueCustomers}</div>
                 </div>
                 <div className="kpi-card">
-                  <div className="kpi-label">Avg Order</div>
+                  <div className="kpi-label">Avg Order (incl. GST)</div>
                   <div className="kpi-value">{formatCurrency(details.stats.avgOrderValue)}</div>
                 </div>
               </div>
@@ -441,7 +480,7 @@ const Salesperson = () => {
               <div className="charts-grid">
                 {/* Revenue Trend Chart */}
                 <ChartCard 
-                  title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} Trend`} 
+                  title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} Trend${metric === 'revenue' ? ' (incl. GST)' : ''}`}
                   aiContext={details.revenueTrend}
                   aiType={`Performance Trend for ${selectedSP}`}
                   fullWidth 
@@ -499,7 +538,7 @@ const Salesperson = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title="Top Products Sold" aiContext={details.topProducts} aiType={`Products Sold by ${selectedSP}`}>
+                <ChartCard title={`Top Products Sold${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.topProducts} aiType={`Products Sold by ${selectedSP}`}>
                   <Bar 
                     data={{
                       labels: details.topProducts.map(p => p._id),
@@ -529,7 +568,7 @@ const Salesperson = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title={filters.category ? `Products in ${filters.category}` : "Category Breakdown"} aiContext={details.categoryBreakdown} aiType={`Category Performance for ${selectedSP}`}>
+                <ChartCard title={`${filters.category ? `Products in ${filters.category}` : "Category Breakdown"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.categoryBreakdown} aiType={`Category Performance for ${selectedSP}`}>
                   <div className="donut-container">
                     <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                       <Doughnut 
@@ -578,7 +617,7 @@ const Salesperson = () => {
                   </div>
                 </ChartCard>
 
-                <ChartCard title="City Breakdown" aiContext={details.cityBreakdown} aiType={`Sales Breakdown by City for ${selectedSP}`}>
+                <ChartCard title={`City Breakdown${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.cityBreakdown} aiType={`Sales Breakdown by City for ${selectedSP}`}>
                   <Doughnut 
                     data={{
                       labels: details.cityBreakdown.map(c => c._id),
@@ -594,7 +633,7 @@ const Salesperson = () => {
                 </ChartCard>
 
                 {details.zoneBreakdown && details.zoneBreakdown.length > 0 && (
-                  <ChartCard title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} by Zone`} aiContext={details.zoneBreakdown} aiType={`Zone-wise sales for ${selectedSP}`}>
+                  <ChartCard title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} by Zone${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.zoneBreakdown} aiType={`Zone-wise sales for ${selectedSP}`}>
                     <Bar
                       data={{
                         labels: details.zoneBreakdown.map(z => z._id),
@@ -620,7 +659,7 @@ const Salesperson = () => {
                 )}
 
                 {details.gradeBreakdown && details.gradeBreakdown.length > 0 && (
-                  <ChartCard title={`Grade-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}`} aiContext={details.gradeBreakdown} aiType={`Grade split for ${selectedSP}`}>
+                  <ChartCard title={`Grade-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.gradeBreakdown} aiType={`Grade split for ${selectedSP}`}>
                     <Pie
                       data={{
                         labels: details.gradeBreakdown.map(g => g._id),
@@ -654,7 +693,7 @@ const Salesperson = () => {
 
                 {/* Group-wise distribution (FB/FM/FN/Base…) for this salesperson. */}
                 {details.groupBreakdown && details.groupBreakdown.length > 0 && (
-                  <ChartCard title={`Group-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}`} aiContext={details.groupBreakdown} aiType={`Group split for ${selectedSP}`}>
+                  <ChartCard title={`Group-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.groupBreakdown} aiType={`Group split for ${selectedSP}`}>
                     <Pie
                       data={{
                         labels: details.groupBreakdown.map(g => g._id),
@@ -688,7 +727,7 @@ const Salesperson = () => {
 
                 {/* Colour breakdown (column chart) — colour codes until a name lookup exists. */}
                 {details.colourBreakdown && details.colourBreakdown.length > 0 && (
-                  <ChartCard title={`Colour Breakdown (${metric === 'revenue' ? 'Revenue' : 'Quantity'})`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
+                  <ChartCard title={`Colour Breakdown (${metric === 'revenue' ? 'Revenue' : 'Quantity'})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
                     {/* Horizontally scrollable — colour codes crowd the x-axis; give each bar room. */}
                     <div style={{ position: 'absolute', inset: 0, overflowX: 'auto', overflowY: 'hidden' }}>
                       <div style={{ height: '100%', minWidth: `${Math.max(details.colourBreakdown.length * 46, 100)}px` }}>
@@ -725,7 +764,7 @@ const Salesperson = () => {
                       <th>Customer Name</th>
                       <th>City</th>
                       <th>Orders</th>
-                      <th>Total Revenue</th>
+                      <th>Total Revenue (incl. GST)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -755,8 +794,8 @@ const Salesperson = () => {
                       <tr>
                         <th>Product</th>
                         <th style={{ textAlign: 'right' }}>Qty Sold</th>
-                        <th style={{ textAlign: 'right' }}>Avg. Rate</th>
-                        <th style={{ textAlign: 'right' }}>Revenue</th>
+                        <th style={{ textAlign: 'right' }}>Avg. Rate (excl. GST)</th>
+                        <th style={{ textAlign: 'right' }}>Revenue (incl. GST)</th>
                       </tr>
                     </thead>
                     <tbody>

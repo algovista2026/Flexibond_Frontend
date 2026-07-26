@@ -29,7 +29,7 @@ const Comparison = () => {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster()
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster(), company: []
   });
   const [filterOptions, setFilterOptions] = useState({});
 
@@ -220,7 +220,7 @@ const Comparison = () => {
             setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
             setFilters({
               startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], format: '',
-              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: []
+              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
             });
           } else {
             if ('master' in newFilters) setGlobalMaster(newFilters.master);

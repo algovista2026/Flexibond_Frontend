@@ -173,6 +173,10 @@ export const uploadFile = (file, onProgress, sessionId) => {
   return api.post(`upload${sessionId ? `?sessionId=${sessionId}` : ''}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: onProgress,
+    // Uploads parse + insert thousands of rows; the default 60s client timeout was aborting
+    // the request while the server kept working (data landed, but the UI showed an error /
+    // "0 records"). Allow up to 5 minutes for the whole ingest to finish.
+    timeout: 300000,
   });
 };
 export const getUploadHistory = () => api.get('upload/history');
@@ -213,6 +217,14 @@ export const getSalespersonComparison = (params) => api.get('salesperson/compare
 // Salesperson Targets
 export const getSalespersonTargets = (params) => api.get('salesperson/targets', { params });
 export const setSalespersonTarget = (payload) => api.put('salesperson/target', payload);
+
+// Distinct salesperson names for building zonal-head accounts (admin; ?zone= optional)
+export const getSalespersonNames = (params) => api.get('salesperson/names', { params });
+
+// Scoped-account targets (company-scoped + zonal-head logins)
+export const getScopedTarget = (userId, params) => api.get(`targets/scoped/${userId}`, { params });
+export const setScopedTarget = (userId, payload) => api.put(`targets/scoped/${userId}`, payload);
+export const getScopedProgress = (params) => api.get('targets/scoped-progress', { params });
 
 // Channel (B2B vs B2C)
 export const getChannelSummary = (params) => api.get('channel/summary', { params });

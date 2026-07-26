@@ -1,145 +1,196 @@
-import React from 'react';
-import { FiInfo, FiX } from 'react-icons/fi';
+import React, { useRef } from 'react';
+import { FiInfo, FiX, FiCalendar } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
 
-const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, showGroup = false }) => {
+// A date field that keeps a text placeholder when empty, but has an explicit calendar
+// button that reliably opens the native date picker (showPicker) — the old focus-driven
+// type-swap made the built-in calendar icon flaky / sometimes unresponsive.
+const DateField = ({ name, value, placeholder, onChange }) => {
+  const ref = useRef(null);
+  const openPicker = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.type = 'date';
+    try { el.showPicker ? el.showPicker() : el.focus(); } catch { el.focus(); }
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: '4px' }}>
+      <input
+        ref={ref}
+        type={value ? 'date' : 'text'}
+        name={name}
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={(e) => (e.target.type = 'date')}
+        onBlur={(e) => !e.target.value && (e.target.type = 'text')}
+        placeholder={placeholder}
+        style={{ height: '42px' }}
+      />
+      <button
+        type="button"
+        className="btn-secondary"
+        title="Open calendar"
+        onClick={openPicker}
+        style={{ height: '42px', padding: '0 10px', display: 'inline-flex', alignItems: 'center' }}
+      >
+        <FiCalendar size={16} />
+      </button>
+    </div>
+  );
+};
+
+const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }) => {
+  // Render a dropdown when it has options OR when it currently has a selection — so an
+  // active filter is never hidden even if cascading momentarily empties its option list.
+  const show = (list, selected) =>
+    (Array.isArray(list) && list.length > 0) || (Array.isArray(selected) && selected.length > 0);
+
+  // A company-scoped account is locked to one company — hide the Company filter entirely
+  // (the server already forces their company on every request).
+  const me = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const hideCompany = me.scopeType === 'company';
+
   return (
     <>
       <div className="filter-bar">
-      <input
-        type={filters.startDate ? "date" : "text"}
-        name="startDate"
-        value={filters.startDate || ''}
-        onChange={(e) => onFilterChange({ startDate: e.target.value })}
-        onFocus={(e) => (e.target.type = "date")}
-        onBlur={(e) => !e.target.value && (e.target.type = "text")}
-        placeholder="Start Date"
-        style={{ height: '42px' }}
-      />
-      <input
-        type={filters.endDate ? "date" : "text"}
-        name="endDate"
-        value={filters.endDate || ''}
-        onChange={(e) => onFilterChange({ endDate: e.target.value })}
-        onFocus={(e) => (e.target.type = "date")}
-        onBlur={(e) => !e.target.value && (e.target.type = "text")}
-        placeholder="End Date"
-        style={{ height: '42px' }}
-      />
-
-      {/* Master — the headline product classification. Placed first (next to the dates) and
-          styled prominently in amber so it stands out from the other filters. */}
-      {options?.masters && options.masters.length > 0 && (
-        <MultiSelect
-          label="Master"
-          options={options.masters}
-          selected={filters.master}
-          accent="#d97706"
-          onChange={(vals) => onFilterChange({ master: vals })}
+        <DateField
+          name="startDate"
+          value={filters.startDate}
+          placeholder="Start Date"
+          onChange={(v) => onFilterChange({ startDate: v })}
         />
-      )}
-
-      {!hideSalesperson && options?.salespersons && options.salespersons.length > 0 && (
-        <MultiSelect
-          label="Sales man"
-          options={options.salespersons}
-          selected={filters.salesperson}
-          onChange={(vals) => onFilterChange({ salesperson: vals })}
+        <DateField
+          name="endDate"
+          value={filters.endDate}
+          placeholder="End Date"
+          onChange={(v) => onFilterChange({ endDate: v })}
         />
-      )}
 
-      {options?.categories && options.categories.length > 0 && (
-        <MultiSelect
-          label="Categry"
-          options={options.categories}
-          selected={filters.category}
-          onChange={(vals) => onFilterChange({ category: vals })}
-        />
-      )}
-
-      {options?.states && options.states.length > 0 && (
-        <MultiSelect
-          label="State"
-          options={options.states}
-          selected={filters.state}
-          onChange={(vals) => onFilterChange({ state: vals })}
-        />
-      )}
-
-      {options?.grades && options.grades.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {/* Company — daughter-company (TYpe3). Locked/hidden for company-scoped users
+            (they only ever see their own company), so pages omit it via hideCompany. */}
+        {!hideCompany && show(options?.companies, filters.company) && (
           <MultiSelect
-            label="Grade"
-            options={options.grades}
-            selected={filters.grade}
-            onChange={(vals) => onFilterChange({ grade: vals })}
+            label="Company"
+            options={options.companies}
+            selected={filters.company || []}
+            onChange={(vals) => onFilterChange({ company: vals })}
           />
-          <span
-            title="Grade is a per-line-item attribute (one invoice can span several grades). When you filter by Grade — like Category or Product — revenue is calculated from line items and shown tax-inclusive, so grade totals add up to the overall Total Revenue (a small ~0.4% rounding difference is normal)."
-            style={{ display: 'inline-flex', alignItems: 'center', cursor: 'help', color: 'var(--text-muted)' }}
-          >
-            <FiInfo size={15} />
-          </span>
-        </div>
-      )}
+        )}
 
-      {/* Group is now universal (all pages), not Products-only. Sourced from the "TYpe1"
-          column now (was "Group"); labelled to match the sheet. */}
-      {options?.groups && options.groups.length > 0 && (
-        <MultiSelect
-          label="TYpe1"
-          options={options.groups}
-          selected={filters.group}
-          onChange={(vals) => onFilterChange({ group: vals })}
-        />
-      )}
+        {/* Master — headline product classification, styled prominently in amber. */}
+        {show(options?.masters, filters.master) && (
+          <MultiSelect
+            label="Master"
+            options={options.masters}
+            selected={filters.master || []}
+            accent="#d97706"
+            onChange={(vals) => onFilterChange({ master: vals })}
+          />
+        )}
 
-      {options?.group1s && options.group1s.length > 0 && (
-        <MultiSelect
-          label="TYpe2"
-          options={options.group1s}
-          selected={filters.group1}
-          onChange={(vals) => onFilterChange({ group1: vals })}
-        />
-      )}
+        {/* Category — sourced from the "TYpe1" column (internal field: group). */}
+        {show(options?.groups, filters.group) && (
+          <MultiSelect
+            label="Category"
+            options={options.groups}
+            selected={filters.group || []}
+            onChange={(vals) => onFilterChange({ group: vals })}
+          />
+        )}
 
-      {options?.zones && options.zones.length > 0 && (
-        <MultiSelect
-          label="Zone"
-          options={options.zones}
-          selected={filters.zone}
-          onChange={(vals) => onFilterChange({ zone: vals })}
-        />
-      )}
+        {/* Sub-Category — the real "Categry" column (internal field: category). */}
+        {show(options?.categories, filters.category) && (
+          <MultiSelect
+            label="Sub-Category"
+            options={options.categories}
+            selected={filters.category || []}
+            onChange={(vals) => onFilterChange({ category: vals })}
+          />
+        )}
 
-      {options?.colours && options.colours.length > 0 && (
-        <MultiSelect
-          label="Colour"
-          options={options.colours}
-          selected={filters.colour}
-          onChange={(vals) => onFilterChange({ colour: vals })}
-        />
-      )}
+        {show(options?.grades, filters.grade) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <MultiSelect
+              label="Grade"
+              options={options.grades}
+              selected={filters.grade || []}
+              onChange={(vals) => onFilterChange({ grade: vals })}
+            />
+            <span
+              title="Grade is a per-line-item attribute (one invoice can span several grades). When you filter by Grade — like Category or Product — revenue is calculated from line items and shown tax-inclusive, so grade totals add up to the overall Total Revenue (a small ~0.4% rounding difference is normal)."
+              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'help', color: 'var(--text-muted)' }}
+            >
+              <FiInfo size={15} />
+            </span>
+          </div>
+        )}
 
-      {options?.thickness && options.thickness.length > 0 && (
-        <MultiSelect
-          label="Type"
-          options={options.thickness}
-          selected={filters.thickness}
-          onChange={(vals) => onFilterChange({ thickness: vals })}
-        />
-      )}
+        {/* Variants — the "TYpe2" column (internal field: group1). */}
+        {show(options?.group1s, filters.group1) && (
+          <MultiSelect
+            label="Variants"
+            options={options.group1s}
+            selected={filters.group1 || []}
+            onChange={(vals) => onFilterChange({ group1: vals })}
+          />
+        )}
 
-      <button
-        className="btn-secondary"
-        onClick={() => onFilterChange({
-          startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-          colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
-          group1: [], master: []
-        }, true)}
-      >
-        Clear Filters
-      </button>
+        {/* Thickness / Section — the "Type" column (internal field: thickness). */}
+        {show(options?.thickness, filters.thickness) && (
+          <MultiSelect
+            label="Thickness / Section"
+            options={options.thickness}
+            selected={filters.thickness || []}
+            onChange={(vals) => onFilterChange({ thickness: vals })}
+          />
+        )}
+
+        {show(options?.colours, filters.colour) && (
+          <MultiSelect
+            label="Colours"
+            options={options.colours}
+            selected={filters.colour || []}
+            onChange={(vals) => onFilterChange({ colour: vals })}
+          />
+        )}
+
+        {show(options?.zones, filters.zone) && (
+          <MultiSelect
+            label="Zone"
+            options={options.zones}
+            selected={filters.zone || []}
+            onChange={(vals) => onFilterChange({ zone: vals })}
+          />
+        )}
+
+        {show(options?.states, filters.state) && (
+          <MultiSelect
+            label="State"
+            options={options.states}
+            selected={filters.state || []}
+            onChange={(vals) => onFilterChange({ state: vals })}
+          />
+        )}
+
+        {!hideSalesperson && show(options?.salespersons, filters.salesperson) && (
+          <MultiSelect
+            label="Salesperson"
+            options={options.salespersons}
+            selected={filters.salesperson || []}
+            onChange={(vals) => onFilterChange({ salesperson: vals })}
+          />
+        )}
+
+        <button
+          className="btn-secondary"
+          onClick={() => onFilterChange({
+            startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
+            colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
+            group1: [], master: [], company: []
+          }, true)}
+        >
+          Clear Filters
+        </button>
       </div>
 
       <AppliedFilters filters={filters} onFilterChange={onFilterChange} />
@@ -148,11 +199,12 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 };
 
 // Field labels + how each active filter is rendered as a removable chip below the bar.
-// Labels mirror the real spreadsheet column names (temporary — see imp.md).
+// Labels are the client-facing names (Company / Category / Sub-Category / Variants / …).
 const CHIP_LABELS = {
-  salesperson: 'Sales man', category: 'Categry', state: 'State', grade: 'Grade',
-  zone: 'Zone', colour: 'Colour', thickness: 'Type', product: 'Product',
-  dimensions: 'Size', city: 'City', group: 'TYpe1', group1: 'TYpe2', master: 'Master'
+  company: 'Company', master: 'Master', group: 'Category', category: 'Sub-Category',
+  grade: 'Grade', group1: 'Variants', thickness: 'Thickness / Section', colour: 'Colours',
+  zone: 'Zone', state: 'State', salesperson: 'Salesperson', product: 'Product',
+  dimensions: 'Size', city: 'City'
 };
 
 const AppliedFilters = ({ filters, onFilterChange }) => {
@@ -182,7 +234,7 @@ const AppliedFilters = ({ filters, onFilterChange }) => {
   const clearAll = () => onFilterChange({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
     colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
-    group1: [], master: []
+    group1: [], master: [], company: []
   }, true);
 
   return (

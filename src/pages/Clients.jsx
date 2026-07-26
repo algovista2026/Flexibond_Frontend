@@ -14,7 +14,7 @@ const PIE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b
 const Clients = () => {
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: getGlobalMaster()
+    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: getGlobalMaster(), company: []
   });
   const [filterOptions, setFilterOptions] = useState({});
   const [metric, setMetric] = useState('revenue');
@@ -71,7 +71,7 @@ const Clients = () => {
       setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
       setFilters({
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-        colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: []
+        colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: []
       });
     } else {
       if ('master' in newFilters) setGlobalMaster(newFilters.master);
@@ -230,7 +230,7 @@ const Clients = () => {
                 <KPISkeleton />
               ) : (
                 <div className="kpi-grid" style={{ marginBottom: '24px' }}>
-                  <KPICard title={metric === 'revenue' ? 'Total Revenue (Incl. Tax)' : 'Total Quantity'} value={metric === 'revenue' ? formatCurrency(totals.revenue) : formatNumber(totals.qty)} subtext={selectedInvoice ? 'This order' : 'All orders'} />
+                  <KPICard title={metric === 'revenue' ? 'Total Revenue (incl. GST)' : 'Total Quantity'} value={metric === 'revenue' ? formatCurrency(totals.revenue) : formatNumber(totals.qty)} subtext={selectedInvoice ? 'This order' : 'All orders'} />
                   <KPICard title="Total Orders" value={formatNumber(totals.orderCount)} subtext="Distinct invoices" />
                   <KPICard title="Favourite Salesperson" value={fav ? fav._id : '—'} subtext={fav ? `${formatCurrency(fav.revenue)} · ${fav.orderCount} orders` : 'No data'} />
                   <KPICard title="Unique Products" value={formatNumber(totals.productCount)} subtext={metric === 'revenue' ? `Qty ${formatNumber(totals.qty)}` : formatCurrency(totals.revenue)} />
@@ -240,7 +240,7 @@ const Clients = () => {
               <div className="charts-grid">
                 {/* Product-wise */}
                 {detailLoading && !analysis ? <ChartSkeleton /> : (analysis?.byProduct?.length > 0) && (
-                  <ChartCard title={`Product-wise ${metricLabel}`} fullWidth aiContext={analysis.byProduct} aiType="Client product mix">
+                  <ChartCard title={`Product-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} fullWidth aiContext={analysis.byProduct} aiType="Client product mix">
                     <Bar
                       data={productBarData}
                       options={{
@@ -255,35 +255,35 @@ const Clients = () => {
 
                 {/* Grade */}
                 {(analysis?.byGrade?.length > 0) && (
-                  <ChartCard title={`Grade-wise ${metricLabel}`} aiContext={analysis.byGrade} aiType="Client grade mix">
+                  <ChartCard title={`Grade-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGrade} aiType="Client grade mix">
                     <Pie data={pieData(analysis.byGrade)} options={pieOptions} />
                   </ChartCard>
                 )}
 
                 {/* Group */}
                 {(analysis?.byGroup?.length > 0) && (
-                  <ChartCard title={`Group-wise ${metricLabel}`} aiContext={analysis.byGroup} aiType="Client group mix">
+                  <ChartCard title={`Group-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup} aiType="Client group mix">
                     <Pie data={pieData(analysis.byGroup)} options={pieOptions} />
                   </ChartCard>
                 )}
 
                 {/* Group 1 */}
                 {(analysis?.byGroup1?.length > 0) && (
-                  <ChartCard title={`Group 1 ${metricLabel}`} aiContext={analysis.byGroup1} aiType="Client Group 1 mix">
+                  <ChartCard title={`Group 1 ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup1} aiType="Client Group 1 mix">
                     <Pie data={pieData(analysis.byGroup1)} options={pieOptions} />
                   </ChartCard>
                 )}
 
                 {/* Master */}
                 {(analysis?.byMaster?.length > 0) && (
-                  <ChartCard title={`Master ${metricLabel}`} aiContext={analysis.byMaster} aiType="Client Master mix">
+                  <ChartCard title={`Master ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byMaster} aiType="Client Master mix">
                     <Pie data={pieData(analysis.byMaster)} options={pieOptions} />
                   </ChartCard>
                 )}
 
                 {/* Colour preference — which colours this client buys (codes until name lookup). */}
                 {(analysis?.byColour?.length > 0) && (
-                  <ChartCard title={`Colour ${metricLabel}`} aiContext={analysis.byColour} aiType="Client colour preference">
+                  <ChartCard title={`Colour ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byColour} aiType="Client colour preference">
                     <Bar
                       data={barData(analysis.byColour, '#10b981')}
                       options={{
@@ -298,7 +298,7 @@ const Clients = () => {
 
                 {/* Thickness preference — which Type/thickness this client prefers. */}
                 {(analysis?.byThickness?.length > 0) && (
-                  <ChartCard title={`Thickness ${metricLabel}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
+                  <ChartCard title={`Thickness ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
                     <Bar
                       data={barData(analysis.byThickness, '#8b5cf6')}
                       options={{
@@ -313,7 +313,7 @@ const Clients = () => {
 
                 {/* Dimension preference — which sizes (mm) this client prefers. */}
                 {(analysis?.byDimension?.length > 0) && (
-                  <ChartCard title={`Dimensions ${metricLabel}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
+                  <ChartCard title={`Dimensions ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
                     <Bar
                       data={barData(analysis.byDimension, '#ec4899')}
                       options={{
@@ -340,7 +340,7 @@ const Clients = () => {
                     <table className="data-table">
                       <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                         <tr>
-                          <th>Invoice No</th><th>Date</th><th>Salesperson</th><th>Lines</th><th>Quantity</th><th>Revenue</th>
+                          <th>Invoice No</th><th>Date</th><th>Salesperson</th><th>Lines</th><th>Quantity</th><th>Revenue (incl. GST)</th>
                         </tr>
                       </thead>
                       <tbody>

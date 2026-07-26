@@ -32,7 +32,7 @@ const Products = () => {
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
   const [filters, setFilters] = useState({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    format: '', product: '', thickness: '', dimensions: '', group1: [], master: getGlobalMaster()
+    format: '', product: '', thickness: '', dimensions: '', group1: [], master: getGlobalMaster(), company: []
   });
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
@@ -107,7 +107,7 @@ const Products = () => {
       setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
       setFilters({
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-        format: '', product: '', thickness: '', dimensions: '', group1: [], master: []
+        format: '', product: '', thickness: '', dimensions: '', group1: [], master: [], company: []
       });
     } else {
       if ('master' in newFilters) setGlobalMaster(newFilters.master);
@@ -310,7 +310,7 @@ const Products = () => {
           <ChartSkeleton fullWidth />
         ) : (
           <ChartCard 
-            title={`${sortOrder === -1 ? 'Top' : 'Bottom'} Products (${metricLabel})`} 
+            title={`${sortOrder === -1 ? 'Top' : 'Bottom'} Products (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`}
             aiContext={data.products} 
             aiType={`${sortOrder === -1 ? 'Top' : 'Bottom'} Products`} 
             fullWidth
@@ -364,7 +364,7 @@ const Products = () => {
         {loading && !data.categories ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={filters.category?.length ? `Categories in ${filters.category.join(', ')}` : "Categories in"} aiContext={data.categories} aiType="Product Categories">
+          <ChartCard title={`${filters.category?.length ? `Categories in ${filters.category.join(', ')}` : "Categories in"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.categories} aiType="Product Categories">
             <div className="donut-container">
               <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                 <Doughnut
@@ -418,7 +418,7 @@ const Products = () => {
         {loading && !data.colours ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Colour Breakdown (${metricLabel})`} aiContext={data.colours} aiType="Color Variants Breakdown">
+          <ChartCard title={`Colour Breakdown (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.colours} aiType="Color Variants Breakdown">
             <Bar
               data={coloursChartData}
               options={{
@@ -434,7 +434,7 @@ const Products = () => {
         {loading && !data.zones ? (
           <ChartSkeleton />
         ) : (data.zones && data.zones.length > 0) ? (
-          <ChartCard title={`${metricLabel} by Zone`} aiContext={data.zones} aiType="Zone-wise Revenue">
+          <ChartCard title={`${metricLabel} by Zone${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.zones} aiType="Zone-wise Revenue">
             <Bar
               data={zoneChartData}
               options={{
@@ -449,7 +449,7 @@ const Products = () => {
         {loading && !data.grades ? (
           <ChartSkeleton />
         ) : (data.grades && data.grades.length > 0) ? (
-          <ChartCard title={`Grade-wise ${metricLabel} Distribution`} aiContext={data.grades} aiType="Grade-wise Revenue Distribution">
+          <ChartCard title={`Grade-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.grades} aiType="Grade-wise Revenue Distribution">
             <Pie
               data={gradeChartData}
               options={{
@@ -477,7 +477,7 @@ const Products = () => {
         ) : (data.groups && data.groups.length > 0) ? (
           <div style={{ gridColumn: drillGroup ? '1 / -1' : 'auto', display: 'grid', gridTemplateColumns: drillGroup ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: '20px' }}>
             <ChartCard
-              title={`Group-wise ${metricLabel} Distribution`}
+              title={`Group-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
               aiContext={data.groups}
               aiType="Group-wise Distribution"
               extra={<span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Click a slice to drill in</span>}
@@ -507,7 +507,7 @@ const Products = () => {
                 <ChartSkeleton />
               ) : (
                 <ChartCard
-                  title={`${drillGroup} — Product Distribution`}
+                  title={`${drillGroup} — Product Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
                   aiContext={drillData}
                   aiType={`Products within group ${drillGroup}`}
                   extra={
@@ -542,7 +542,7 @@ const Products = () => {
         {loading && !data.thickness ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Thickness Preference (${metricLabel})`} aiContext={data.thickness} aiType="Thickness Analysis">
+          <ChartCard title={`Thickness Preference (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.thickness} aiType="Thickness Analysis">
             {/* Horizontally scrollable — many Type values crowd the x-axis; give each bar room. */}
             <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ height: '100%', minWidth: `${Math.max((data.thickness?.length || 0) * 46, 100)}px` }}>
@@ -562,7 +562,7 @@ const Products = () => {
         {loading && !data.dimensions ? (
           <ChartSkeleton />
         ) : (data.dimensions && data.dimensions.length > 0) ? (
-          <ChartCard title={`Dimensions Preference (${metricLabel})`} aiContext={data.dimensions} aiType="Size Dimensions Preference">
+          <ChartCard title={`Dimensions Preference (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.dimensions} aiType="Size Dimensions Preference">
             {/* Vertically scrollable — many dimension rows crowd the y-axis. Absolute-fill the
                 card body and give each row a fixed height so the content reliably overflows. */}
             <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
@@ -616,8 +616,8 @@ const Products = () => {
                     <th>Product Name</th>
                     <th>Category</th>
                     <th>Quantity</th>
-                    <th>Revenue</th>
-                    <th>Avg Rate</th>
+                    <th>Revenue (incl. GST)</th>
+                    <th>Avg Rate (excl. GST)</th>
                   </tr>
                 </thead>
                 <tbody>

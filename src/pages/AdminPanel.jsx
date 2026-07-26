@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   adminGetUsers, adminCreateUser, adminDeleteUser, adminUpdateUser, adminReset2FA,
   getPendingDevices, getAllDevices, approveDevice, revokeDevice,
-  setup2FA, activate2FA, disable2FA 
+  setup2FA, activate2FA, disable2FA,
+  getSalespersonNames, getScopedProgress, setScopedTarget
 } from '../services/api';
-import { 
-  FiUserPlus, FiTrash2, FiShield, FiCheckSquare, FiSquare, FiEdit2, 
-  FiEye, FiEyeOff, FiLock, FiSmartphone, FiMonitor, FiCheck, FiX, FiRefreshCw 
+import {
+  FiUserPlus, FiTrash2, FiShield, FiCheckSquare, FiSquare, FiEdit2,
+  FiEye, FiEyeOff, FiLock, FiSmartphone, FiMonitor, FiCheck, FiX, FiRefreshCw,
+  FiTarget, FiBriefcase, FiMapPin
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
@@ -35,8 +37,29 @@ const AdminPanel = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setRole] = useState('viewer');
+  // Account type drives role + scope. 'viewer'/'admin' = unrestricted; 'company'/'zonal' = scoped.
+  const [accountType, setAccountType] = useState('viewer');
+  const [company, setCompany] = useState('');
+  const [zone, setZone] = useState('');
+  const [selectedSalespeople, setSelectedSalespeople] = useState([]);
+  const [spNames, setSpNames] = useState([]);
+  const [spNamesLoading, setSpNamesLoading] = useState(false);
   const [permissions, setPermissions] = useState(['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload']);
+
+  // Per-scoped-account target progress (userId -> { target, achieved, pct, hasTarget }).
+  const [scopeProgress, setScopeProgress] = useState({});
+  // Target modal
+  const [targetModalUser, setTargetModalUser] = useState(null);
+  const [targetAmount, setTargetAmount] = useState('');
+  const [targetMode, setTargetMode] = useState('yearly');
+  const [targetSaving, setTargetSaving] = useState(false);
+
+  const COMPANY_OPTIONS = ['UFLP', 'UCPL', 'UFPL', 'FDL'];
+  const ZONE_OPTIONS = ['West Zone', 'East Zone', 'North Zone', 'South Zone', 'Central Zone'];
+  const DEFAULT_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload'];
+  // Scoped accounts can't hold Invoice-level sections (mirrors the backend enforcement).
+  const SCOPED_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'clients'];
+  const fmtINR = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
 
   const availableModules = [
     { id: 'overview', label: 'Dashboard Overview' },
@@ -79,12 +102,35 @@ const AdminPanel = () => {
     }
   };
 
+  const fetchScopeProgress = async () => {
+    try {
+      const res = await getScopedProgress();
+      const map = {};
+      (res.data?.data?.progress || []).forEach(r => { map[r.userId] = r; });
+      setScopeProgress(map);
+    } catch (err) {
+      console.error('scope progress fetch failed');
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     if (user.role === 'admin') {
       fetchSecurityData();
+      fetchScopeProgress();
     }
   }, []);
+
+  // Load the salesperson pick-list for zonal-head accounts, filtered by the chosen zone
+  // (a picking aid — only salespeople with ≥1 order in that zone are offered).
+  useEffect(() => {
+    if (accountType !== 'zonal') return;
+    setSpNamesLoading(true);
+    getSalespersonNames(zone ? { zone } : {})
+      .then(res => setSpNames(res.data?.data || []))
+      .catch(() => setSpNames([]))
+      .finally(() => setSpNamesLoading(false));
+  }, [accountType, zone]);
 
   const handleTogglePerm = (modId) => {
     if (permissions.includes(modId)) {
@@ -106,25 +152,42 @@ const AdminPanel = () => {
       return toast.warning('Passwords do not match!');
     }
 
+    // Scope validation + payload
+    if (accountType === 'company' && !company) {
+      return toast.warning('Select a company for a company-scoped account');
+    }
+    if (accountType === 'zonal' && selectedSalespeople.length === 0) {
+      return toast.warning('Select at least one salesperson for a zonal-head account');
+    }
+    const submitRole = accountType === 'admin' ? 'admin' : 'viewer';
+    const scopePayload =
+      accountType === 'company' ? { scopeType: 'company', company }
+      : accountType === 'zonal' ? { scopeType: 'zonal', salespeople: selectedSalespeople, zone }
+      : { scopeType: 'none' };
+
     try {
       if (isEditMode) {
-        await adminUpdateUser(editingUserId, { role, permissions, password: password.trim() ? password : undefined });
+        await adminUpdateUser(editingUserId, { role: submitRole, permissions, password: password.trim() ? password : undefined, ...scopePayload });
         toast.success('User updated successfully');
       } else {
-        await adminCreateUser({ username, password, role, permissions });
+        await adminCreateUser({ username, password, role: submitRole, permissions, ...scopePayload });
         toast.success('User created successfully');
       }
-      
+
       // Reset State
       setUsername('');
       setPassword('');
       setConfirmPassword('');
       setShowPassword(false);
-      setRole('viewer');
-      setPermissions(['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload']);
+      setAccountType('viewer');
+      setCompany('');
+      setZone('');
+      setSelectedSalespeople([]);
+      setPermissions(DEFAULT_PERMS);
       setIsEditMode(false);
       setEditingUserId(null);
       fetchUsers();
+      if (user.role === 'admin') fetchScopeProgress();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save user');
     }
@@ -138,7 +201,13 @@ const AdminPanel = () => {
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
-    setRole(userObj.role);
+    const at = userObj.role === 'admin'
+      ? 'admin'
+      : (userObj.scopeType && userObj.scopeType !== 'none' ? userObj.scopeType : 'viewer');
+    setAccountType(at);
+    setCompany(userObj.company || '');
+    setZone(userObj.zone || '');
+    setSelectedSalespeople(userObj.salespeople || []);
     setPermissions(userObj.permissions || []);
   };
 
@@ -150,8 +219,42 @@ const AdminPanel = () => {
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
-    setRole('viewer');
-    setPermissions(['overview', 'products', 'salesperson', 'comparison', 'upload']);
+    setAccountType('viewer');
+    setCompany('');
+    setZone('');
+    setSelectedSalespeople([]);
+    setPermissions(DEFAULT_PERMS);
+  };
+
+  const toggleSalesperson = (name) => {
+    setSelectedSalespeople(prev =>
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
+  };
+
+  // ---- Scoped-account target modal ----
+  const openTargetModal = (u) => {
+    const prog = scopeProgress[u._id];
+    setTargetModalUser(u);
+    setTargetAmount(prog && prog.hasTarget ? String(prog.target) : '');
+    setTargetMode('yearly');
+  };
+
+  const saveScopedTarget = async () => {
+    if (!targetModalUser) return;
+    const amt = Number(targetAmount);
+    if (!isFinite(amt) || amt < 0) return toast.warning('Enter a valid target amount');
+    try {
+      setTargetSaving(true);
+      await setScopedTarget(targetModalUser._id, { amount: amt, mode: targetMode });
+      toast.success('Target saved');
+      setTargetModalUser(null);
+      fetchScopeProgress();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save target');
+    } finally {
+      setTargetSaving(false);
+    }
   };
 
   const handleReset2FA = async (userId) => {
@@ -340,16 +443,105 @@ const AdminPanel = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>System Role</label>
-                <select 
-                  value={role} 
-                  onChange={(e) => setRole(e.target.value)}
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>Account Type</label>
+                <select
+                  value={accountType}
+                  onChange={(e) => {
+                    const at = e.target.value;
+                    setAccountType(at);
+                    // Scoped accounts get the restricted permission default.
+                    if (at === 'company' || at === 'zonal') setPermissions(SCOPED_PERMS);
+                    else if (at === 'viewer') setPermissions(DEFAULT_PERMS);
+                  }}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', outline: 'none' }}
                 >
-                  <option value="viewer">Viewer (Restricted)</option>
-                  <option value="admin">Administrator (Full access)</option>
+                  <option value="viewer">Viewer (sees all data)</option>
+                  <option value="admin">Administrator (full access)</option>
+                  <option value="company">Company (one company only)</option>
+                  <option value="zonal">Zonal Head (selected salespeople)</option>
                 </select>
               </div>
+
+              {/* Company-scoped: pick which of the daughter companies this account sees. */}
+              {accountType === 'company' && (
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                    <FiBriefcase size={14} /> Company
+                  </label>
+                  <select
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', outline: 'none' }}
+                  >
+                    <option value="">— Select company —</option>
+                    {COMPANY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    This account will only ever see <strong>{company || '…'}</strong> data across the whole app.
+                  </p>
+                </div>
+              )}
+
+              {/* Zonal head: zone is just a filter to narrow the salesperson pick-list; the
+                  actual scope is the chosen salespeople (all their data, any zone). */}
+              {accountType === 'zonal' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                      <FiMapPin size={14} /> Zone (pick-list filter — optional)
+                    </label>
+                    <select
+                      value={zone}
+                      onChange={(e) => setZone(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', outline: 'none' }}
+                    >
+                      <option value="">All zones</option>
+                      {ZONE_OPTIONS.map(z => <option key={z} value={z}>{z}</option>)}
+                    </select>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      Choosing a zone shows only salespeople with ≥1 order there. The account still sees
+                      <strong> all data</strong> for whomever you pick (not limited by zone).
+                    </p>
+                  </div>
+                  <div>
+                    <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                      <span>Salespeople in this account</span>
+                      <span style={{ color: 'var(--primary-600)' }}>{selectedSalespeople.length} selected</span>
+                    </label>
+                    <div style={{ maxHeight: '220px', overflowY: 'auto', background: 'var(--bg-light)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      {spNamesLoading ? (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>Loading salespeople…</p>
+                      ) : spNames.length === 0 ? (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>No salespeople found for this zone.</p>
+                      ) : (
+                        spNames.map(name => (
+                          <div
+                            key={name}
+                            onClick={() => toggleSalesperson(name)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', padding: '5px 4px' }}
+                          >
+                            {selectedSalespeople.includes(name)
+                              ? <FiCheckSquare color="var(--primary-600)" size={16} />
+                              : <FiSquare color="var(--text-muted)" size={16} />}
+                            <span>{name}</span>
+                          </div>
+                        ))
+                      )}
+                      {/* Keep any already-picked names that aren't in the current zone list visible. */}
+                      {selectedSalespeople.filter(n => !spNames.includes(n)).map(name => (
+                        <div
+                          key={name}
+                          onClick={() => toggleSalesperson(name)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', padding: '5px 4px', opacity: 0.8 }}
+                        >
+                          <FiCheckSquare color="var(--primary-600)" size={16} />
+                          <span>{name} <em style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>(other zone)</em></span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
                 <button 
@@ -369,11 +561,18 @@ const AdminPanel = () => {
                 )}
               </div>
 
-              {role === 'viewer' && (
+              {accountType !== 'admin' && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>Module Access Permissions</label>
+                  {(accountType === 'company' || accountType === 'zonal') && (
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                      Financials, Channel and Data Upload are unavailable for scoped accounts.
+                    </p>
+                  )}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', background: 'var(--bg-light)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    {availableModules.map(mod => (
+                    {availableModules
+                      .filter(mod => !((accountType === 'company' || accountType === 'zonal') && ['financials', 'channel', 'upload'].includes(mod.id)))
+                      .map(mod => (
                       <div 
                         key={mod.id} 
                         onClick={() => handleTogglePerm(mod.id)} 
@@ -404,16 +603,28 @@ const AdminPanel = () => {
               <p style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>No alternative users registered yet.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {users.map(u => (
-                  <div 
-                    key={u._id} 
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--bg-light)', borderRadius: '10px', border: '1px solid var(--border-color)' }}
+                {users.map(u => {
+                  const isScoped = u.scopeType === 'company' || u.scopeType === 'zonal';
+                  const prog = scopeProgress[u._id];
+                  const scopeLabel = u.scopeType === 'company'
+                    ? `Company · ${u.company || '—'}`
+                    : u.scopeType === 'zonal'
+                      ? `Zonal Head · ${(u.salespeople || []).length} salespeople${u.zone ? ` · ${u.zone}` : ''}`
+                      : null;
+                  return (
+                  <div
+                    key={u._id}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px 18px', background: 'var(--bg-light)', borderRadius: '10px', border: '1px solid var(--border-color)' }}
                   >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>{u.username}</span>
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: u.role === 'admin' ? '#fee2e2' : '#dbeafe', color: u.role === 'admin' ? '#ef4444' : '#2563eb', fontWeight: 600 }}>{u.role}</span>
-                        {u.role === 'viewer' && (
+                        {scopeLabel && (
+                          <span style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', fontWeight: 600 }}>{scopeLabel}</span>
+                        )}
+                        {u.role === 'viewer' && !isScoped && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             Perms: {(u.permissions || []).join(', ') || 'None'}
                           </span>
@@ -421,16 +632,25 @@ const AdminPanel = () => {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
+                      {isScoped && (
+                        <button
+                          onClick={() => openTargetModal(u)}
+                          style={{ padding: '8px', background: 'transparent', border: 'none', color: '#d97706', cursor: 'pointer', borderRadius: '6px' }}
+                          title="Set / edit target"
+                        >
+                          <FiTarget size={16} />
+                        </button>
+                      )}
+                      <button
                         onClick={() => handleEditClick(u)}
                         style={{ padding: '8px', background: 'transparent', border: 'none', color: 'var(--primary-600)', cursor: 'pointer', borderRadius: '6px' }}
                       >
                         <FiEdit2 size={16} />
                       </button>
                       {u.isTwoFactorEnabled && (
-                        <button 
-                          onClick={() => handleReset2FA(u._id)} 
-                          style={{ padding: '8px', background: 'transparent', border: 'none', color: '#f59e0b', cursor: 'pointer', borderRadius: '6px', position: 'relative' }} 
+                        <button
+                          onClick={() => handleReset2FA(u._id)}
+                          style={{ padding: '8px', background: 'transparent', border: 'none', color: '#f59e0b', cursor: 'pointer', borderRadius: '6px', position: 'relative' }}
                           title="Reset 2FA"
                         >
                           <FiShield size={16} />
@@ -438,7 +658,7 @@ const AdminPanel = () => {
                         </button>
                       )}
                       {u.username !== 'flexibond' && u._id !== user._id && (
-                        <button 
+                        <button
                           onClick={() => handleDeleteUser(u._id)}
                           style={{ padding: '8px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '6px' }}
                         >
@@ -446,8 +666,27 @@ const AdminPanel = () => {
                         </button>
                       )}
                     </div>
+                    </div>
+
+                    {/* Target progress bar for scoped accounts */}
+                    {isScoped && (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>
+                            {prog && prog.hasTarget
+                              ? `${fmtINR(prog.achieved)} of ${fmtINR(prog.target)} (incl. GST)`
+                              : 'No target set'}
+                          </span>
+                          {prog && prog.hasTarget && <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{prog.pct}%</span>}
+                        </div>
+                        <div style={{ height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.min(prog?.pct || 0, 100)}%`, background: (prog?.pct || 0) >= 100 ? '#22c55e' : 'linear-gradient(90deg, var(--primary-400), var(--primary-600))', borderRadius: '3px', transition: 'width 0.3s' }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -589,6 +828,74 @@ const AdminPanel = () => {
 
           </div>
 
+        </div>
+      )}
+
+      {/* Scoped-account target modal */}
+      {targetModalUser && (
+        <div
+          onClick={() => !targetSaving && setTargetModalUser(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: '420px', maxWidth: '92vw', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}
+          >
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#d97706', marginBottom: '4px' }}>
+              <FiTarget /> Set Target
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px', textTransform: 'capitalize' }}>
+              {targetModalUser.username} · {targetModalUser.scopeType === 'company' ? `Company ${targetModalUser.company || ''}` : 'Zonal Head'}
+            </p>
+
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Target Mode</label>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              {['yearly', 'monthly'].map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setTargetMode(m)}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: `1px solid ${targetMode === m ? 'var(--primary-500)' : 'var(--border-color)'}`, background: targetMode === m ? 'var(--primary-50)' : '#fff', color: targetMode === m ? 'var(--primary-700)' : 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              {targetMode === 'yearly' ? 'Annual target (₹)' : 'Monthly target (₹)'}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(e.target.value.replace(/[^\d]/g, ''))}
+              placeholder="e.g. 10000000"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', fontSize: '1rem', boxSizing: 'border-box' }}
+            />
+            {targetAmount && (
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                {fmtINR(Number(targetAmount))} {targetMode === 'monthly' ? '/ month' : '/ year'}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '22px' }}>
+              <button
+                onClick={saveScopedTarget}
+                disabled={targetSaving}
+                style={{ flex: 1, padding: '11px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: targetSaving ? 'default' : 'pointer', opacity: targetSaving ? 0.7 : 1 }}
+              >
+                {targetSaving ? 'Saving…' : 'Save Target'}
+              </button>
+              <button
+                onClick={() => setTargetModalUser(null)}
+                disabled={targetSaving}
+                style={{ padding: '11px 16px', background: 'var(--bg-light)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

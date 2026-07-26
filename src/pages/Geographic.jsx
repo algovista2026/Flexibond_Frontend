@@ -546,7 +546,7 @@ const Geographic = () => {
 
               {/* Charts */}
               <div className="charts-grid" style={{ marginBottom: '24px' }}>
-                <ChartCard title="Revenue by Zone" aiContext={zoneData.zones} aiType="Zone-wise Revenue Comparison">
+                <ChartCard title="Revenue by Zone (incl. GST)" aiContext={zoneData.zones} aiType="Zone-wise Revenue Comparison">
                   <Bar
                     data={zoneBarData}
                     options={{
@@ -557,7 +557,7 @@ const Geographic = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title="Zone × Grade Revenue Mix" aiContext={zoneData.zoneGrade} aiType="Zone by Grade Revenue Breakdown">
+                <ChartCard title="Zone × Grade Revenue Mix (incl. GST)" aiContext={zoneData.zoneGrade} aiType="Zone by Grade Revenue Breakdown">
                   <Bar
                     data={zoneGradeData}
                     options={{
@@ -579,7 +579,7 @@ const Geographic = () => {
                     <thead>
                       <tr>
                         <th>Zone</th>
-                        <th>Revenue</th>
+                        <th>Revenue (incl. GST)</th>
                         <th>Orders</th>
                         <th>Customers</th>
                         <th>Top Salesperson</th>
