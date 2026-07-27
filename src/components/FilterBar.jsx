@@ -66,24 +66,25 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
           onChange={(v) => onFilterChange({ endDate: v })}
         />
 
-        {/* Company — daughter-company (TYpe3). Locked/hidden for company-scoped users
-            (they only ever see their own company), so pages omit it via hideCompany. */}
+        {/* Company — daughter-company (TYpe3). The primary filter, styled prominently in amber.
+            Locked/hidden for company-scoped users (they only ever see their own company), so
+            pages omit it via hideCompany. */}
         {!hideCompany && show(options?.companies, filters.company) && (
           <MultiSelect
             label="Company"
             options={options.companies}
             selected={filters.company || []}
+            accent="#d97706"
             onChange={(vals) => onFilterChange({ company: vals })}
           />
         )}
 
-        {/* Master — headline product classification, styled prominently in amber. */}
+        {/* Master — headline product classification. */}
         {show(options?.masters, filters.master) && (
           <MultiSelect
             label="Master"
             options={options.masters}
             selected={filters.master || []}
-            accent="#d97706"
             onChange={(vals) => onFilterChange({ master: vals })}
           />
         )}

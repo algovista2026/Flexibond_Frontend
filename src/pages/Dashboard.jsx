@@ -27,7 +27,7 @@ import {
   getScopedTarget,
   setScopedTarget
 } from '../services/api';
-import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
+import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 
@@ -35,11 +35,11 @@ const Dashboard = () => {
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
     colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [],
-    master: getGlobalMaster(), company: []
-  });
+    master: [], company: []
+  }));
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [filterOptions, setFilterOptions] = useState({});
@@ -121,15 +121,18 @@ const Dashboard = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
-      setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
-      setFilters({
+      const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
         colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [], master: [], company: []
-      });
+      };
+      clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
+      setFilters(reset);
     } else {
-      // Master is a cross-page filter — persist it so it stays applied on other pages.
-      if ('master' in newFilters) setGlobalMaster(newFilters.master);
-      setFilters(prev => ({ ...prev, ...newFilters }));
+      setFilters(prev => {
+        const next = { ...prev, ...newFilters };
+        setGlobalFilters(next); // persist so the whole filter set carries across pages.
+        return next;
+      });
     }
   };
 
@@ -263,7 +266,7 @@ const Dashboard = () => {
     }]
   };
 
-  // Group-wise distribution (FB / FM / FN / Base …) — cloned from the Products page (no drill).
+  // Category-wise distribution (internal field `group`: FB / FM / FN / Base …) — cloned from the Products page (no drill).
   const GROUP_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
   const groupChartData = {
     labels: data.groups?.map(g => g._id) || [],
@@ -473,14 +476,15 @@ const Dashboard = () => {
           </ChartCard>
         ) : null}
 
-        {/* Group-wise pie — cloned from Products (no drill-down), sits beside the Master pie. */}
+        {/* Category-wise pie (internal field `group`, TYpe1) — cloned from Products (no drill-down),
+            sits beside the Master pie. */}
         {loading && !data.groups ? (
           <ChartSkeleton />
         ) : (data.groups && data.groups.length > 0) ? (
           <ChartCard
-            title={`Group-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`}
+            title={`Category-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`}
             aiContext={data.groups}
-            aiType="Group-wise Distribution"
+            aiType="Category-wise Distribution"
           >
             <Pie
               data={groupChartData}

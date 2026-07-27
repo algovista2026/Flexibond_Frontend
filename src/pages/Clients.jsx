@@ -7,15 +7,15 @@ import ExportControls from '../components/ExportControls';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
-import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
+import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 
 const PIE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
 
 const Clients = () => {
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: getGlobalMaster(), company: []
-  });
+    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: []
+  }));
   const [filterOptions, setFilterOptions] = useState({});
   const [metric, setMetric] = useState('revenue');
 
@@ -68,14 +68,18 @@ const Clients = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
-      setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
-      setFilters({
+      const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
         colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: []
-      });
+      };
+      clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
+      setFilters(reset);
     } else {
-      if ('master' in newFilters) setGlobalMaster(newFilters.master);
-      setFilters(prev => ({ ...prev, ...newFilters }));
+      setFilters(prev => {
+        const next = { ...prev, ...newFilters };
+        setGlobalFilters(next); // persist so the whole filter set carries across pages.
+        return next;
+      });
     }
   };
 
@@ -260,16 +264,16 @@ const Clients = () => {
                   </ChartCard>
                 )}
 
-                {/* Group */}
+                {/* Category (internal field `group`, TYpe1) */}
                 {(analysis?.byGroup?.length > 0) && (
-                  <ChartCard title={`Group-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup} aiType="Client group mix">
+                  <ChartCard title={`Category-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup} aiType="Client category mix">
                     <Pie data={pieData(analysis.byGroup)} options={pieOptions} />
                   </ChartCard>
                 )}
 
-                {/* Group 1 */}
+                {/* Variants (internal field `group1`, TYpe2) */}
                 {(analysis?.byGroup1?.length > 0) && (
-                  <ChartCard title={`Group 1 ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup1} aiType="Client Group 1 mix">
+                  <ChartCard title={`Variants ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup1} aiType="Client variants mix">
                     <Pie data={pieData(analysis.byGroup1)} options={pieOptions} />
                   </ChartCard>
                 )}

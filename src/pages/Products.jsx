@@ -22,7 +22,7 @@ import {
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
-import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
+import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 
 const Products = () => {
   const location = useLocation();
@@ -30,10 +30,10 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [metric, setMetric] = useState('revenue');
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    format: '', product: '', thickness: '', dimensions: '', group1: [], master: getGlobalMaster(), company: []
-  });
+    format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: []
+  }));
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
     products: null,
@@ -104,14 +104,18 @@ const Products = () => {
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
-      setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
-      setFilters({
+      const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-        format: '', product: '', thickness: '', dimensions: '', group1: [], master: [], company: []
-      });
+        format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: []
+      };
+      clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
+      setFilters(reset);
     } else {
-      if ('master' in newFilters) setGlobalMaster(newFilters.master);
-      setFilters(prev => ({ ...prev, ...newFilters }));
+      setFilters(prev => {
+        const next = { ...prev, ...newFilters };
+        setGlobalFilters(next); // persist so the whole filter set carries across pages.
+        return next;
+      });
     }
   };
 
@@ -300,8 +304,8 @@ const Products = () => {
         <div className="kpi-grid">
           <KPICard title={sortOrder === -1 ? "Top Product" : "Bottom Product"} value={topProduct ? topProduct._id.substring(0, 20) : 'N/A'} icon={<FiBox />} color="blue" />
           <KPICard title="Unique Products" value={formatNumber(totalProducts)} icon={<FiGrid />} color="green" />
-          <KPICard title="Categories" value={formatNumber(totalCategories)} icon={<FiLayers />} color="orange" />
-          <KPICard title="Colour Variants" value={formatNumber(totalColours)} icon={<FiDroplet />} color="red" />
+          <KPICard title="Sub-Categories" value={formatNumber(totalCategories)} icon={<FiLayers />} color="orange" />
+          <KPICard title="Colours" value={formatNumber(totalColours)} icon={<FiDroplet />} color="red" />
         </div>
       )}
 
@@ -364,7 +368,7 @@ const Products = () => {
         {loading && !data.categories ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`${filters.category?.length ? `Categories in ${filters.category.join(', ')}` : "Categories in"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.categories} aiType="Product Categories">
+          <ChartCard title={`${filters.category?.length ? `Sub-categories in ${filters.category.join(', ')}` : "Sub-categories in"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.categories} aiType="Product Sub-Categories">
             <div className="donut-container">
               <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                 <Doughnut
@@ -418,7 +422,7 @@ const Products = () => {
         {loading && !data.colours ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Colour Breakdown (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.colours} aiType="Color Variants Breakdown">
+          <ChartCard title={`Colour Breakdown (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.colours} aiType="Colour Breakdown">
             <Bar
               data={coloursChartData}
               options={{
@@ -477,9 +481,9 @@ const Products = () => {
         ) : (data.groups && data.groups.length > 0) ? (
           <div style={{ gridColumn: drillGroup ? '1 / -1' : 'auto', display: 'grid', gridTemplateColumns: drillGroup ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: '20px' }}>
             <ChartCard
-              title={`Group-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
+              title={`Category-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
               aiContext={data.groups}
-              aiType="Group-wise Distribution"
+              aiType="Category-wise Distribution"
               extra={<span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Click a slice to drill in</span>}
             >
               <Pie
@@ -509,7 +513,7 @@ const Products = () => {
                 <ChartCard
                   title={`${drillGroup} — Product Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
                   aiContext={drillData}
-                  aiType={`Products within group ${drillGroup}`}
+                  aiType={`Products within category ${drillGroup}`}
                   extra={
                     <button
                       onClick={() => { setDrillGroup(null); setDrillData(null); }}
@@ -531,7 +535,7 @@ const Products = () => {
                       }}
                     />
                   ) : (
-                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>No products in this group.</p>
+                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>No products in this category.</p>
                   )}
                 </ChartCard>
               )
@@ -614,7 +618,7 @@ const Products = () => {
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
                     <th>Product Name</th>
-                    <th>Category</th>
+                    <th>Sub-Category</th>
                     <th>Quantity</th>
                     <th>Revenue (incl. GST)</th>
                     <th>Avg Rate (excl. GST)</th>

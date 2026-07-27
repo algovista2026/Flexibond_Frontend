@@ -15,7 +15,7 @@ import TargetAmountInput, { SALESPERSON_TARGET_PRESETS } from '../components/Tar
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
-import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
+import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 
 const SalespersonListSkeleton = () => (
   <div className="sp-list-scroll-area">
@@ -92,10 +92,10 @@ const Salesperson = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster(), company: []
-  });
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
+  }));
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetForm, setTargetForm] = useState({ amount: '', mode: 'monthly' });
   const [targetSaving, setTargetSaving] = useState(false);
@@ -236,14 +236,17 @@ const Salesperson = () => {
         options={filterOptions} 
         onFilterChange={(newFilters, clear) => {
           if (clear) {
-            setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
+            clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
             setFilters({
               startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
               product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
             });
           } else {
-            if ('master' in newFilters) setGlobalMaster(newFilters.master);
-            setFilters(prev => ({ ...prev, ...newFilters }));
+            setFilters(prev => {
+              const next = { ...prev, ...newFilters };
+              setGlobalFilters(next); // persist so the whole filter set carries across pages.
+              return next;
+            });
           }
         }}
         hideSalesperson={true}
@@ -254,23 +257,19 @@ const Salesperson = () => {
         <SalespersonPicker list={list} selected={selectedSP} onSelect={handleSelectSP} />
       </div>
 
-      <div className="salesperson-layout">
-        {/* Left column: leaderboard (unchanged) + a snapshot card filling the space below */}
-        <div className="salesperson-left">
-        <div className="salesperson-list-container">
-          <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-light)' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600 }}>Leaderboard</h3>
-          </div>
-          {loading ? (
-            <SalespersonListSkeleton />
-          ) : (
-            <div className="sp-list-scroll-area">
+      {/* Leaderboard — horizontal, full-width strip right below the filter/picker (like the
+          filter bar). The charts/details flow full-width beneath it, like other dashboards. */}
+      <div className="sp-leaderboard-strip">
+        <h3 className="sp-strip-title">Leaderboard</h3>
+        {loading ? (
+          <SalespersonListSkeleton />
+        ) : (
+          <div className="sp-strip-cards">
               {list.map((sp, idx) => (
                 <div 
                   key={sp._id} 
                   className={`sp-card ${selectedSP === sp._id ? 'active' : ''}`}
                   onClick={() => handleSelectSP(sp._id)}
-                  style={{ marginBottom: '12px' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
                     <div className={`rank-badge ${idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : 'default'}`}>
@@ -300,45 +299,7 @@ const Salesperson = () => {
           )}
         </div>
 
-        {/* Team snapshot — uses the whitespace under the leaderboard. Derived from the
-            already-loaded leaderboard list, so no extra fetch. */}
-        {!loading && list.length > 0 && (() => {
-          const teamRevenue = list.reduce((s, x) => s + (x.totalRevenue || 0), 0);
-          const teamOrders = list.reduce((s, x) => s + (x.totalOrders || 0), 0);
-          const count = list.length;
-          const avgPerSp = count ? teamRevenue / count : 0;
-          return (
-            <div className="sp-snapshot">
-              <h3>Team Snapshot</h3>
-              <div className="sp-snapshot-grid">
-                <div className="sp-snapshot-stat">
-                  <span className="sp-snapshot-label">Team Revenue (incl. GST)</span>
-                  <span className="sp-snapshot-value" style={{ color: 'var(--primary-600)' }}>{formatCurrency(teamRevenue)}</span>
-                </div>
-                <div className="sp-snapshot-stat">
-                  <span className="sp-snapshot-label">Salespeople</span>
-                  <span className="sp-snapshot-value">{count}</span>
-                </div>
-                <div className="sp-snapshot-stat">
-                  <span className="sp-snapshot-label">Total Orders</span>
-                  <span className="sp-snapshot-value">{teamOrders.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="sp-snapshot-stat">
-                  <span className="sp-snapshot-label">Avg / Person (incl. GST)</span>
-                  <span className="sp-snapshot-value">{formatCurrency(avgPerSp)}</span>
-                </div>
-              </div>
-              {list[0] && (
-                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  🏆 Top performer: <strong style={{ color: 'var(--text-primary)' }}>{list[0]._id}</strong> · {formatCurrency(list[0].totalRevenue)}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-        </div>
-
-        {/* Right Content - Details */}
+        {/* Details — full width, like the other dashboard pages. */}
         <div className="salesperson-details-container">
           {detailsLoading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -568,7 +529,7 @@ const Salesperson = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title={`${filters.category ? `Products in ${filters.category}` : "Category Breakdown"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.categoryBreakdown} aiType={`Category Performance for ${selectedSP}`}>
+                <ChartCard title={`${filters.category ? `Products in ${filters.category}` : "Sub-Category Breakdown"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.categoryBreakdown} aiType={`Sub-Category Performance for ${selectedSP}`}>
                   <div className="donut-container">
                     <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                       <Doughnut 
@@ -691,9 +652,9 @@ const Salesperson = () => {
                   </ChartCard>
                 )}
 
-                {/* Group-wise distribution (FB/FM/FN/Base…) for this salesperson. */}
+                {/* Category-wise distribution (internal field `group`: FB/FM/FN/Base…) for this salesperson. */}
                 {details.groupBreakdown && details.groupBreakdown.length > 0 && (
-                  <ChartCard title={`Group-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.groupBreakdown} aiType={`Group split for ${selectedSP}`}>
+                  <ChartCard title={`Category-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.groupBreakdown} aiType={`Category split for ${selectedSP}`}>
                     <Pie
                       data={{
                         labels: details.groupBreakdown.map(g => g._id),
@@ -823,7 +784,6 @@ const Salesperson = () => {
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

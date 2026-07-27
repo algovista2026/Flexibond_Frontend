@@ -44,6 +44,7 @@ const AdminPanel = () => {
   const [selectedSalespeople, setSelectedSalespeople] = useState([]);
   const [spNames, setSpNames] = useState([]);
   const [spNamesLoading, setSpNamesLoading] = useState(false);
+  const [spSearch, setSpSearch] = useState('');
   const [permissions, setPermissions] = useState(['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload']);
 
   // Per-scoped-account target progress (userId -> { target, achieved, pct, hasTarget }).
@@ -508,13 +509,47 @@ const AdminPanel = () => {
                       <span>Salespeople in this account</span>
                       <span style={{ color: 'var(--primary-600)' }}>{selectedSalespeople.length} selected</span>
                     </label>
+
+                    {/* Search + bulk select/clear for the salesperson pick-list */}
+                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                      <FiSearch size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <input
+                        type="text"
+                        value={spSearch}
+                        onChange={(e) => setSpSearch(e.target.value)}
+                        placeholder="Search salesperson…"
+                        style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const shown = spNames.filter(n => !spSearch.trim() || n.toLowerCase().includes(spSearch.trim().toLowerCase()));
+                          setSelectedSalespeople(prev => [...new Set([...prev, ...shown])]);
+                        }}
+                        style={{ flex: 1, padding: '6px', fontSize: '0.78rem', fontWeight: 600, borderRadius: '6px', border: '1px solid var(--primary-200, #bfdbfe)', background: 'var(--primary-50, #eff6ff)', color: 'var(--primary-600)', cursor: 'pointer' }}
+                      >
+                        Select all{spSearch.trim() ? ' shown' : ''}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSalespeople([])}
+                        style={{ flex: 1, padding: '6px', fontSize: '0.78rem', fontWeight: 600, borderRadius: '6px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                      >
+                        Clear all
+                      </button>
+                    </div>
+
                     <div style={{ maxHeight: '220px', overflowY: 'auto', background: 'var(--bg-light)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                       {spNamesLoading ? (
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>Loading salespeople…</p>
                       ) : spNames.length === 0 ? (
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>No salespeople found for this zone.</p>
-                      ) : (
-                        spNames.map(name => (
+                      ) : (() => {
+                        const shown = spNames.filter(n => !spSearch.trim() || n.toLowerCase().includes(spSearch.trim().toLowerCase()));
+                        if (shown.length === 0) return <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>No matches.</p>;
+                        return shown.map(name => (
                           <div
                             key={name}
                             onClick={() => toggleSalesperson(name)}
@@ -525,10 +560,13 @@ const AdminPanel = () => {
                               : <FiSquare color="var(--text-muted)" size={16} />}
                             <span>{name}</span>
                           </div>
-                        ))
-                      )}
+                        ));
+                      })()}
                       {/* Keep any already-picked names that aren't in the current zone list visible. */}
-                      {selectedSalespeople.filter(n => !spNames.includes(n)).map(name => (
+                      {selectedSalespeople
+                        .filter(n => !spNames.includes(n))
+                        .filter(n => !spSearch.trim() || n.toLowerCase().includes(spSearch.trim().toLowerCase()))
+                        .map(name => (
                         <div
                           key={name}
                           onClick={() => toggleSalesperson(name)}

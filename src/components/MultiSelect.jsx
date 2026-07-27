@@ -12,7 +12,7 @@ import { FiChevronDown, FiCheck } from 'react-icons/fi';
  *  - formatOption: optional (value) => string for DISPLAY only (e.g. thickness "3" -> "3 MM").
  *                  Selection values sent back through onChange stay the raw option.
  *  - accent:       optional hex colour (e.g. "#d97706") to render this dropdown prominently
- *                  (coloured border/fill), used to make the Master filter stand out.
+ *                  (coloured border/fill), used to make the primary Company filter stand out.
  */
 const MultiSelect = ({ label, options = [], selected, onChange, formatOption, accent }) => {
   const [open, setOpen] = useState(false);

@@ -9,7 +9,7 @@ import NotificationPanel from '../components/NotificationPanel';
 import FilterBar from '../components/FilterBar';
 import { getTopProducts, getProductComparison, getFilters } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
-import { getGlobalMaster, setGlobalMaster } from '../utils/globalFilters';
+import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
 
@@ -26,10 +26,10 @@ const ProductComparison = () => {
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('month');
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: getGlobalMaster(), company: []
-  });
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
+  }));
   const [filterOptions, setFilterOptions] = useState({});
 
   useEffect(() => {
@@ -185,14 +185,17 @@ const ProductComparison = () => {
         options={filterOptions}
         onFilterChange={(newFilters, clear) => {
           if (clear) {
-            setGlobalMaster([]); // Master is universal — clearing here clears it everywhere.
+            clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
             setFilters({
               startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], format: '',
               product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
             });
           } else {
-            if ('master' in newFilters) setGlobalMaster(newFilters.master);
-            setFilters(prev => ({ ...prev, ...newFilters }));
+            setFilters(prev => {
+              const next = { ...prev, ...newFilters };
+              setGlobalFilters(next); // persist so the whole filter set carries across pages.
+              return next;
+            });
           }
         }}
       />
@@ -274,7 +277,7 @@ const ProductComparison = () => {
                 <thead>
                   <tr>
                     <th style={{ whiteSpace: 'nowrap' }}>Product</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>Category</th>
+                    <th style={{ whiteSpace: 'nowrap' }}>Sub-Category</th>
                     <th style={{ whiteSpace: 'nowrap' }}>Revenue</th>
                     <th style={{ whiteSpace: 'nowrap' }}>Quantity</th>
                     <th style={{ whiteSpace: 'nowrap' }}>Orders</th>

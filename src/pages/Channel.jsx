@@ -315,7 +315,7 @@ const Channel = () => {
         )}
       </div>
 
-      {/* State Breakdown + Category Breakdown */}
+      {/* State Breakdown + Sub-Category Breakdown */}
       <div className="charts-grid" style={{ marginBottom: '24px' }}>
         {loading && stateData.length === 0 ? (
           <ChartSkeleton />
@@ -332,7 +332,7 @@ const Channel = () => {
         {loading && categories.length === 0 ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title="Category Revenue by Channel (excl. GST)" aiContext={categories} aiType="Product Category B2B vs B2C Revenue">
+          <ChartCard title="Sub-Category Revenue by Channel (excl. GST)" aiContext={categories} aiType="Product Sub-Category B2B vs B2C Revenue">
             <Bar data={categoryBarData} options={{
               maintainAspectRatio: false,
               plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },

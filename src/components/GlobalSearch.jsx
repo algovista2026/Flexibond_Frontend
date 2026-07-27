@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FiSearch, FiUser, FiPackage, FiBox, FiGrid, FiMapPin } from 'react-icons/fi';
 import { getFilters } from '../services/api';
 
+// Client-facing labels for the result-type badge. The `category` field (source column
+// "Categry") is shown as "Sub-Category" to match the FilterBar/chart naming scheme.
+const TYPE_LABELS = {
+  category: 'Sub-Category', thickness: 'Thickness / Section', salesperson: 'Salesperson',
+  product: 'Product', dimensions: 'Size', city: 'City'
+};
+
 const GlobalSearch = ({ onSearchSelect }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -179,7 +186,7 @@ const GlobalSearch = ({ onSearchSelect }) => {
               {item.icon}
               <div>
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>{item.label}</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{item.type}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{TYPE_LABELS[item.type] || item.type}</span>
               </div>
             </div>
           ))}

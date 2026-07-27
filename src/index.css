@@ -939,27 +939,35 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
    is sticky (align-self:start so the grid cell shrinks to content instead of stretching to
    the tall right column — a stretched grid item can't stick), so the leaderboard + snapshot
    travel with the scroll and the column below the leaderboard is never a dead void. */
-.salesperson-left {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-width: 0;
-  align-self: start;
-  position: sticky;
-  top: 100px;
-}
-
-.salesperson-list-container {
+/* Leaderboard is now a full-width HORIZONTAL strip (like the filter bar) directly below the
+   filter/picker; the charts/details flow full-width beneath it like other dashboard pages. */
+.sp-leaderboard-strip {
   background: var(--bg-card);
-  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  overflow: hidden;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+.sp-strip-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+/* Horizontal scrolling row of salesperson cards. */
+.sp-strip-cards {
   display: flex;
-  flex-direction: column;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.sp-leaderboard-strip .sp-card {
   flex: 0 0 auto;
-  /* Leave room under the leaderboard for the snapshot so both fit the sticky viewport
-     column. The internal sp-list-scroll-area still scrolls when there are many entries. */
-  max-height: calc(100vh - 300px);
+  width: 190px;
+  margin-bottom: 0;
+}
+/* The details section (KPIs + charts + tables) is now full-width. */
+.salesperson-details-container {
+  min-height: 0;
 }
 
 /* Compact team-snapshot card that occupies the whitespace under the leaderboard. */
