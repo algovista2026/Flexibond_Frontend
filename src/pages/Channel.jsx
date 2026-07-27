@@ -186,11 +186,11 @@ const Channel = () => {
             </div>
             <div style={{ padding: '18px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {[
-                { label: 'Revenue (incl. GST)', value: formatCurrency(summary.b2b.revenue), icon: <FiDollarSign size={14} /> },
+                { label: 'Revenue (Excl. Taxes)', value: formatCurrency(summary.b2b.revenue), icon: <FiDollarSign size={14} /> },
                 { label: 'Revenue Share', value: `${summary.b2b.share}%`, icon: <FiTrendingUp size={14} /> },
                 { label: 'Orders', value: formatNumber(summary.b2b.orders), icon: <FiShoppingBag size={14} /> },
                 { label: 'Customers', value: formatNumber(summary.b2b.customers), icon: <FiUsers size={14} /> },
-                { label: 'Avg Order Value (incl. GST)', value: formatCurrency(summary.b2b.avgOrder), icon: <FiDollarSign size={14} /> },
+                { label: 'Avg Order Value (Excl. Taxes)', value: formatCurrency(summary.b2b.avgOrder), icon: <FiDollarSign size={14} /> },
                 { label: 'Total Qty', value: formatNumber(summary.b2b.qty), icon: <FiShoppingBag size={14} /> },
               ].map((item, i) => (
                 <div key={i}>
@@ -216,11 +216,11 @@ const Channel = () => {
             </div>
             <div style={{ padding: '18px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {[
-                { label: 'Revenue (incl. GST)', value: formatCurrency(summary.b2c.revenue), icon: <FiDollarSign size={14} /> },
+                { label: 'Revenue (Excl. Taxes)', value: formatCurrency(summary.b2c.revenue), icon: <FiDollarSign size={14} /> },
                 { label: 'Revenue Share', value: `${summary.b2c.share}%`, icon: <FiTrendingUp size={14} /> },
                 { label: 'Orders', value: formatNumber(summary.b2c.orders), icon: <FiShoppingBag size={14} /> },
                 { label: 'Customers', value: formatNumber(summary.b2c.customers), icon: <FiUsers size={14} /> },
-                { label: 'Avg Order Value (incl. GST)', value: formatCurrency(summary.b2c.avgOrder), icon: <FiDollarSign size={14} /> },
+                { label: 'Avg Order Value (Excl. Taxes)', value: formatCurrency(summary.b2c.avgOrder), icon: <FiDollarSign size={14} /> },
                 { label: 'Total Qty', value: formatNumber(summary.b2c.qty), icon: <FiShoppingBag size={14} /> },
               ].map((item, i) => (
                 <div key={i}>
@@ -239,7 +239,7 @@ const Channel = () => {
         {loading && !summary ? (
           <ChartSkeleton />
         ) : summary && (
-          <ChartCard title="Revenue Channel Split (incl. GST)" aiContext={summary} aiType="B2B vs B2C Revenue Share">
+          <ChartCard title="Revenue Channel Split (Excl. Taxes)" aiContext={summary} aiType="B2B vs B2C Revenue Share">
             <div className="donut-container">
               <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                 <Doughnut data={doughnutData} options={{
@@ -289,7 +289,7 @@ const Channel = () => {
           <ChartSkeleton />
         ) : (
           <ChartCard
-            title="Revenue Trend by Channel (incl. GST)"
+            title="Revenue Trend by Channel (Excl. Taxes)"
             aiContext={trend}
             aiType="B2B vs B2C Revenue Trend Over Time"
             extra={
@@ -320,7 +320,7 @@ const Channel = () => {
         {loading && stateData.length === 0 ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title="State-wise Revenue by Channel (incl. GST)" aiContext={stateData} aiType="State-wise B2B vs B2C Revenue Breakdown">
+          <ChartCard title="State-wise Revenue by Channel (Excl. Taxes)" aiContext={stateData} aiType="State-wise B2B vs B2C Revenue Breakdown">
             <Bar data={stateBarData} options={{
               maintainAspectRatio: false,
               plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
@@ -332,7 +332,7 @@ const Channel = () => {
         {loading && categories.length === 0 ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title="Sub-Category Revenue by Channel (excl. GST)" aiContext={categories} aiType="Product Sub-Category B2B vs B2C Revenue">
+          <ChartCard title="Sub-Category Revenue by Channel (Excl. Taxes)" aiContext={categories} aiType="Product Sub-Category B2B vs B2C Revenue">
             <Bar data={categoryBarData} options={{
               maintainAspectRatio: false,
               plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
@@ -344,7 +344,7 @@ const Channel = () => {
 
       {/* Top Products */}
       <div className="charts-grid" style={{ marginBottom: '24px' }}>
-        <ChartCard title="Top Products by Channel (excl. GST)" aiContext={products} aiType="Top Products Comparison B2B vs B2C" fullWidth>
+        <ChartCard title="Top Products by Channel (Excl. Taxes)" aiContext={products} aiType="Top Products Comparison B2B vs B2C" fullWidth>
           <Bar data={productBarData} options={{
             maintainAspectRatio: false,
             plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } }, tooltip: moneyTooltip },
@@ -383,7 +383,7 @@ const Channel = () => {
                   <th>Customer</th>
                   <th style={{ whiteSpace: 'nowrap' }}>City</th>
                   <th style={{ whiteSpace: 'nowrap' }}>State</th>
-                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Revenue (incl. GST)</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Revenue (Excl. Taxes)</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Orders</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Qty</th>
                 </tr>

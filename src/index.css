@@ -510,6 +510,15 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   text-align: center;
   margin-bottom: 36px;
 }
+/* Flexibond brand logo on the login card (replaces the old "Flexibond / Analytics
+   Dashboard" text). Transparent PNG, centered. */
+.login-card .logo-section .login-logo {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  margin: 0 auto;
+}
 .login-card .logo-section h1 {
   font-size: 1.8rem;
   font-weight: 800;

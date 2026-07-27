@@ -23,6 +23,7 @@ import {
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 
 const Products = () => {
   const location = useLocation();
@@ -139,6 +140,8 @@ const Products = () => {
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const formatNumber = (val) => new Intl.NumberFormat('en-IN').format(val || 0);
   const metricLabel = metric === 'revenue' ? 'Revenue' : 'Quantity';
+  // Single-bracket title suffix (Title Case brackets, client request 2026-07-27).
+  const titleTag = metric === 'revenue' ? ' (Revenue Excl. Taxes)' : ' (Quantity)';
   const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
   const valScale = { ticks: { callback: v => axisFmt(v) } };
   const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
@@ -148,6 +151,13 @@ const Products = () => {
   const totalCategories = data.categories?.length || 0;
   const totalColours = data.colours?.length || 0;
   const topProduct = data.products?.[0] || null;
+  // Total Quantity Sold — sum of qty across the full filtered product set (TotQty).
+  const totalQtySold = (data.allProducts || []).reduce((s, p) => s + (p.totalQty || 0), 0);
+  // Top-product name can be very long — scale the KPI value font to fit on one/two lines.
+  const topProductName = topProduct ? String(topProduct._id) : 'N/A';
+  const topProductFont = topProductName.length > 34 ? '0.82rem'
+    : topProductName.length > 24 ? '1rem'
+    : topProductName.length > 16 ? '1.2rem' : '1.5rem';
 
   // Full products table (all filtered products) with a client-side search.
   const tableProducts = (data.allProducts || []).filter(p =>
@@ -167,16 +177,13 @@ const Products = () => {
     }]
   };
 
+  // Sub-Category doughnut — BLUE palette (reserved for sub-categories, client favourite).
   const catChartData = {
     labels: data.categories?.map(d => d._id || 'Unknown') || [],
     datasets: [{
       label: metricLabel,
       data: data.categories?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
-      backgroundColor: [
-        '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe',
-        '#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#e0f2fe',
-        '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'
-      ],
+      backgroundColor: pieColors('subcategory', (data.categories || []).length),
       borderWidth: 0
     }]
   };
@@ -186,7 +193,7 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: data.colours?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
-      backgroundColor: '#10b981',
+      backgroundColor: ACCENTS.colour,
       borderRadius: 4
     }]
   };
@@ -196,31 +203,29 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: data.zones?.map(z => metric === 'revenue' ? z.totalRevenue : z.totalQty) || [],
-      backgroundColor: '#0ea5e9',
+      backgroundColor: ACCENTS.zone,
       borderRadius: 4
     }]
   };
 
-  const GRADE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
   const gradeChartData = {
     labels: data.grades?.map(g => g._id) || [],
     datasets: [{
       label: metricLabel,
       data: data.grades?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: (data.grades || []).map((_, i) => GRADE_COLORS[i % GRADE_COLORS.length]),
+      backgroundColor: pieColors('grade', (data.grades || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
   };
 
-  // Group distribution pie (FB / FM / FN / Base …) — click a slice to drill down.
-  const GROUP_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+  // Category distribution pie (FB / FM / FN / Base …, field `group`) — emerald palette. Drill in.
   const groupChartData = {
     labels: data.groups?.map(g => g._id) || [],
     datasets: [{
       label: metricLabel,
       data: data.groups?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: (data.groups || []).map((_, i) => GROUP_COLORS[i % GROUP_COLORS.length]),
+      backgroundColor: pieColors('category', (data.groups || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -230,7 +235,7 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: drillData?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
-      backgroundColor: (drillData || []).map((_, i) => GROUP_COLORS[i % GROUP_COLORS.length]),
+      backgroundColor: pieColors('category', (drillData || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -261,7 +266,7 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: data.dimensions?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
-      backgroundColor: '#ec4899',
+      backgroundColor: ACCENTS.dimension,
       borderRadius: 4
     }]
   };
@@ -302,10 +307,15 @@ const Products = () => {
         <KPISkeleton />
       ) : (
         <div className="kpi-grid">
-          <KPICard title={sortOrder === -1 ? "Top Product" : "Bottom Product"} value={topProduct ? topProduct._id.substring(0, 20) : 'N/A'} icon={<FiBox />} color="blue" />
-          <KPICard title="Unique Products" value={formatNumber(totalProducts)} icon={<FiGrid />} color="green" />
-          <KPICard title="Sub-Categories" value={formatNumber(totalCategories)} icon={<FiLayers />} color="orange" />
-          <KPICard title="Colours" value={formatNumber(totalColours)} icon={<FiDroplet />} color="red" />
+          {/* Top Product — font scales to the (sometimes very long) product name, full name on hover. */}
+          <div className="kpi-card">
+            <div className="kpi-label">{sortOrder === -1 ? 'Top Product' : 'Bottom Product'}</div>
+            <div className="kpi-value" style={{ fontSize: topProductFont, lineHeight: 1.2, wordBreak: 'break-word' }} title={topProductName}>{topProductName}</div>
+          </div>
+          <KPICard title="Unique Products" value={formatNumber(totalProducts)} />
+          <KPICard title="Total Quantity Sold" value={formatNumber(totalQtySold)} subtext="TotQty across filtered products" />
+          <KPICard title="Sub-Categories" value={formatNumber(totalCategories)} />
+          <KPICard title="Colours" value={formatNumber(totalColours)} />
         </div>
       )}
 
@@ -314,7 +324,7 @@ const Products = () => {
           <ChartSkeleton fullWidth />
         ) : (
           <ChartCard 
-            title={`${sortOrder === -1 ? 'Top' : 'Bottom'} Products (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`}
+            title={`${sortOrder === -1 ? 'Top' : 'Bottom'} Products${titleTag}`}
             aiContext={data.products} 
             aiType={`${sortOrder === -1 ? 'Top' : 'Bottom'} Products`} 
             fullWidth
@@ -365,18 +375,20 @@ const Products = () => {
           </ChartCard>
         )}
 
+        {/* (1,2) Sub-Category doughnut — BLUE palette (reserved). Enlarged, scrollable legend
+            with full name on hover so long sub-category names aren't cut off. */}
         {loading && !data.categories ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`${filters.category?.length ? `Sub-categories in ${filters.category.join(', ')}` : "Sub-categories in"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.categories} aiType="Product Sub-Categories">
+          <ChartCard title={`${filters.category?.length ? `Sub-categories in ${filters.category.join(', ')}` : "Sub-categories in"}${titleTag}`} aiContext={data.categories} aiType="Product Sub-Categories">
             <div className="donut-container">
-              <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
+              <div style={{ flex: '1 1 55%', minWidth: 0, height: '100%' }}>
                 <Doughnut
                   data={catChartData}
                   options={{
                     maintainAspectRatio: false,
                     cutout: '70%',
-                    plugins: { 
+                    plugins: {
                       legend: { display: false },
                       tooltip: {
                         callbacks: {
@@ -393,22 +405,17 @@ const Products = () => {
                   }}
                 />
               </div>
-              <div className="custom-legend">
+              <div className="custom-legend" style={{ flex: '0 0 42%', maxHeight: '100%', overflowY: 'auto', paddingRight: '6px' }}>
                 {(data.categories || []).map((cat, i) => {
                   const val = metric === 'revenue' ? cat.totalAmount : cat.totalQty;
                   const total = (data.categories || []).reduce((acc, c) => acc + (metric === 'revenue' ? c.totalAmount : c.totalQty), 0);
                   const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                  const colors = [
-                    '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe',
-                    '#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#e0f2fe',
-                    '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'
-                  ];
-                  const color = colors[i % colors.length];
+                  const color = PALETTES.subcategory[i % PALETTES.subcategory.length];
                   return (
-                    <div key={i} className="legend-item">
+                    <div key={i} className="legend-item" title={cat._id || 'Unknown'}>
                       <div className="legend-label">
                         <div className="legend-dot" style={{ background: color }} />
-                        <span>{cat._id || 'Unknown'}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat._id || 'Unknown'}</span>
                       </div>
                       <span className="legend-percentage">{pct}%</span>
                     </div>
@@ -419,41 +426,11 @@ const Products = () => {
           </ChartCard>
         )}
 
-        {loading && !data.colours ? (
-          <ChartSkeleton />
-        ) : (
-          <ChartCard title={`Colour Breakdown (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.colours} aiType="Colour Breakdown">
-            <Bar
-              data={coloursChartData}
-              options={{
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: { legend: { display: false }, tooltip: metricTooltip },
-                scales: { x: { ticks: { callback: v => axisFmt(v) } } }
-              }}
-            />
-          </ChartCard>
-        )}
-
-        {loading && !data.zones ? (
-          <ChartSkeleton />
-        ) : (data.zones && data.zones.length > 0) ? (
-          <ChartCard title={`${metricLabel} by Zone${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.zones} aiType="Zone-wise Revenue">
-            <Bar
-              data={zoneChartData}
-              options={{
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: metricTooltip },
-                scales: { y: valScale }
-              }}
-            />
-          </ChartCard>
-        ) : null}
-
+        {/* (2,2) Grade-wise pie */}
         {loading && !data.grades ? (
           <ChartSkeleton />
         ) : (data.grades && data.grades.length > 0) ? (
-          <ChartCard title={`Grade-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.grades} aiType="Grade-wise Revenue Distribution">
+          <ChartCard title={`Grade-wise Distribution${titleTag}`} aiContext={data.grades} aiType="Grade-wise Revenue Distribution">
             <Pie
               data={gradeChartData}
               options={{
@@ -476,12 +453,13 @@ const Products = () => {
           </ChartCard>
         ) : null}
 
+        {/* (1,3) Category (group) drill-down pie — emerald palette. */}
         {loading && !data.groups ? (
           <ChartSkeleton />
         ) : (data.groups && data.groups.length > 0) ? (
           <div style={{ gridColumn: drillGroup ? '1 / -1' : 'auto', display: 'grid', gridTemplateColumns: drillGroup ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: '20px' }}>
             <ChartCard
-              title={`Category-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
+              title={`Category-wise Distribution${titleTag}`}
               aiContext={data.groups}
               aiType="Category-wise Distribution"
               extra={<span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Click a slice to drill in</span>}
@@ -511,7 +489,7 @@ const Products = () => {
                 <ChartSkeleton />
               ) : (
                 <ChartCard
-                  title={`${drillGroup} — Product Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
+                  title={`${drillGroup} — Product Distribution${titleTag}`}
                   aiContext={drillData}
                   aiType={`Products within category ${drillGroup}`}
                   extra={
@@ -543,10 +521,27 @@ const Products = () => {
           </div>
         ) : null}
 
+        {/* (2,3) By Zone */}
+        {loading && !data.zones ? (
+          <ChartSkeleton />
+        ) : (data.zones && data.zones.length > 0) ? (
+          <ChartCard title={`By Zone${titleTag}`} aiContext={data.zones} aiType="Zone-wise Revenue">
+            <Bar
+              data={zoneChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: metricTooltip },
+                scales: { y: valScale }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {/* (1,4) Thickness Preference — purple bars (reserved), horizontal scroll. */}
         {loading && !data.thickness ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Thickness Preference (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.thickness} aiType="Thickness Analysis">
+          <ChartCard title={`Thickness Preference${titleTag}`} aiContext={data.thickness} aiType="Thickness Analysis">
             {/* Horizontally scrollable — many Type values crowd the x-axis; give each bar room. */}
             <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ height: '100%', minWidth: `${Math.max((data.thickness?.length || 0) * 46, 100)}px` }}>
@@ -563,10 +558,28 @@ const Products = () => {
           </ChartCard>
         )}
 
+        {/* (2,4) Colour Breakdown — teal bars. */}
+        {loading && !data.colours ? (
+          <ChartSkeleton />
+        ) : (
+          <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={data.colours} aiType="Colour Breakdown">
+            <Bar
+              data={coloursChartData}
+              options={{
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { display: false }, tooltip: metricTooltip },
+                scales: { x: { ticks: { callback: v => axisFmt(v) } } }
+              }}
+            />
+          </ChartCard>
+        )}
+
+        {/* (1,5) Dimensions Preference — orange bars, vertical scroll. */}
         {loading && !data.dimensions ? (
           <ChartSkeleton />
         ) : (data.dimensions && data.dimensions.length > 0) ? (
-          <ChartCard title={`Dimensions Preference (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.dimensions} aiType="Size Dimensions Preference">
+          <ChartCard title={`Dimensions Preference${titleTag}`} aiContext={data.dimensions} aiType="Size Dimensions Preference">
             {/* Vertically scrollable — many dimension rows crowd the y-axis. Absolute-fill the
                 card body and give each row a fixed height so the content reliably overflows. */}
             <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
@@ -614,28 +627,46 @@ const Products = () => {
               />
             </div>
             <div style={{ maxHeight: '460px', overflowY: 'auto' }}>
-              <table className="data-table">
+              {/* Fixed layout + colgroup so the extra Category / dual-revenue columns fit without
+                  a horizontal scrollbar; headers wrap (taller header row), long names ellipsise. */}
+              <table className="data-table" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '26%' }} />{/* Product Name */}
+                  <col style={{ width: '12%' }} />{/* Category */}
+                  <col style={{ width: '14%' }} />{/* Sub-Category */}
+                  <col style={{ width: '10%' }} />{/* Quantity */}
+                  <col style={{ width: '12%' }} />{/* Avg Rate */}
+                  <col style={{ width: '13%' }} />{/* Revenue excl */}
+                  <col style={{ width: '13%' }} />{/* Revenue incl */}
+                </colgroup>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
-                    <th>Product Name</th>
-                    <th>Sub-Category</th>
-                    <th>Quantity</th>
-                    <th>Revenue (incl. GST)</th>
-                    <th>Avg Rate (excl. GST)</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Product Name</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Category</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Sub-Category</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Quantity</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Avg. Rate (Excl. Taxes)</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Revenue (Excl. Taxes)</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Revenue (Incl. Taxes)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tableProducts.map((p, i) => (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 500 }}>{p._id}</td>
-                      <td>{p.category || '—'}</td>
-                      <td>{formatNumber(p.totalQty)}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>{formatCurrency(p.totalAmount)}</td>
-                      <td>{formatCurrency(p.avgRate)}</td>
-                    </tr>
-                  ))}
+                  {tableProducts.map((p, i) => {
+                    const clip = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+                    return (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 500, ...clip }} title={p._id}>{p._id}</td>
+                        <td style={clip} title={p.group || '—'}>{p.group || '—'}</td>
+                        <td style={clip} title={p.category || '—'}>{p.category || '—'}</td>
+                        <td>{formatNumber(p.totalQty)}</td>
+                        <td>{formatCurrency(p.avgRate)}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--primary-600)', ...clip }}>{formatCurrency(p.totalAmount)}</td>
+                        <td style={{ fontWeight: 600, ...clip }}>{formatCurrency(p.totalAmountIncl)}</td>
+                      </tr>
+                    );
+                  })}
                   {tableProducts.length === 0 && (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
+                    <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
                       {tableSearch.trim() ? 'No products match your search.' : 'No products for the current filters.'}
                     </td></tr>
                   )}

@@ -8,8 +8,7 @@ import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleto
 import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
-
-const PIE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
+import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 
 const Clients = () => {
   const [filters, setFilters] = useState(seedFilters({
@@ -23,7 +22,7 @@ const Clients = () => {
   const [search, setSearch] = useState('');
   const [listLoading, setListLoading] = useState(true);
 
-  const [selected, setSelected] = useState(null);        // client name
+  const [selected, setSelected] = useState([]);          // array of client names (multi-select)
   const [orders, setOrders] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null); // null = cumulative
@@ -32,6 +31,8 @@ const Clients = () => {
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const formatNumber = (val) => new Intl.NumberFormat('en-IN').format(val || 0);
   const metricLabel = metric === 'revenue' ? 'Revenue' : 'Quantity';
+  // Single-bracket title suffix (Title Case brackets, client request 2026-07-27).
+  const titleTag = metric === 'revenue' ? ' (Revenue Excl. Taxes)' : ' (Quantity)';
   const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
   const metricVal = (row) => metric === 'revenue' ? (row.revenue ?? row.totalAmount) : (row.qty ?? row.totalQty);
 
@@ -49,14 +50,16 @@ const Clients = () => {
       .finally(() => setListLoading(false));
   }, [filters]);
 
-  // When a client is selected (or filters/invoice change), pull orders + analysis.
+  // When the client selection (or filters/invoice) changes, pull orders + analysis for all
+  // selected clients (aggregated) via the ?names= list.
   useEffect(() => {
-    if (!selected) { setOrders(null); setAnalysis(null); return; }
+    if (!selected.length) { setOrders(null); setAnalysis(null); return; }
     setDetailLoading(true);
-    const analysisParams = selectedInvoice ? { ...filters, invoiceNo: selectedInvoice } : filters;
+    const base = { ...filters, names: selected };
+    const analysisParams = selectedInvoice ? { ...base, invoiceNo: selectedInvoice } : base;
     Promise.all([
-      getClientOrders(selected, filters),
-      getClientAnalysis(selected, analysisParams)
+      getClientOrders(selected[0], base),
+      getClientAnalysis(selected[0], analysisParams)
     ])
       .then(([ordRes, anRes]) => {
         setOrders(ordRes.data.data || []);
@@ -83,9 +86,10 @@ const Clients = () => {
     }
   };
 
-  const selectClient = (name) => {
-    setSelected(name);
+  // Toggle a client in/out of the multi-selection.
+  const toggleClient = (name) => {
     setSelectedInvoice(null);
+    setSelected(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
   };
 
   const visibleClients = (clients || []).filter(c =>
@@ -93,12 +97,12 @@ const Clients = () => {
   );
 
   // ---- Chart data builders (respect the metric toggle) ----
-  const pieData = (rows) => ({
+  const pieData = (rows, paletteKey) => ({
     labels: (rows || []).map(r => r._id || '—'),
     datasets: [{
       label: metricLabel,
       data: (rows || []).map(metricVal),
-      backgroundColor: (rows || []).map((_, i) => PIE_COLORS[i % PIE_COLORS.length]),
+      backgroundColor: pieColors(paletteKey, (rows || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -109,12 +113,11 @@ const Clients = () => {
     datasets: [{
       label: metricLabel,
       data: (analysis?.byProduct || []).map(metricVal),
-      backgroundColor: '#2563eb',
+      backgroundColor: ACCENTS.product,
       borderRadius: 4
     }]
   };
 
-  // Generic single-colour bar dataset (colour / thickness / dimension breakdowns).
   const barData = (rows, color) => ({
     labels: (rows || []).map(r => r._id || '—'),
     datasets: [{
@@ -143,8 +146,29 @@ const Clients = () => {
   };
   const barTooltip = { callbacks: { label: (ctx) => ` ${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
-  const totals = analysis?.totals || { revenue: 0, qty: 0, orderCount: 0, productCount: 0 };
+  // Horizontal bar with a VERTICAL scroll wrapper — keeps ≤15 rows on screen and scrolls the
+  // rest (global small-bar-chart rule). Inner height grows with the row count.
+  const ScrollBar = ({ rows, color }) => (
+    <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+      <div style={{ width: '100%', height: `${Math.max((rows?.length || 0) * 32, 260)}px` }}>
+        <Bar
+          data={barData(rows, color)}
+          options={{
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false }, tooltip: barTooltip },
+            scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 }, autoSkip: false } } }
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  const totals = analysis?.totals || { revenue: 0, revenueIncl: 0, qty: 0, orderCount: 0, productCount: 0 };
   const fav = analysis?.favSalesman;
+  const rates = analysis?.productRates || [];
+  const multi = selected.length > 1;
+  const detailTitle = selected.length === 1 ? selected[0] : `${selected.length} clients selected`;
 
   return (
     <div className="page-content">
@@ -164,216 +188,279 @@ const Clients = () => {
 
       <FilterBar filters={filters} options={filterOptions} onFilterChange={handleFilterChange} showGroup />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 320px) 1fr', gap: '20px', alignItems: 'start' }}>
-        {/* ---- Left: client list ---- */}
-        <div className="data-table-wrapper" style={{ position: 'sticky', top: '16px' }}>
-          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 10px' }}>
-              Clients {clients ? `(${visibleClients.length})` : ''}
-            </h3>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search clients…"
-              style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}
-            />
-          </div>
-          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-            {listLoading ? (
-              <div style={{ padding: '18px' }}><TableSkeleton /></div>
-            ) : visibleClients.length === 0 ? (
-              <p style={{ padding: '18px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>No clients match.</p>
-            ) : visibleClients.map((c) => (
-              <button
-                key={c._id}
-                onClick={() => selectClient(c._id)}
-                style={{
-                  display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', textAlign: 'left',
-                  padding: '12px 18px', border: 'none', borderBottom: '1px solid var(--border-color)',
-                  background: selected === c._id ? 'var(--primary-50, #eff6ff)' : 'transparent',
-                  cursor: 'pointer', borderLeft: selected === c._id ? '3px solid var(--primary-600)' : '3px solid transparent'
-                }}
-              >
-                <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>{c._id}</span>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  {formatCurrency(c.revenue)} · {c.orderCount} order{c.orderCount === 1 ? '' : 's'}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ---- Right: detail ---- */}
-        <div style={{ minWidth: 0 }}>
-          {!selected ? (
-            <div className="chart-card" style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--text-muted)' }}>
-              <h3 style={{ fontWeight: 600, marginBottom: '8px' }}>Select a client</h3>
-              <p>Pick a client from the list to see their orders and analytics.</p>
-            </div>
-          ) : (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
-                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{selected}</h2>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {selectedInvoice ? (
-                    <>
-                      Viewing order <strong>{selectedInvoice}</strong>
-                      <button
-                        onClick={() => setSelectedInvoice(null)}
-                        style={{ border: '1px solid var(--border-color)', borderRadius: '6px', background: '#fff', color: 'var(--primary-600)', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem', padding: '4px 10px' }}
-                      >
-                        ← All orders (cumulative)
-                      </button>
-                    </>
-                  ) : <>Cumulative across all orders</>}
-                </span>
-              </div>
-
-              {detailLoading && !analysis ? (
-                <KPISkeleton />
-              ) : (
-                <div className="kpi-grid" style={{ marginBottom: '24px' }}>
-                  <KPICard title={metric === 'revenue' ? 'Total Revenue (incl. GST)' : 'Total Quantity'} value={metric === 'revenue' ? formatCurrency(totals.revenue) : formatNumber(totals.qty)} subtext={selectedInvoice ? 'This order' : 'All orders'} />
-                  <KPICard title="Total Orders" value={formatNumber(totals.orderCount)} subtext="Distinct invoices" />
-                  <KPICard title="Favourite Salesperson" value={fav ? fav._id : '—'} subtext={fav ? `${formatCurrency(fav.revenue)} · ${fav.orderCount} orders` : 'No data'} />
-                  <KPICard title="Unique Products" value={formatNumber(totals.productCount)} subtext={metric === 'revenue' ? `Qty ${formatNumber(totals.qty)}` : formatCurrency(totals.revenue)} />
-                </div>
-              )}
-
-              <div className="charts-grid">
-                {/* Product-wise */}
-                {detailLoading && !analysis ? <ChartSkeleton /> : (analysis?.byProduct?.length > 0) && (
-                  <ChartCard title={`Product-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} fullWidth aiContext={analysis.byProduct} aiType="Client product mix">
-                    <Bar
-                      data={productBarData}
-                      options={{
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        plugins: { legend: { display: false }, tooltip: barTooltip },
-                        scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
-                      }}
-                    />
-                  </ChartCard>
-                )}
-
-                {/* Grade */}
-                {(analysis?.byGrade?.length > 0) && (
-                  <ChartCard title={`Grade-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGrade} aiType="Client grade mix">
-                    <Pie data={pieData(analysis.byGrade)} options={pieOptions} />
-                  </ChartCard>
-                )}
-
-                {/* Category (internal field `group`, TYpe1) */}
-                {(analysis?.byGroup?.length > 0) && (
-                  <ChartCard title={`Category-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup} aiType="Client category mix">
-                    <Pie data={pieData(analysis.byGroup)} options={pieOptions} />
-                  </ChartCard>
-                )}
-
-                {/* Variants (internal field `group1`, TYpe2) */}
-                {(analysis?.byGroup1?.length > 0) && (
-                  <ChartCard title={`Variants ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byGroup1} aiType="Client variants mix">
-                    <Pie data={pieData(analysis.byGroup1)} options={pieOptions} />
-                  </ChartCard>
-                )}
-
-                {/* Master */}
-                {(analysis?.byMaster?.length > 0) && (
-                  <ChartCard title={`Master ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byMaster} aiType="Client Master mix">
-                    <Pie data={pieData(analysis.byMaster)} options={pieOptions} />
-                  </ChartCard>
-                )}
-
-                {/* Colour preference — which colours this client buys (codes until name lookup). */}
-                {(analysis?.byColour?.length > 0) && (
-                  <ChartCard title={`Colour ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byColour} aiType="Client colour preference">
-                    <Bar
-                      data={barData(analysis.byColour, '#10b981')}
-                      options={{
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        plugins: { legend: { display: false }, tooltip: barTooltip },
-                        scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
-                      }}
-                    />
-                  </ChartCard>
-                )}
-
-                {/* Thickness preference — which Type/thickness this client prefers. */}
-                {(analysis?.byThickness?.length > 0) && (
-                  <ChartCard title={`Thickness ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
-                    <Bar
-                      data={barData(analysis.byThickness, '#8b5cf6')}
-                      options={{
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        plugins: { legend: { display: false }, tooltip: barTooltip },
-                        scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
-                      }}
-                    />
-                  </ChartCard>
-                )}
-
-                {/* Dimension preference — which sizes (mm) this client prefers. */}
-                {(analysis?.byDimension?.length > 0) && (
-                  <ChartCard title={`Dimensions ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
-                    <Bar
-                      data={barData(analysis.byDimension, '#ec4899')}
-                      options={{
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        plugins: { legend: { display: false }, tooltip: barTooltip },
-                        scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
-                      }}
-                    />
-                  </ChartCard>
-                )}
-              </div>
-
-              {/* Orders table */}
-              <div className="data-table-wrapper" style={{ marginTop: '24px' }}>
-                <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-color)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Orders {orders ? `(${orders.length})` : ''}</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>Click an order to see just that order's analytics above.</p>
-                </div>
-                <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                  {detailLoading && !orders ? (
-                    <div style={{ padding: '18px' }}><TableSkeleton /></div>
-                  ) : (
-                    <table className="data-table">
-                      <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
-                        <tr>
-                          <th>Invoice No</th><th>Date</th><th>Salesperson</th><th>Lines</th><th>Quantity</th><th>Revenue (incl. GST)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(orders || []).map((o) => (
-                          <tr
-                            key={o._id}
-                            onClick={() => setSelectedInvoice(o._id)}
-                            style={{ cursor: 'pointer', background: selectedInvoice === o._id ? 'var(--primary-50, #eff6ff)' : 'transparent' }}
-                          >
-                            <td style={{ fontWeight: 600, color: selectedInvoice === o._id ? 'var(--primary-600)' : 'inherit' }}>{o._id}</td>
-                            <td>{o.date ? new Date(o.date).toLocaleDateString('en-IN') : '—'}</td>
-                            <td>{o.salesperson || '—'}</td>
-                            <td>{formatNumber(o.lineCount)}</td>
-                            <td>{formatNumber(o.qty)}</td>
-                            <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>{formatCurrency(o.revenue)}</td>
-                          </tr>
-                        ))}
-                        {orders && orders.length === 0 && (
-                          <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>No orders for the current filters.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            </>
+      {/* Horizontal client selector strip (like the Salesperson leaderboard) — multi-select. */}
+      <div className="sp-leaderboard-strip">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Clients {clients ? `(${visibleClients.length})` : ''}</h3>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search clients…"
+            style={{ height: '38px', minWidth: '220px', flex: '0 1 300px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}
+          />
+          {selected.length > 0 && (
+            <button
+              onClick={() => { setSelected([]); setSelectedInvoice(null); }}
+              style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
+            >
+              Clear all ({selected.length})
+            </button>
           )}
         </div>
+
+        {/* Selected clients as removable chips (like the applied-filters bar) so it's easy to
+            see + drop individual selections. */}
+        {selected.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+            {selected.map(name => (
+              <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 6px 5px 12px', borderRadius: '16px', background: 'var(--primary-50, #eff6ff)', border: '1px solid var(--primary-200, #bfdbfe)', color: 'var(--primary-700, #1d4ed8)', fontSize: '0.8rem', fontWeight: 600, maxWidth: '260px' }} title={name}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <button
+                  onClick={() => toggleClient(name)}
+                  aria-label={`Remove ${name}`}
+                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', fontSize: '1rem', lineHeight: 1, flexShrink: 0 }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {listLoading ? (
+          <TableSkeleton />
+        ) : (
+          <div className="sp-strip-cards" style={{ paddingBottom: '14px' }}>
+            {visibleClients.map((c) => (
+              <div
+                key={c._id}
+                className={`sp-card ${selected.includes(c._id) ? 'active' : ''}`}
+                onClick={() => toggleClient(c._id)}
+                style={{ width: '210px', minHeight: '112px' }}
+              >
+                <div className="sp-name" style={{ margin: '0 0 10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={c._id}>{c._id}</div>
+                <div className="sp-stats">
+                  <div>
+                    <div className="sp-stat-label">Revenue</div>
+                    <div className="sp-stat-value" style={{ color: 'var(--primary-600)' }}>{formatCurrency(c.revenue)}</div>
+                  </div>
+                  <div>
+                    <div className="sp-stat-label">Orders</div>
+                    <div className="sp-stat-value">{c.orderCount}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {visibleClients.length === 0 && (
+              <p style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>No clients match.</p>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* ---- Detail (full width, below the strip) ---- */}
+      {selected.length === 0 ? (
+        <div className="chart-card" style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--text-muted)' }}>
+          <h3 style={{ fontWeight: 600, marginBottom: '8px' }}>Select one or more clients</h3>
+          <p>Pick clients from the strip above to see their orders and analytics (multi-select supported).</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '1.25rem' }} title={selected.join(', ')}>{detailTitle}</h2>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {selectedInvoice ? (
+                <>
+                  Viewing order <strong>{selectedInvoice}</strong>
+                  <button
+                    onClick={() => setSelectedInvoice(null)}
+                    style={{ border: '1px solid var(--border-color)', borderRadius: '6px', background: '#fff', color: 'var(--primary-600)', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem', padding: '4px 10px' }}
+                  >
+                    ← All orders (cumulative)
+                  </button>
+                </>
+              ) : <>Cumulative across all orders</>}
+            </span>
+          </div>
+
+          {detailLoading && !analysis ? (
+            <KPISkeleton />
+          ) : (
+            <div className="kpi-grid" style={{ marginBottom: '24px' }}>
+              <KPICard title="Total Revenue (Excl. Taxes)" value={formatCurrency(totals.revenue)} subtext={selectedInvoice ? 'This order' : 'All orders'} />
+              <KPICard title="Total Revenue (Incl. Taxes)" value={formatCurrency(totals.revenueIncl)} subtext={selectedInvoice ? 'This order' : 'All orders'} />
+              <KPICard title="Total Orders" value={formatNumber(totals.orderCount)} subtext="Distinct invoices" />
+              <KPICard title="Favourite Salesperson" value={fav ? fav._id : '—'} subtext={fav ? `${formatCurrency(fav.revenue)} · ${fav.orderCount} orders` : 'No data'} />
+              <KPICard title="Unique Products" value={formatNumber(totals.productCount)} subtext={`Qty ${formatNumber(totals.qty)}`} />
+            </div>
+          )}
+
+          <div className="charts-grid">
+            {/* (Row 1, full width) Product-wise revenue */}
+            {detailLoading && !analysis ? <ChartSkeleton fullWidth /> : (analysis?.byProduct?.length > 0) && (
+              <ChartCard title={`Product-wise${titleTag}`} fullWidth aiContext={analysis.byProduct} aiType="Client product mix">
+                <Bar
+                  data={productBarData}
+                  options={{
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false }, tooltip: barTooltip },
+                    scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
+                  }}
+                />
+              </ChartCard>
+            )}
+
+            {/* (1,2) Master */}
+            {(analysis?.byMaster?.length > 0) && (
+              <ChartCard title={`Master-wise${titleTag}`} aiContext={analysis.byMaster} aiType="Client Master mix">
+                <Pie data={pieData(analysis.byMaster, 'master')} options={pieOptions} />
+              </ChartCard>
+            )}
+
+            {/* (2,2) Category (field `group`) — emerald */}
+            {(analysis?.byGroup?.length > 0) && (
+              <ChartCard title={`Category-wise${titleTag}`} aiContext={analysis.byGroup} aiType="Client category mix">
+                <Pie data={pieData(analysis.byGroup, 'category')} options={pieOptions} />
+              </ChartCard>
+            )}
+
+            {/* (1,3) Sub-Category (field `category`) — BLUE palette (new chart) */}
+            {(analysis?.bySubcategory?.length > 0) && (
+              <ChartCard title={`Sub-Category-wise${titleTag}`} aiContext={analysis.bySubcategory} aiType="Client sub-category mix">
+                <Pie data={pieData(analysis.bySubcategory, 'subcategory')} options={pieOptions} />
+              </ChartCard>
+            )}
+
+            {/* (2,3) Grade */}
+            {(analysis?.byGrade?.length > 0) && (
+              <ChartCard title={`Grade-wise${titleTag}`} aiContext={analysis.byGrade} aiType="Client grade mix">
+                <Pie data={pieData(analysis.byGrade, 'grade')} options={pieOptions} />
+              </ChartCard>
+            )}
+
+            {/* (1,4) Colour preference — teal bars, vertical scroll */}
+            {(analysis?.byColour?.length > 0) && (
+              <ChartCard title={`Colour${titleTag}`} aiContext={analysis.byColour} aiType="Client colour preference">
+                <ScrollBar rows={analysis.byColour} color={ACCENTS.colour} />
+              </ChartCard>
+            )}
+
+            {/* (2,4) Thickness preference — purple bars, vertical scroll */}
+            {(analysis?.byThickness?.length > 0) && (
+              <ChartCard title={`Thickness${titleTag}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
+                <ScrollBar rows={analysis.byThickness} color={ACCENTS.thickness} />
+              </ChartCard>
+            )}
+
+            {/* (1,5) Dimension preference — orange bars, vertical scroll */}
+            {(analysis?.byDimension?.length > 0) && (
+              <ChartCard title={`Dimensions${titleTag}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
+                <ScrollBar rows={analysis.byDimension} color={ACCENTS.dimension} />
+              </ChartCard>
+            )}
+          </div>
+
+          {/* Orders table — non-scrollable horizontally (fixed layout). */}
+          <div className="data-table-wrapper" style={{ marginTop: '24px' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Orders {orders ? `(${orders.length})` : ''}</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>Click an order to see just that order's analytics above.</p>
+            </div>
+            <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+              {detailLoading && !orders ? (
+                <div style={{ padding: '18px' }}><TableSkeleton /></div>
+              ) : (
+                <table className="data-table" style={{ tableLayout: 'fixed' }}>
+                  <colgroup>
+                    {multi && <col style={{ width: '22%' }} />}
+                    <col style={{ width: multi ? '16%' : '22%' }} />{/* Invoice */}
+                    <col style={{ width: multi ? '14%' : '16%' }} />{/* Date */}
+                    <col style={{ width: multi ? '18%' : '24%' }} />{/* Salesperson */}
+                    <col style={{ width: multi ? '15%' : '19%' }} />{/* Rev excl */}
+                    <col style={{ width: multi ? '15%' : '19%' }} />{/* Rev incl */}
+                  </colgroup>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                    <tr>
+                      {multi && <th>Client</th>}
+                      <th>Invoice No</th>
+                      <th>Date</th>
+                      <th>Salesperson</th>
+                      <th>Revenue (Excl. Taxes)</th>
+                      <th>Revenue (Incl. Taxes)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(orders || []).map((o) => {
+                      const clip = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+                      return (
+                        <tr
+                          key={o._id}
+                          onClick={() => setSelectedInvoice(o._id)}
+                          style={{ cursor: 'pointer', background: selectedInvoice === o._id ? 'var(--primary-50, #eff6ff)' : 'transparent' }}
+                        >
+                          {multi && <td style={clip} title={o.customerName}>{o.customerName || '—'}</td>}
+                          <td style={{ fontWeight: 600, color: selectedInvoice === o._id ? 'var(--primary-600)' : 'inherit', ...clip }}>{o._id}</td>
+                          <td>{o.date ? new Date(o.date).toLocaleDateString('en-IN') : '—'}</td>
+                          <td style={clip} title={o.salesperson}>{o.salesperson || '—'}</td>
+                          <td style={{ fontWeight: 600, color: 'var(--primary-600)', ...clip }}>{formatCurrency(o.revenue)}</td>
+                          <td style={{ fontWeight: 600, ...clip }}>{formatCurrency(o.revenueIncl)}</td>
+                        </tr>
+                      );
+                    })}
+                    {orders && orders.length === 0 && (
+                      <tr><td colSpan={multi ? 6 : 5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>No orders for the current filters.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Average selling rate per product (mirrors the Salesperson table). */}
+          <div className="data-table-wrapper" style={{ marginTop: '24px' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0 }}>Average Selling Rate by Product</h3>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Weighted avg. rate (pre-tax) at which this client bought each product</span>
+            </div>
+            <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+              <table className="data-table" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '34%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '18%' }} />
+                </colgroup>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-card)' }}>
+                  <tr>
+                    <th>Product</th>
+                    <th style={{ textAlign: 'right' }}>Qty Sold</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>Avg. Rate (Excl. Taxes)</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>Revenue (Excl. Taxes)</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>Revenue (Incl. Taxes)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rates.map((p, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={p._id}>{p._id}</td>
+                      <td style={{ textAlign: 'right' }}>{formatNumber(p.totalQty)}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.avgRate)}</td>
+                      <td style={{ textAlign: 'right', color: 'var(--primary-600)' }}>{formatCurrency(p.totalRevenue)}</td>
+                      <td style={{ textAlign: 'right' }}>{formatCurrency(p.totalRevenueIncl)}</td>
+                    </tr>
+                  ))}
+                  {rates.length === 0 && (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No product data available</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

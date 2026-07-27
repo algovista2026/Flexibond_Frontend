@@ -104,8 +104,7 @@ const Login = () => {
     <div className="login-page">
       <div className="login-card">
         <div className="logo-section">
-          <h1>Flexibond</h1>
-          <p>Analytics Dashboard</p>
+          <img src="/flexibond-logo.png" alt="Flexibond — An Attachment" className="login-logo" />
         </div>
 
         {devicePending ? (

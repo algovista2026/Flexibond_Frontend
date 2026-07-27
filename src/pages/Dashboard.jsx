@@ -22,12 +22,14 @@ import {
   getZoneAnalysis,
   getMasterBreakdown,
   getGroupBreakdown,
+  getRevenueTrendByCompany,
   getCompanyTarget,
   setCompanyTarget,
   getScopedTarget,
   setScopedTarget
 } from '../services/api';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 
@@ -42,6 +44,10 @@ const Dashboard = () => {
   }));
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
+  // Per-chart tax-basis toggle (TEST) for the Master-wise + Category-wise pies only.
+  // 'excl' (default, matches the site-wide excl-taxes revenue) or 'incl'.
+  const [masterBasis, setMasterBasis] = useState('excl');
+  const [groupBasis, setGroupBasis] = useState('excl');
   const [filterOptions, setFilterOptions] = useState({});
   const [companyTarget, setCompanyTargetState] = useState(null);
   const [showTargetModal, setShowTargetModal] = useState(false);
@@ -56,6 +62,7 @@ const Dashboard = () => {
   const [data, setData] = useState({
     summary: null,
     trend: null,
+    companyTrend: null,
     products: null,
     customers: null,
     geo: null,
@@ -70,11 +77,12 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const [
-        summaryRes, trendRes, productsRes,
+        summaryRes, trendRes, companyTrendRes, productsRes,
         customersRes, geoRes, spRes, gradeRes, zoneRes, masterRes, groupRes, filtersRes
       ] = await Promise.all([
         getDashboardSummary(filters),
         getRevenueTrend({ ...filters, groupBy: trendGroupBy }),
+        getRevenueTrendByCompany({ ...filters, groupBy: trendGroupBy }),
         getTopProducts({ ...filters, limit: 10, sortBy: metric === 'revenue' ? 'totalAmount' : 'totalQty' }),
         getTopCustomers({ ...filters, limit: 20, sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
         getGeographic({ ...filters, groupBy: 'state', sortBy: metric === 'revenue' ? 'totalRevenue' : 'totalQty' }),
@@ -89,6 +97,7 @@ const Dashboard = () => {
       setData({
         summary: summaryRes.data.data,
         trend: trendRes.data.data,
+        companyTrend: companyTrendRes.data.data,
         products: productsRes.data.data,
         customers: customersRes.data.data,
         geo: geoRes.data.data,
@@ -185,6 +194,25 @@ const Dashboard = () => {
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const formatNumber = (val) => new Intl.NumberFormat('en-IN').format(val || 0);
   const metricLabel = metric === 'revenue' ? 'Revenue' : 'Quantity';
+  // Single-bracket title suffix (Title Case brackets, client request 2026-07-27): metric + tax
+  // basis merged into ONE parenthetical, e.g. " (Revenue Excl. Taxes)" / " (Quantity)".
+  const titleTag = metric === 'revenue' ? ' (Revenue Excl. Taxes)' : ' (Quantity)';
+  // The Master/Category pies carry their own incl/excl toggle → basis-aware suffix.
+  const basisTag = (basis) => metric === 'revenue' ? ` (Revenue ${basis === 'incl' ? 'Incl.' : 'Excl.'} Taxes)` : ' (Quantity)';
+  // Small incl/excl tax-basis toggle rendered in those two pies' headers (revenue mode only).
+  const BasisToggle = ({ basis, setBasis }) => metric !== 'revenue' ? null : (
+    <div style={{ display: 'flex', gap: '6px' }}>
+      {[['excl', 'Excl. Taxes'], ['incl', 'Incl. Taxes']].map(([b, label]) => (
+        <button
+          key={b}
+          onClick={() => setBasis(b)}
+          style={{ padding: '5px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: basis === b ? 'var(--primary-600)' : 'var(--bg-card)', color: basis === b ? '#fff' : 'var(--text-primary)', cursor: 'pointer', fontWeight: 600 }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
   // Metric-aware Indian-notation formatters for chart axes/tooltips.
   const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
   const metricScale = { ticks: { callback: v => axisFmt(v) } };
@@ -194,17 +222,41 @@ const Dashboard = () => {
   const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
   // Chart Configs
+  // Revenue mode shows TWO lines — Excl. Taxes (assessable) + Incl. Taxes (billed) — so the
+  // main dashboard trend exposes both; Quantity mode is a single line.
   const trendChartData = {
     labels: data.trend?.map(d => d._id) || [],
-    datasets: [{
-      label: metricLabel,
-      data: data.trend?.map(d => metric === 'revenue' ? d.revenue : d.qty) || [],
-      borderColor: 'var(--primary-500)',
-      backgroundColor: 'rgba(37, 99, 235, 0.1)',
-      borderWidth: 2,
-      fill: true,
-      tension: 0.4
-    }]
+    datasets: metric === 'revenue'
+      ? [
+          {
+            label: 'Excl. Taxes',
+            data: data.trend?.map(d => d.revenueExcl) || [],
+            borderColor: 'var(--primary-500)',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: 'Incl. Taxes',
+            data: data.trend?.map(d => d.revenue) || [],
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            borderWidth: 2,
+            fill: false,
+            tension: 0.4,
+            borderDash: [6, 4]
+          }
+        ]
+      : [{
+          label: 'Quantity',
+          data: data.trend?.map(d => d.qty) || [],
+          borderColor: 'var(--primary-500)',
+          backgroundColor: 'rgba(37, 99, 235, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4
+        }]
   };
 
   const productsChartData = {
@@ -246,9 +298,39 @@ const Dashboard = () => {
     datasets: [{
       label: metricLabel,
       data: data.zones?.map(z => metric === 'revenue' ? z.totalRevenue : z.totalQty) || [],
-      backgroundColor: '#8b5cf6',
+      backgroundColor: ACCENTS.zone,
       borderRadius: 4
     }]
+  };
+
+  // Company-wise revenue trend (3 lines: FDL, UCPL, UFLP+UFPL) — always revenue EXCL taxes.
+  const COMPANY_COLORS = { 'FDL': '#10b981', 'UCPL': '#f59e0b', 'UFLP+UFPL': '#ec4899' };
+  const companyTrendChartData = {
+    labels: data.companyTrend?.periods || [],
+    datasets: [
+      // Total revenue — shaded envelope line (like the main Revenue Trend), drawn behind.
+      {
+        label: 'Total',
+        data: data.companyTrend?.total || [],
+        borderColor: 'var(--primary-500)',
+        backgroundColor: 'rgba(37, 99, 235, 0.10)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        order: 2
+      },
+      // The 3 company lines on top (unfilled).
+      ...Object.entries(data.companyTrend?.series || {}).map(([name, arr]) => ({
+        label: name,
+        data: arr,
+        borderColor: COMPANY_COLORS[name] || '#8b5cf6',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        fill: false,
+        tension: 0.4,
+        order: 1
+      }))
+    ]
   };
 
   // Grade-wise revenue distribution (segregated format). Click a legend entry to
@@ -259,8 +341,8 @@ const Dashboard = () => {
     labels: data.masters?.map(m => m._id) || [],
     datasets: [{
       label: metricLabel,
-      data: data.masters?.map(m => metric === 'revenue' ? m.totalAmount : m.totalQty) || [],
-      backgroundColor: (data.masters || []).map((_, i) => MASTER_COLORS[i % MASTER_COLORS.length]),
+      data: data.masters?.map(m => metric === 'revenue' ? (masterBasis === 'incl' ? m.totalAmountIncl : m.totalAmount) : m.totalQty) || [],
+      backgroundColor: pieColors('master', (data.masters || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -272,8 +354,8 @@ const Dashboard = () => {
     labels: data.groups?.map(g => g._id) || [],
     datasets: [{
       label: metricLabel,
-      data: data.groups?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: (data.groups || []).map((_, i) => GROUP_COLORS[i % GROUP_COLORS.length]),
+      data: data.groups?.map(g => metric === 'revenue' ? (groupBasis === 'incl' ? g.totalAmountIncl : g.totalAmount) : g.totalQty) || [],
+      backgroundColor: pieColors('category', (data.groups || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -297,7 +379,7 @@ const Dashboard = () => {
     datasets: [{
       label: metricLabel,
       data: data.grades?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: (data.grades || []).map((_, i) => GRADE_COLORS[i % GRADE_COLORS.length]),
+      backgroundColor: pieColors('grade', (data.grades || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -349,13 +431,14 @@ const Dashboard = () => {
         <div className="kpi-grid">
           {(() => {
             const target = companyTarget?.amount || 0;
-            const achieved = data.summary.totalRevenue || 0;
+            // Target is compared against the assessable (Excl. Taxes) revenue (client request).
+            const achieved = data.summary.totalRevenueExclTax || 0;
             const pct = target > 0 ? (achieved / target) * 100 : 0;
             return (
               <div className="kpi-card" style={{ gridColumn: 'span 2' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                   <div className="kpi-label">
-                    {scoped ? 'My Target (incl. GST)' : 'Target Turnover (incl. GST)'}{companyTarget?.fiscalYear ? ` (FY ${companyTarget.fiscalYear})` : ''}
+                    {scoped ? 'My Target (Excl. Taxes)' : 'Target Turnover (Excl. Taxes)'}{companyTarget?.fiscalYear ? ` (FY ${companyTarget.fiscalYear})` : ''}
                   </div>
                   {canEditTarget && (
                     <button
@@ -405,9 +488,14 @@ const Dashboard = () => {
             <div className="kpi-value">{formatNumber(data.summary.totalQty)}</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Top State by Revenue (incl. GST)</div>
+            <div className="kpi-label">Top State by Revenue (Excl. Taxes)</div>
             <div className="kpi-value" style={{ fontSize: '1.25rem' }}>{data.summary.topState || 'N/A'}</div>
             <div className="kpi-sub">{formatCurrency(data.summary.topStateRevenue)}</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Top Zone by Revenue (Excl. Taxes)</div>
+            <div className="kpi-value" style={{ fontSize: '1.25rem' }}>{data.summary.topZone || 'N/A'}</div>
+            <div className="kpi-sub">{formatCurrency(data.summary.topZoneRevenue)}</div>
           </div>
         </div>
       )}
@@ -454,59 +542,19 @@ const Dashboard = () => {
       )}
 
       <div className="charts-grid">
-        {/* Master-wise pie — first, a normal half-width square (was full-width). */}
-        {loading && !data.masters ? (
-          <ChartSkeleton />
-        ) : (data.masters && data.masters.length > 0) ? (
-          <ChartCard
-            title={`Master-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`}
-            aiContext={data.masters}
-            aiType="Master-wise Distribution"
-          >
-            <Pie
-              data={masterChartData}
-              options={{
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
-                  tooltip: piePctTooltip
-                }
-              }}
-            />
-          </ChartCard>
-        ) : null}
+        {/* ── Grid layout (2 columns): Row 1 = Revenue Trend (full width). Then, row-major:
+            Top Products | Master-wise · Category-wise | Grade-wise · Salesperson | By State ·
+            By Zone | (empty). Top Customers table spans full width beneath. ── */}
 
-        {/* Category-wise pie (internal field `group`, TYpe1) — cloned from Products (no drill-down),
-            sits beside the Master pie. */}
-        {loading && !data.groups ? (
-          <ChartSkeleton />
-        ) : (data.groups && data.groups.length > 0) ? (
-          <ChartCard
-            title={`Category-wise ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`}
-            aiContext={data.groups}
-            aiType="Category-wise Distribution"
-          >
-            <Pie
-              data={groupChartData}
-              options={{
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
-                  tooltip: piePctTooltip
-                }
-              }}
-            />
-          </ChartCard>
-        ) : null}
-
+        {/* (Row 1) Revenue Trend — full width. In Revenue mode shows TWO lines (Excl. + Incl.). */}
         {loading && !data.trend ? (
           <ChartSkeleton fullWidth />
         ) : (
           <ChartCard
-            title={`${metricLabel} Trend${metric === 'revenue' ? ' (incl. GST)' : ''}`}
+            title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} Trend`}
             aiContext={data.trend}
             aiType="Revenue Trend Data"
-            fullWidth 
+            fullWidth
             extra={
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {[
@@ -541,7 +589,10 @@ const Dashboard = () => {
               options={{
                 maintainAspectRatio: false,
                 plugins: {
-                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
+                  // Two lines in revenue mode → skip the single-dataset average line (misleading);
+                  // keep it for the single Quantity line.
+                  averageLine: metric === 'revenue' ? false : { formatter: (v) => formatNumber(Math.round(v)) },
+                  legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
                   tooltip: metricTooltip
                 },
                 scales: { y: metricScale }
@@ -550,10 +601,60 @@ const Dashboard = () => {
           </ChartCard>
         )}
 
+        {/* (Row 2, full width) Company-wise Revenue Trend — a duplicate of the main trend with
+            3 lines (FDL / UCPL / UFLP+UFPL combined). Always revenue Excl. Taxes, for comparison. */}
+        {loading && !data.companyTrend ? (
+          <ChartSkeleton fullWidth />
+        ) : (data.companyTrend?.periods?.length > 0) ? (
+          <ChartCard
+            title="Revenue by Company (Revenue Excl. Taxes)"
+            aiContext={data.companyTrend}
+            aiType="Company-wise Revenue Trend (FDL / UCPL / UFLP+UFPL)"
+            fullWidth
+          >
+            <Line
+              data={companyTrendChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  percentBar: false,
+                  tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatCurrency(ctx.raw)}` } }
+                },
+                scales: { y: { ticks: { callback: v => formatINRShort(v) } } }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {/* (1,2) Master-wise pie — incl/excl tax-basis toggle (TEST). (Swapped ahead of Top Products.) */}
+        {loading && !data.masters ? (
+          <ChartSkeleton />
+        ) : (data.masters && data.masters.length > 0) ? (
+          <ChartCard
+            title={`Master-wise${basisTag(masterBasis)}`}
+            aiContext={data.masters}
+            aiType="Master-wise Distribution"
+            extra={<BasisToggle basis={masterBasis} setBasis={setMasterBasis} />}
+          >
+            <Pie
+              data={masterChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: piePctTooltip
+                }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {/* (2,2) Top Products */}
         {loading && !data.products ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Top Products (${metricLabel})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.products} aiType="Top Products Comparison">
+          <ChartCard title={`Top Products${titleTag}`} aiContext={data.products} aiType="Top Products Comparison">
             <Bar
               data={productsChartData}
               plugins={[averageLinePlugin]}
@@ -582,10 +683,66 @@ const Dashboard = () => {
           </ChartCard>
         )}
 
+        {/* (1,3) Category-wise pie (internal field `group`, TYpe1) — incl/excl toggle (TEST). */}
+        {loading && !data.groups ? (
+          <ChartSkeleton />
+        ) : (data.groups && data.groups.length > 0) ? (
+          <ChartCard
+            title={`Category-wise${basisTag(groupBasis)}`}
+            aiContext={data.groups}
+            aiType="Category-wise Distribution"
+            extra={<BasisToggle basis={groupBasis} setBasis={setGroupBasis} />}
+          >
+            <Pie
+              data={groupChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: piePctTooltip
+                }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {/* (2,3) Grade-wise pie */}
+        {loading && !data.grades ? (
+          <ChartSkeleton />
+        ) : (data.grades && data.grades.length > 0) ? (
+          <ChartCard
+            title={`Grade-wise Distribution${titleTag}`}
+            aiContext={data.grades}
+            aiType="Grade-wise Revenue Distribution"
+            extra={<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a grade to toggle</span>}
+          >
+            <Pie
+              data={gradeChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => {
+                        const val = ctx.raw || 0;
+                        const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                        return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+                      }
+                    }
+                  }
+                }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {/* (1,4) Salesperson donut */}
         {loading && !data.salespersons ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Salesperson ${metricLabel}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.salespersons} aiType="Salesperson Performance">
+          <ChartCard title={`Salesperson${titleTag}`} aiContext={data.salespersons} aiType="Salesperson Performance">
             <div className="donut-container">
               <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                 <Doughnut 
@@ -633,27 +790,32 @@ const Dashboard = () => {
         {loading && !data.geo ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`${metricLabel} by State${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.geo} aiType="Geographic Breakdown">
-            <Bar
-              data={geoChartData}
-              plugins={[averageLinePlugin]}
-              options={{
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { display: false },
-                  averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
-                  tooltip: metricTooltip
-                },
-                scales: { y: metricScale, x: categoryScale }
-              }}
-            />
+          <ChartCard title={`By State${titleTag}`} aiContext={data.geo} aiType="Geographic Breakdown">
+            {/* Horizontal scroll so >15 states don't cram — each bar keeps ~46px. */}
+            <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+              <div style={{ height: '100%', minWidth: `${Math.max((data.geo?.length || 0) * 46, 100)}px` }}>
+                <Bar
+                  data={geoChartData}
+                  plugins={[averageLinePlugin]}
+                  options={{
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { display: false },
+                      averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
+                      tooltip: metricTooltip
+                    },
+                    scales: { y: metricScale, x: categoryScale }
+                  }}
+                />
+              </div>
+            </div>
           </ChartCard>
         )}
 
         {loading && !data.zones ? (
           <ChartSkeleton />
         ) : (data.zones && data.zones.length > 0) ? (
-          <ChartCard title={`${metricLabel} by Zone${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={data.zones} aiType="Zone-wise Revenue">
+          <ChartCard title={`By Zone${titleTag}`} aiContext={data.zones} aiType="Zone-wise Revenue">
             <Bar
               data={zoneChartData}
               plugins={[averageLinePlugin]}
@@ -670,37 +832,6 @@ const Dashboard = () => {
           </ChartCard>
         ) : null}
 
-        {loading && !data.grades ? (
-          <ChartSkeleton />
-        ) : (data.grades && data.grades.length > 0) ? (
-          <ChartCard
-            title={`Grade-wise ${metricLabel} Distribution${metric === 'revenue' ? ' (incl. GST)' : ''}`}
-            aiContext={data.grades}
-            aiType="Grade-wise Revenue Distribution"
-            extra={<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a grade to toggle</span>}
-          >
-            <Pie
-              data={gradeChartData}
-              options={{
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
-                  tooltip: {
-                    callbacks: {
-                      label: (ctx) => {
-                        const val = ctx.raw || 0;
-                        const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
-                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                        return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
-                      }
-                    }
-                  }
-                }
-              }}
-            />
-          </ChartCard>
-        ) : null}
-
         {loading && !data.customers ? (
           <TableSkeleton />
         ) : (
@@ -709,38 +840,56 @@ const Dashboard = () => {
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Top Customers</h3>
             </div>
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <table className="data-table">
+              {/* Fixed layout + colgroup widths so the extra Zone / dual-revenue columns fit
+                  the card width without a horizontal scrollbar; long text ellipsises. */}
+              <table className="data-table" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '22%' }} />{/* Customer */}
+                  <col style={{ width: '11%' }} />{/* City */}
+                  <col style={{ width: '12%' }} />{/* State */}
+                  <col style={{ width: '9%' }} />{/* Zone */}
+                  <col style={{ width: '14%' }} />{/* Salesperson */}
+                  <col style={{ width: '7%' }} />{/* Orders */}
+                  <col style={{ width: '13%' }} />{/* Revenue excl */}
+                  <col style={{ width: '12%' }} />{/* Revenue incl */}
+                </colgroup>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-card)' }}>
                   <tr>
                     <th>Customer Name</th>
                     <th>City</th>
                     <th>State</th>
+                    <th>Zone</th>
                     <th>Salesperson</th>
                     <th>Orders</th>
-                    <th>{metricLabel}</th>
+                    <th>Revenue (Excl. Taxes)</th>
+                    <th>Revenue (Incl. Taxes)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.customers?.map((cust, i) => (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 500 }}>{cust._id}</td>
-                      <td>{cust.city}</td>
-                      <td>{cust.state}</td>
-                      <td>{cust.salesperson}</td>
-                      <td>{cust.totalOrders}</td>
-                      <td style={{ fontWeight: 600 }}>
-                        {metric === 'revenue' ? formatCurrency(cust.totalRevenue) : formatNumber(cust.totalQty)}
-                      </td>
-                    </tr>
-                  ))}
+                  {data.customers?.map((cust, i) => {
+                    const cellClip = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+                    return (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 500, ...cellClip }} title={cust._id}>{cust._id}</td>
+                        <td style={cellClip} title={cust.city}>{cust.city}</td>
+                        <td style={cellClip} title={cust.state}>{cust.state}</td>
+                        <td style={cellClip} title={cust.zone}>{cust.zone || '—'}</td>
+                        <td style={cellClip} title={cust.salesperson}>{cust.salesperson}</td>
+                        <td>{cust.totalOrders}</td>
+                        <td style={{ fontWeight: 600, ...cellClip }}>{formatCurrency(cust.totalRevenue)}</td>
+                        <td style={{ fontWeight: 600, ...cellClip }}>{formatCurrency(cust.totalRevenueIncl)}</td>
+                      </tr>
+                    );
+                  })}
                   {(!data.customers || data.customers.length === 0) && (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '30px' }}>No customer data available</td></tr>
+                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '30px' }}>No customer data available</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import TargetAmountInput, { SALESPERSON_TARGET_PRESETS } from '../components/Tar
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 
 const SalespersonListSkeleton = () => (
   <div className="sp-list-scroll-area">
@@ -158,6 +159,8 @@ const Salesperson = () => {
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const axisFmt = (v) => metric === 'revenue' ? formatINRShort(v) : formatShort(v);
+  // Single-bracket title suffix (Title Case brackets, client request 2026-07-27).
+  const titleTag = metric === 'revenue' ? ' (Revenue Excl. Taxes)' : ' (Quantity)';
   const metricScaleY = { ticks: { callback: v => axisFmt(v) } };
   const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatCount(ctx.raw) + ' units'}` } };
 
@@ -420,7 +423,7 @@ const Salesperson = () => {
 
               <div className="kpi-grid">
                 <div className="kpi-card">
-                  <div className="kpi-label">Total Revenue (incl. GST)</div>
+                  <div className="kpi-label">Total Revenue (Excl. Taxes)</div>
                   <div className="kpi-value">{formatCurrency(details.stats.totalRevenue)}</div>
                 </div>
                 <div className="kpi-card">
@@ -432,7 +435,7 @@ const Salesperson = () => {
                   <div className="kpi-value">{details.stats.uniqueCustomers}</div>
                 </div>
                 <div className="kpi-card">
-                  <div className="kpi-label">Avg Order (incl. GST)</div>
+                  <div className="kpi-label">Avg Order (Excl. Taxes)</div>
                   <div className="kpi-value">{formatCurrency(details.stats.avgOrderValue)}</div>
                 </div>
               </div>
@@ -441,7 +444,7 @@ const Salesperson = () => {
               <div className="charts-grid">
                 {/* Revenue Trend Chart */}
                 <ChartCard 
-                  title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} Trend${metric === 'revenue' ? ' (incl. GST)' : ''}`}
+                  title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} Trend${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`}
                   aiContext={details.revenueTrend}
                   aiType={`Performance Trend for ${selectedSP}`}
                   fullWidth 
@@ -499,7 +502,7 @@ const Salesperson = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title={`Top Products Sold${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.topProducts} aiType={`Products Sold by ${selectedSP}`}>
+                <ChartCard title={`Top Products Sold${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.topProducts} aiType={`Products Sold by ${selectedSP}`}>
                   <Bar 
                     data={{
                       labels: details.topProducts.map(p => p._id),
@@ -529,7 +532,7 @@ const Salesperson = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title={`${filters.category ? `Products in ${filters.category}` : "Sub-Category Breakdown"}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.categoryBreakdown} aiType={`Sub-Category Performance for ${selectedSP}`}>
+                <ChartCard title={`${filters.category?.length ? `Products in ${filters.category.join(', ')}` : "Sub-Category Breakdown"}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.categoryBreakdown} aiType={`Sub-Category Performance for ${selectedSP}`}>
                   <div className="donut-container">
                     <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                       <Doughnut 
@@ -538,7 +541,7 @@ const Salesperson = () => {
                           datasets: [{
                             label: metric === 'revenue' ? 'Revenue' : 'Quantity',
                             data: details.categoryBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty),
-                            backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'],
+                            backgroundColor: pieColors('subcategory', details.categoryBreakdown.length),
                             borderWidth: 0,
                             cutout: '70%'
                           }]
@@ -563,7 +566,7 @@ const Salesperson = () => {
                       {details.categoryBreakdown.map((item, idx) => {
                         const total = details.categoryBreakdown.reduce((sum, c) => sum + (metric === 'revenue' ? c.totalAmount : c.totalQty), 0);
                         const percentage = ((metric === 'revenue' ? item.totalAmount : item.totalQty) / total * 100).toFixed(1);
-                        const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+                        const colors = PALETTES.subcategory;
                         return (
                           <div key={idx} className="legend-item">
                             <div className="legend-label">
@@ -578,7 +581,7 @@ const Salesperson = () => {
                   </div>
                 </ChartCard>
 
-                <ChartCard title={`City Breakdown${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.cityBreakdown} aiType={`Sales Breakdown by City for ${selectedSP}`}>
+                <ChartCard title={`City Breakdown${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.cityBreakdown} aiType={`Sales Breakdown by City for ${selectedSP}`}>
                   <Doughnut 
                     data={{
                       labels: details.cityBreakdown.map(c => c._id),
@@ -594,14 +597,14 @@ const Salesperson = () => {
                 </ChartCard>
 
                 {details.zoneBreakdown && details.zoneBreakdown.length > 0 && (
-                  <ChartCard title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} by Zone${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.zoneBreakdown} aiType={`Zone-wise sales for ${selectedSP}`}>
+                  <ChartCard title={`${metric === 'revenue' ? 'Revenue' : 'Quantity'} by Zone${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.zoneBreakdown} aiType={`Zone-wise sales for ${selectedSP}`}>
                     <Bar
                       data={{
                         labels: details.zoneBreakdown.map(z => z._id),
                         datasets: [{
                           label: metric === 'revenue' ? 'Revenue' : 'Quantity',
                           data: details.zoneBreakdown.map(z => metric === 'revenue' ? z.totalRevenue : z.totalQty),
-                          backgroundColor: '#8b5cf6',
+                          backgroundColor: ACCENTS.zone,
                           borderRadius: 4
                         }]
                       }}
@@ -620,14 +623,14 @@ const Salesperson = () => {
                 )}
 
                 {details.gradeBreakdown && details.gradeBreakdown.length > 0 && (
-                  <ChartCard title={`Grade-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.gradeBreakdown} aiType={`Grade split for ${selectedSP}`}>
+                  <ChartCard title={`Grade-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.gradeBreakdown} aiType={`Grade split for ${selectedSP}`}>
                     <Pie
                       data={{
                         labels: details.gradeBreakdown.map(g => g._id),
                         datasets: [{
                           label: metric === 'revenue' ? 'Revenue' : 'Quantity',
                           data: details.gradeBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
-                          backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
+                          backgroundColor: pieColors('grade', details.gradeBreakdown.length),
                           borderWidth: 2,
                           borderColor: '#fff'
                         }]
@@ -654,14 +657,14 @@ const Salesperson = () => {
 
                 {/* Category-wise distribution (internal field `group`: FB/FM/FN/Base…) for this salesperson. */}
                 {details.groupBreakdown && details.groupBreakdown.length > 0 && (
-                  <ChartCard title={`Category-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.groupBreakdown} aiType={`Category split for ${selectedSP}`}>
+                  <ChartCard title={`Category-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.groupBreakdown} aiType={`Category split for ${selectedSP}`}>
                     <Pie
                       data={{
                         labels: details.groupBreakdown.map(g => g._id),
                         datasets: [{
                           label: metric === 'revenue' ? 'Revenue' : 'Quantity',
                           data: details.groupBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
-                          backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'],
+                          backgroundColor: pieColors('category', details.groupBreakdown.length),
                           borderWidth: 2,
                           borderColor: '#fff'
                         }]
@@ -688,7 +691,7 @@ const Salesperson = () => {
 
                 {/* Colour breakdown (column chart) — colour codes until a name lookup exists. */}
                 {details.colourBreakdown && details.colourBreakdown.length > 0 && (
-                  <ChartCard title={`Colour Breakdown (${metric === 'revenue' ? 'Revenue' : 'Quantity'})${metric === 'revenue' ? ' (incl. GST)' : ''}`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
+                  <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
                     {/* Horizontally scrollable — colour codes crowd the x-axis; give each bar room. */}
                     <div style={{ position: 'absolute', inset: 0, overflowX: 'auto', overflowY: 'hidden' }}>
                       <div style={{ height: '100%', minWidth: `${Math.max(details.colourBreakdown.length * 46, 100)}px` }}>
@@ -698,7 +701,7 @@ const Salesperson = () => {
                             datasets: [{
                               label: metric === 'revenue' ? 'Revenue' : 'Quantity',
                               data: details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty),
-                              backgroundColor: '#10b981',
+                              backgroundColor: ACCENTS.colour,
                               borderRadius: 4
                             }]
                           }}
@@ -725,7 +728,7 @@ const Salesperson = () => {
                       <th>Customer Name</th>
                       <th>City</th>
                       <th>Orders</th>
-                      <th>Total Revenue (incl. GST)</th>
+                      <th>Total Revenue (Excl. Taxes)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -755,8 +758,8 @@ const Salesperson = () => {
                       <tr>
                         <th>Product</th>
                         <th style={{ textAlign: 'right' }}>Qty Sold</th>
-                        <th style={{ textAlign: 'right' }}>Avg. Rate (excl. GST)</th>
-                        <th style={{ textAlign: 'right' }}>Revenue (incl. GST)</th>
+                        <th style={{ textAlign: 'right' }}>Avg. Rate (Excl. Taxes)</th>
+                        <th style={{ textAlign: 'right' }}>Revenue (Excl. Taxes)</th>
                       </tr>
                     </thead>
                     <tbody>

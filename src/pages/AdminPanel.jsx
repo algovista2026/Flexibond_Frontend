@@ -712,7 +712,7 @@ const AdminPanel = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>
                             {prog && prog.hasTarget
-                              ? `${fmtINR(prog.achieved)} of ${fmtINR(prog.target)} (incl. GST)`
+                              ? `${fmtINR(prog.achieved)} of ${fmtINR(prog.target)} (Excl. Taxes)`
                               : 'No target set'}
                           </span>
                           {prog && prog.hasTarget && <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{prog.pct}%</span>}

@@ -186,6 +186,7 @@ export const purgeAllData = (type) => api.delete(`upload/purge/${type}`);
 // Dashboard
 export const getDashboardSummary = (params) => api.get('dashboard/summary', { params });
 export const getRevenueTrend = (params) => api.get('dashboard/revenue-trend', { params });
+export const getRevenueTrendByCompany = (params) => api.get('dashboard/revenue-trend-by-company', { params });
 export const getTopProducts = (params) => api.get('dashboard/top-products', { params });
 export const getTopCustomers = (params) => api.get('dashboard/top-customers', { params });
 export const getCategoryBreakdown = (params) => api.get('dashboard/category-breakdown', { params });

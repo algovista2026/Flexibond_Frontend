@@ -22,8 +22,7 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
-        <h2>Flexibond</h2>
-        <p>Analytics Hub</p>
+        <img src="/flexibond-logo.png" alt="Flexibond — An Attachment" className="sidebar-logo" />
       </div>
 
       <nav className="sidebar-nav">
