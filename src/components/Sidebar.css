@@ -19,21 +19,17 @@
 }
 
 .sidebar-header {
-  padding: 26px 24px 34px;
+  padding: 22px 12px 30px;
   flex-shrink: 0;
 }
 
-/* Flexibond brand logo — replaces the old "Flexibond / Analytics Hub" text. The logo's
-   "AN ATTACHMENT" tagline is a dark blue that's illegible on the navy sidebar, so the
-   transparent PNG sits on a small white "chip" (rounded panel) to keep it readable. */
+/* Flexibond brand logo — replaces the old "Flexibond / Analytics Hub" text. The transparent
+   PNG sits directly on the sidebar (no white chip) so it blends with the navy background. */
 .sidebar-logo {
   display: block;
   width: 100%;
-  max-width: 200px;
+  max-width: 260px;
   height: auto;
-  background: #fff;
-  padding: 10px 12px;
-  border-radius: 10px;
   box-sizing: border-box;
 }
 

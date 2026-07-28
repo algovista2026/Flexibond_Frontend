@@ -8,7 +8,7 @@ import {
 import {
   FiUserPlus, FiTrash2, FiShield, FiCheckSquare, FiSquare, FiEdit2,
   FiEye, FiEyeOff, FiLock, FiSmartphone, FiMonitor, FiCheck, FiX, FiRefreshCw,
-  FiTarget, FiBriefcase, FiMapPin
+  FiTarget, FiBriefcase, FiMapPin, FiSearch
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';

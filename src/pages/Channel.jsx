@@ -15,6 +15,7 @@ const B2C_COLOR = '#10b981';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 import { formatINRShort } from '../utils/numberFormat';
+import { th } from '../utils/thHeader';
 
 const Channel = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
@@ -383,7 +384,7 @@ const Channel = () => {
                   <th>Customer</th>
                   <th style={{ whiteSpace: 'nowrap' }}>City</th>
                   <th style={{ whiteSpace: 'nowrap' }}>State</th>
-                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Revenue (Excl. Taxes)</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{th('Revenue (Excl. Taxes)')}</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Orders</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Qty</th>
                 </tr>

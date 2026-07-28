@@ -12,6 +12,7 @@ import {
 } from '../services/api';
 
 import { formatINRShort } from '../utils/numberFormat';
+import { th } from '../utils/thHeader';
 
 const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#f59e0b'];
 
@@ -580,12 +581,12 @@ const Financial = () => {
                   <th style={{ whiteSpace: 'nowrap' }}>State</th>
                   <th style={{ whiteSpace: 'nowrap' }}>GST Type</th>
                   <th style={{ whiteSpace: 'nowrap' }}>Salesperson</th>
-                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Assessable (excl. GST)</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{th('Assessable (excl. GST)')}</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>CGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>SGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>IGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Cess</th>
-                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Bill Amount (incl. GST)</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{th('Bill Amount (incl. GST)')}</th>
                 </tr>
               </thead>
               <tbody>

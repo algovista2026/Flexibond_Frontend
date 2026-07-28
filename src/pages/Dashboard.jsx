@@ -22,6 +22,7 @@ import {
   getZoneAnalysis,
   getMasterBreakdown,
   getGroupBreakdown,
+  getCategoryBreakdown,
   getRevenueTrendByCompany,
   getCompanyTarget,
   setCompanyTarget,
@@ -30,6 +31,7 @@ import {
 } from '../services/api';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
+import { th } from '../utils/thHeader';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 
@@ -70,7 +72,8 @@ const Dashboard = () => {
     grades: null,
     zones: null,
     masters: null,
-    groups: null
+    groups: null,
+    categories: null
   });
 
   const fetchData = async () => {
@@ -78,7 +81,7 @@ const Dashboard = () => {
       setLoading(true);
       const [
         summaryRes, trendRes, companyTrendRes, productsRes,
-        customersRes, geoRes, spRes, gradeRes, zoneRes, masterRes, groupRes, filtersRes
+        customersRes, geoRes, spRes, gradeRes, zoneRes, masterRes, groupRes, categoryRes, filtersRes
       ] = await Promise.all([
         getDashboardSummary(filters),
         getRevenueTrend({ ...filters, groupBy: trendGroupBy }),
@@ -91,6 +94,7 @@ const Dashboard = () => {
         getZoneAnalysis(filters),
         getMasterBreakdown(filters),
         getGroupBreakdown(filters),
+        getCategoryBreakdown({ ...filters, sortBy: metric === 'revenue' ? 'totalAmount' : 'totalQty' }),
         getFilters(filters)
       ]);
 
@@ -105,7 +109,8 @@ const Dashboard = () => {
         grades: gradeRes.data.data,
         zones: zoneRes.data.data?.zones || [],
         masters: masterRes.data.data || [],
-        groups: groupRes.data.data || []
+        groups: groupRes.data.data || [],
+        categories: categoryRes.data.data || []
       });
       setFilterOptions(filtersRes.data.data);
     } catch (error) {
@@ -308,18 +313,7 @@ const Dashboard = () => {
   const companyTrendChartData = {
     labels: data.companyTrend?.periods || [],
     datasets: [
-      // Total revenue — shaded envelope line (like the main Revenue Trend), drawn behind.
-      {
-        label: 'Total',
-        data: data.companyTrend?.total || [],
-        borderColor: 'var(--primary-500)',
-        backgroundColor: 'rgba(37, 99, 235, 0.10)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.4,
-        order: 2
-      },
-      // The 3 company lines on top (unfilled).
+      // The 3 company lines (Total line removed per client request 2026-07-28).
       ...Object.entries(data.companyTrend?.series || {}).map(([name, arr]) => ({
         label: name,
         data: arr,
@@ -372,6 +366,61 @@ const Dashboard = () => {
       }
     }
   };
+
+  // Sub-Category doughnut (field `category` / Categry) — BLUE palette, cloned from the
+  // Products page's "Sub-categories in" donut (same data source + colour scheme).
+  const catChartData = {
+    labels: data.categories?.map(d => d._id || 'Unknown') || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.categories?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
+      backgroundColor: pieColors('subcategory', (data.categories || []).length),
+      borderWidth: 0
+    }]
+  };
+
+  // ── Company revenue split (FDL / UCPL / UFLP+UFPL) — summed from the company-trend series,
+  // so both the target bar and the revenue-split bar respect the active filters. ──
+  const COMPANY_ORDER = ['FDL', 'UCPL', 'UFLP+UFPL'];
+  const companySegments = (() => {
+    const s = data.companyTrend?.series || {};
+    return COMPANY_ORDER
+      .map(label => ({ label, value: (s[label] || []).reduce((a, b) => a + b, 0), color: COMPANY_COLORS[label] }))
+      .filter(seg => seg.value > 0);
+  })();
+  const companySplitTotal = companySegments.reduce((a, seg) => a + seg.value, 0);
+
+  // Segmented horizontal bar (macOS-storage style). `denom` sets the full-scale width; when
+  // `showInside` the wide-enough segments print their % share; every segment has a hover title.
+  const CompanyBar = ({ segments, denom, showInside, height = 22 }) => (
+    <div style={{ display: 'flex', width: '100%', height: `${height}px`, borderRadius: '6px', overflow: 'hidden', background: 'var(--bg-light, #eef2f7)' }}>
+      {segments.map(seg => {
+        const w = denom > 0 ? Math.min((seg.value / denom) * 100, 100) : 0;
+        const share = companySplitTotal > 0 ? (seg.value / companySplitTotal) * 100 : 0;
+        if (w <= 0) return null;
+        return (
+          <div
+            key={seg.label}
+            title={`${seg.label}: ${formatCurrency(seg.value)} (${share.toFixed(1)}% of company revenue)`}
+            style={{ width: `${w}%`, background: seg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden' }}
+          >
+            {showInside && w > 7 ? `${share.toFixed(0)}%` : ''}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const CompanyLegend = () => (
+    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '8px' }}>
+      {companySegments.map(seg => (
+        <span key={seg.label} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: seg.color }} />
+          {seg.label}
+        </span>
+      ))}
+    </div>
+  );
 
   const GRADE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
   const gradeChartData = {
@@ -452,9 +501,18 @@ const Dashboard = () => {
                 </div>
                 <div className="kpi-value">{target > 0 ? formatCurrency(target) : '—'}</div>
                 <div style={{ marginTop: '10px' }}>
-                  <div style={{ height: '8px', borderRadius: '6px', background: 'var(--bg-light, #eef2f7)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct >= 100 ? 'var(--success)' : 'var(--primary-500)', borderRadius: '6px', transition: 'width 0.4s ease' }} />
-                  </div>
+                  {/* Segmented bar — % of target achieved, split by daughter company (hover for
+                      detail). Falls back to a single fill if the company split is unavailable. */}
+                  {target > 0 && companySegments.length > 0 ? (
+                    <>
+                      <CompanyBar segments={companySegments} denom={target} showInside={false} height={10} />
+                      <CompanyLegend />
+                    </>
+                  ) : (
+                    <div style={{ height: '8px', borderRadius: '6px', background: 'var(--bg-light, #eef2f7)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct >= 100 ? 'var(--success)' : 'var(--primary-500)', borderRadius: '6px', transition: 'width 0.4s ease' }} />
+                    </div>
+                  )}
                   <div className="kpi-sub" style={{ marginTop: '6px' }}>
                     {target > 0
                       ? `${formatCurrency(achieved)} achieved · ${Math.round(pct)}%`
@@ -465,14 +523,14 @@ const Dashboard = () => {
             );
           })()}
           <div className="kpi-card">
-            <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
-            <div className="kpi-value">{formatCurrency(data.summary.totalRevenue)}</div>
-            <div className="kpi-sub">Bill amount</div>
-          </div>
-          <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Excl. Taxes)</div>
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
             <div className="kpi-sub">Assessable value</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
+            <div className="kpi-value">{formatCurrency(data.summary.totalRevenue)}</div>
+            <div className="kpi-sub">Bill amount</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Outstanding Amount</div>
@@ -601,6 +659,20 @@ const Dashboard = () => {
           </ChartCard>
         )}
 
+        {/* (Full width) Company revenue-split bar (TEST) — segmented like macOS storage; shows
+            what share of total revenue each daughter company holds. % printed inside each
+            segment; hover for the rupee figure. Not a target comparison. */}
+        {companySegments.length > 0 && (
+          <div className="chart-card" style={{ gridColumn: '1 / -1' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Revenue Split by Company (Revenue Excl. Taxes)</h3>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatCurrency(companySplitTotal)} total</span>
+            </div>
+            <CompanyBar segments={companySegments} denom={companySplitTotal} showInside={true} height={30} />
+            <CompanyLegend />
+          </div>
+        )}
+
         {/* (Row 2, full width) Company-wise Revenue Trend — a duplicate of the main trend with
             3 lines (FDL / UCPL / UFLP+UFPL combined). Always revenue Excl. Taxes, for comparison. */}
         {loading && !data.companyTrend ? (
@@ -611,6 +683,33 @@ const Dashboard = () => {
             aiContext={data.companyTrend}
             aiType="Company-wise Revenue Trend (FDL / UCPL / UFLP+UFPL)"
             fullWidth
+            extra={
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { k: 'day', label: 'Days' },
+                  { k: 'month', label: 'Months' },
+                  { k: 'quarter', label: 'Quarterly' },
+                  { k: 'halfyear', label: 'Half-Yearly' }
+                ].map(({ k, label }) => (
+                  <button
+                    key={k}
+                    onClick={() => setTrendGroupBy(k)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.85rem',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: trendGroupBy === k ? 'var(--primary-600)' : 'var(--bg-card)',
+                      color: trendGroupBy === k ? '#fff' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                      fontWeight: 500
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            }
           >
             <Line
               data={companyTrendChartData}
@@ -683,6 +782,105 @@ const Dashboard = () => {
           </ChartCard>
         )}
 
+        {/* Salesperson donut */}
+        {loading && !data.salespersons ? (
+          <ChartSkeleton />
+        ) : (
+          <ChartCard title={`Salesperson${titleTag}`} aiContext={data.salespersons} aiType="Salesperson Performance">
+            <div className="donut-container">
+              <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
+                <Doughnut
+                  data={spChartData}
+                  options={{
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => {
+                            const val = ctx.raw || 0;
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                            return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+                          }
+                        }
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <div className="custom-legend">
+                {(spChartData.labels || []).map((label, i) => {
+                  const val = spChartData.datasets[0].data[i];
+                  const total = spChartData.datasets[0].data.reduce((a, b) => a + b, 0);
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  const color = spChartData.datasets[0].backgroundColor[i % spChartData.datasets[0].backgroundColor.length];
+                  return (
+                    <div key={i} className="legend-item">
+                      <div className="legend-label">
+                        <div className="legend-dot" style={{ background: color }} />
+                        <span>{label}</span>
+                      </div>
+                      <span className="legend-percentage">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ChartCard>
+        )}
+
+        {/* Sub-Category doughnut (field `category` / Categry) — BLUE palette, cloned from the
+            Products page's "Sub-categories in" donut. */}
+        {loading && !data.categories ? (
+          <ChartSkeleton />
+        ) : (data.categories && data.categories.length > 0) ? (
+          <ChartCard title={`Sub-Category-wise${titleTag}`} aiContext={data.categories} aiType="Sub-Category Distribution">
+            <div className="donut-container">
+              <div style={{ flex: '1 1 55%', minWidth: 0, height: '100%' }}>
+                <Doughnut
+                  data={catChartData}
+                  options={{
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => {
+                            const val = ctx.raw || 0;
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                            return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+                          }
+                        }
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <div className="custom-legend" style={{ flex: '0 0 42%', maxHeight: '100%', overflowY: 'auto', paddingRight: '6px' }}>
+                {(data.categories || []).map((cat, i) => {
+                  const val = metric === 'revenue' ? cat.totalAmount : cat.totalQty;
+                  const total = (data.categories || []).reduce((acc, c) => acc + (metric === 'revenue' ? c.totalAmount : c.totalQty), 0);
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  const color = PALETTES.subcategory[i % PALETTES.subcategory.length];
+                  return (
+                    <div key={i} className="legend-item" title={cat._id || 'Unknown'}>
+                      <div className="legend-label">
+                        <div className="legend-dot" style={{ background: color }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat._id || 'Unknown'}</span>
+                      </div>
+                      <span className="legend-percentage">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ChartCard>
+        ) : null}
+
         {/* (1,3) Category-wise pie (internal field `group`, TYpe1) — incl/excl toggle (TEST). */}
         {loading && !data.groups ? (
           <ChartSkeleton />
@@ -737,55 +935,6 @@ const Dashboard = () => {
             />
           </ChartCard>
         ) : null}
-
-        {/* (1,4) Salesperson donut */}
-        {loading && !data.salespersons ? (
-          <ChartSkeleton />
-        ) : (
-          <ChartCard title={`Salesperson${titleTag}`} aiContext={data.salespersons} aiType="Salesperson Performance">
-            <div className="donut-container">
-              <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
-                <Doughnut 
-                  data={spChartData} 
-                  options={{ 
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: { 
-                      legend: { display: false },
-                      tooltip: {
-                        callbacks: {
-                          label: (ctx) => {
-                            const val = ctx.raw || 0;
-                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                            const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                            return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
-                          }
-                        }
-                      }
-                    }
-                  }} 
-                />
-              </div>
-              <div className="custom-legend">
-                {(spChartData.labels || []).map((label, i) => {
-                  const val = spChartData.datasets[0].data[i];
-                  const total = spChartData.datasets[0].data.reduce((a, b) => a + b, 0);
-                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                  const color = spChartData.datasets[0].backgroundColor[i % spChartData.datasets[0].backgroundColor.length];
-                  return (
-                    <div key={i} className="legend-item">
-                      <div className="legend-label">
-                        <div className="legend-dot" style={{ background: color }} />
-                        <span>{label}</span>
-                      </div>
-                      <span className="legend-percentage">{pct}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </ChartCard>
-        )}
 
         {loading && !data.geo ? (
           <ChartSkeleton />
@@ -861,8 +1010,8 @@ const Dashboard = () => {
                     <th>Zone</th>
                     <th>Salesperson</th>
                     <th>Orders</th>
-                    <th>Revenue (Excl. Taxes)</th>
-                    <th>Revenue (Incl. Taxes)</th>
+                    <th>{th('Revenue (Excl. Taxes)')}</th>
+                    <th>{th('Revenue (Incl. Taxes)')}</th>
                   </tr>
                 </thead>
                 <tbody>

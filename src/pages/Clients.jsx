@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar, Pie, Doughnut } from 'react-chartjs-2';
 import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
 import FilterBar from '../components/FilterBar';
@@ -9,6 +9,7 @@ import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../s
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
+import { th } from '../utils/thHeader';
 
 const Clients = () => {
   const [filters, setFilters] = useState(seedFilters({
@@ -158,6 +159,23 @@ const Clients = () => {
             indexAxis: 'y',
             plugins: { legend: { display: false }, tooltip: barTooltip },
             scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 }, autoSkip: false } } }
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  // Vertical column chart with a HORIZONTAL scroll wrapper (like the Products Thickness chart) —
+  // keeps columns readable and scrolls when there are many categories.
+  const VColumnBar = ({ rows, color }) => (
+    <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+      <div style={{ height: '100%', minWidth: `${Math.max((rows?.length || 0) * 46, 100)}px` }}>
+        <Bar
+          data={barData(rows, color)}
+          options={{
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: barTooltip },
+            scales: { y: { ticks: { callback: v => axisFmt(v) } }, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
           }}
         />
       </div>
@@ -326,10 +344,51 @@ const Clients = () => {
               </ChartCard>
             )}
 
-            {/* (1,3) Sub-Category (field `category`) — BLUE palette (new chart) */}
+            {/* (1,3) Sub-Category (field `category`) — BLUE doughnut, replicates the Products
+                page's "Sub-categories in" donut (side legend + full name on hover). */}
             {(analysis?.bySubcategory?.length > 0) && (
               <ChartCard title={`Sub-Category-wise${titleTag}`} aiContext={analysis.bySubcategory} aiType="Client sub-category mix">
-                <Pie data={pieData(analysis.bySubcategory, 'subcategory')} options={pieOptions} />
+                <div className="donut-container">
+                  <div style={{ flex: '1 1 55%', minWidth: 0, height: '100%' }}>
+                    <Doughnut
+                      data={pieData(analysis.bySubcategory, 'subcategory')}
+                      options={{
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                          legend: { display: false },
+                          tooltip: {
+                            callbacks: {
+                              label: (ctx) => {
+                                const val = ctx.raw || 0;
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : formatNumber(val)} (${pct}%)`;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="custom-legend" style={{ flex: '0 0 42%', maxHeight: '100%', overflowY: 'auto', paddingRight: '6px' }}>
+                    {(analysis.bySubcategory || []).map((c, i) => {
+                      const val = metricVal(c);
+                      const total = (analysis.bySubcategory || []).reduce((acc, r) => acc + metricVal(r), 0);
+                      const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                      const color = PALETTES.subcategory[i % PALETTES.subcategory.length];
+                      return (
+                        <div key={i} className="legend-item" title={c._id || '—'}>
+                          <div className="legend-label">
+                            <div className="legend-dot" style={{ background: color }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c._id || '—'}</span>
+                          </div>
+                          <span className="legend-percentage">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </ChartCard>
             )}
 
@@ -347,10 +406,10 @@ const Clients = () => {
               </ChartCard>
             )}
 
-            {/* (2,4) Thickness preference — purple bars, vertical scroll */}
+            {/* (2,4) Thickness / Section — purple vertical columns. */}
             {(analysis?.byThickness?.length > 0) && (
-              <ChartCard title={`Thickness${titleTag}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
-                <ScrollBar rows={analysis.byThickness} color={ACCENTS.thickness} />
+              <ChartCard title={`Thickness/Section${titleTag}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
+                <VColumnBar rows={analysis.byThickness} color={ACCENTS.thickness} />
               </ChartCard>
             )}
 
@@ -387,8 +446,8 @@ const Clients = () => {
                       <th>Invoice No</th>
                       <th>Date</th>
                       <th>Salesperson</th>
-                      <th>Revenue (Excl. Taxes)</th>
-                      <th>Revenue (Incl. Taxes)</th>
+                      <th>{th('Revenue (Excl. Taxes)')}</th>
+                      <th>{th('Revenue (Incl. Taxes)')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -437,9 +496,9 @@ const Clients = () => {
                   <tr>
                     <th>Product</th>
                     <th style={{ textAlign: 'right' }}>Qty Sold</th>
-                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>Avg. Rate (Excl. Taxes)</th>
-                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>Revenue (Excl. Taxes)</th>
-                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>Revenue (Incl. Taxes)</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Revenue (Excl. Taxes)')}</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Revenue (Incl. Taxes)')}</th>
                   </tr>
                 </thead>
                 <tbody>

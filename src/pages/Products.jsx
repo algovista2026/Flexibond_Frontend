@@ -24,6 +24,7 @@ import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleto
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
+import { th } from '../utils/thHeader';
 
 const Products = () => {
   const location = useLocation();
@@ -541,7 +542,7 @@ const Products = () => {
         {loading && !data.thickness ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Thickness Preference${titleTag}`} aiContext={data.thickness} aiType="Thickness Analysis">
+          <ChartCard title={`Thickness/Section${titleTag}`} aiContext={data.thickness} aiType="Thickness Analysis">
             {/* Horizontally scrollable — many Type values crowd the x-axis; give each bar room. */}
             <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ height: '100%', minWidth: `${Math.max((data.thickness?.length || 0) * 46, 100)}px` }}>
@@ -645,9 +646,9 @@ const Products = () => {
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Category</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Sub-Category</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Quantity</th>
-                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Avg. Rate (Excl. Taxes)</th>
-                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Revenue (Excl. Taxes)</th>
-                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Revenue (Incl. Taxes)</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Revenue (Excl. Taxes)')}</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Revenue (Incl. Taxes)')}</th>
                   </tr>
                 </thead>
                 <tbody>

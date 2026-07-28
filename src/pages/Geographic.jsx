@@ -9,6 +9,7 @@ import NotificationPanel from '../components/NotificationPanel';
 import ExportControls from '../components/ExportControls';
 import ChartCard from '../components/ChartCard';
 import { formatINRShort } from '../utils/numberFormat';
+import { th } from '../utils/thHeader';
 
 // Categorical palette for sales zones on the map / charts.
 const ZONE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
@@ -579,7 +580,7 @@ const Geographic = () => {
                     <thead>
                       <tr>
                         <th>Zone</th>
-                        <th>Revenue (Excl. Taxes)</th>
+                        <th>{th('Revenue (Excl. Taxes)')}</th>
                         <th>Orders</th>
                         <th>Customers</th>
                         <th>Top Salesperson</th>

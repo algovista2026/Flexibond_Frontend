@@ -17,6 +17,7 @@ import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../componen
 import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
+import { th } from '../utils/thHeader';
 
 const SalespersonListSkeleton = () => (
   <div className="sp-list-scroll-area">
@@ -88,6 +89,7 @@ const Salesperson = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   const [list, setList] = useState([]);
   const [selectedSP, setSelectedSP] = useState(null);
+  const [search, setSearch] = useState('');       // leaderboard inline search
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -98,7 +100,8 @@ const Salesperson = () => {
     product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
   }));
   const [showTargetModal, setShowTargetModal] = useState(false);
-  const [targetForm, setTargetForm] = useState({ amount: '', mode: 'monthly' });
+  // Targets are ANNUAL-only now (client request 2026-07-28) — the monthly mode was removed.
+  const [targetForm, setTargetForm] = useState({ amount: '', mode: 'yearly' });
   const [targetSaving, setTargetSaving] = useState(false);
   const [filterOptions, setFilterOptions] = useState({});
 
@@ -167,22 +170,23 @@ const Salesperson = () => {
   const isAdmin = user.role === 'admin';
   const target = details?.target || null;
 
-  // Per-period target value for the trend target line (revenue metric only). The stored
-  // figure is a monthly target; scale it to the current trend grouping.
+  // Per-period target value for the trend target line (revenue metric only). Derived from the
+  // ANNUAL target, scaled to the current trend grouping.
   const targetLineValue = () => {
     if (!target || metric !== 'revenue') return null;
-    const m = target.monthlyTarget;
+    const a = target.annualTarget;
     switch (trendGroupBy) {
-      case 'month': return m;
-      case 'quarter': return m * 3;
-      case 'halfyear': return m * 6;
-      case 'day': return m / 30; // approximate daily target
-      default: return m;
+      case 'month': return a / 12;
+      case 'quarter': return a / 4;
+      case 'halfyear': return a / 2;
+      case 'day': return a / 365; // approximate daily target
+      default: return a / 12;
     }
   };
 
   const openTargetModal = () => {
-    setTargetForm({ amount: target ? String(target.amount) : '', mode: target ? target.mode : 'monthly' });
+    // Annual-only: always edit the annual amount.
+    setTargetForm({ amount: target ? String(target.annualTarget) : '', mode: 'yearly' });
     setShowTargetModal(true);
   };
 
@@ -255,22 +259,29 @@ const Salesperson = () => {
         hideSalesperson={true}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 20px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Jump to salesperson:</span>
-        <SalespersonPicker list={list} selected={selectedSP} onSelect={handleSelectSP} />
-      </div>
-
-      {/* Leaderboard — horizontal, full-width strip right below the filter/picker (like the
-          filter bar). The charts/details flow full-width beneath it, like other dashboards. */}
+      {/* Leaderboard — horizontal, full-width strip right below the filter bar, with an inline
+          search box in the header (saves the space the old "Jump to salesperson" row used). The
+          charts/details flow full-width beneath it, like other dashboards. */}
       <div className="sp-leaderboard-strip">
-        <h3 className="sp-strip-title">Leaderboard</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          <h3 className="sp-strip-title" style={{ margin: 0 }}>Leaderboard {list.length ? `(${list.length})` : ''}</h3>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search salesperson…"
+            style={{ height: '38px', minWidth: '220px', flex: '0 1 300px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}
+          />
+        </div>
         {loading ? (
           <SalespersonListSkeleton />
         ) : (
           <div className="sp-strip-cards">
-              {list.map((sp, idx) => (
-                <div 
-                  key={sp._id} 
+              {list.map((sp, idx) => {
+                if (search.trim() && !String(sp._id).toLowerCase().includes(search.trim().toLowerCase())) return null;
+                return (
+                <div
+                  key={sp._id}
                   className={`sp-card ${selectedSP === sp._id ? 'active' : ''}`}
                   onClick={() => handleSelectSP(sp._id)}
                 >
@@ -291,7 +302,8 @@ const Salesperson = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {list.length === 0 && (
                 <div className="no-data">
                   <FiUsers className="no-data-icon" />
@@ -334,12 +346,12 @@ const Salesperson = () => {
                   </div>
                   <div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      Sales Target{target ? ` (FY ${target.fiscalYear})` : ''}
+                      Sales Target (Excl. Taxes){target ? ` (FY ${target.fiscalYear})` : ''}
                     </div>
                     {target ? (
                       <div style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                        <span style={{ fontWeight: 700 }}>{formatCurrency(target.monthlyTarget)}</span>
-                        <span style={{ color: 'var(--text-muted)' }}> /month · Annual {formatCurrency(target.annualTarget)} · {target.mode}</span>
+                        <span style={{ fontWeight: 700 }}>{formatCurrency(target.annualTarget)}</span>
+                        <span style={{ color: 'var(--text-muted)' }}> · Annual</span>
                       </div>
                     ) : (
                       <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No target set for this salesperson</div>
@@ -352,7 +364,7 @@ const Salesperson = () => {
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Achieved (current view)</div>
                       <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary-600)' }}>
                         {formatCurrency(details.stats.totalRevenue)}
-                        <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                        <span style={{ fontWeight: 700, color: '#000', marginLeft: '6px' }}>
                           ({target.annualTarget > 0 ? Math.round((details.stats.totalRevenue / target.annualTarget) * 100) : 0}% of annual)
                         </span>
                       </div>
@@ -380,26 +392,14 @@ const Salesperson = () => {
                   >
                     <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '4px' }}>Set Target — {selectedSP}</h3>
                     <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '18px' }}>
-                      Applies to the current fiscal year (April–March). Yearly targets are divided by 12 for the monthly target line.
+                      Annual target for the current fiscal year (April–March), measured against revenue excluding taxes.
                     </p>
-
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                      {['monthly', 'yearly'].map(m => (
-                        <button
-                          key={m}
-                          onClick={() => setTargetForm(f => ({ ...f, mode: m }))}
-                          style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid var(--border-color)', background: targetForm.mode === m ? 'var(--primary-600)' : 'var(--bg-light, #fff)', color: targetForm.mode === m ? '#fff' : 'var(--text-primary)', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}
-                        >
-                          {m}
-                        </button>
-                      ))}
-                    </div>
 
                     <TargetAmountInput
                       value={targetForm.amount}
                       onChange={(v) => setTargetForm(f => ({ ...f, amount: v }))}
                       presets={SALESPERSON_TARGET_PRESETS}
-                      label={targetForm.mode === 'yearly' ? 'Annual target (₹)' : 'Monthly target (₹)'}
+                      label="Annual target (₹)"
                     />
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -502,7 +502,7 @@ const Salesperson = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title={`Top Products Sold${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.topProducts} aiType={`Products Sold by ${selectedSP}`}>
+                <ChartCard title={`Top Products${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.topProducts} aiType={`Products Sold by ${selectedSP}`}>
                   <Bar 
                     data={{
                       labels: details.topProducts.map(p => p._id),
@@ -581,8 +581,78 @@ const Salesperson = () => {
                   </div>
                 </ChartCard>
 
+                {/* Category-wise distribution (internal field `group`: FB/FM/FN/Base…) — brought up.
+                    Uses the City-breakdown multi-colour palette per client request (2026-07-28, test). */}
+                {details.groupBreakdown && details.groupBreakdown.length > 0 && (
+                  <ChartCard title={`Category-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.groupBreakdown} aiType={`Category split for ${selectedSP}`}>
+                    <Pie
+                      data={{
+                        labels: details.groupBreakdown.map(g => g._id),
+                        datasets: [{
+                          label: metric === 'revenue' ? 'Revenue' : 'Quantity',
+                          data: details.groupBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
+                          backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#84cc16', '#14b8a6'],
+                          borderWidth: 2,
+                          borderColor: '#fff'
+                        }]
+                      }}
+                      options={{
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                          tooltip: {
+                            callbacks: {
+                              label: (ctx) => {
+                                const val = ctx.raw || 0;
+                                const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : `${val} units`} (${pct}%)`;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  </ChartCard>
+                )}
+
+                {details.gradeBreakdown && details.gradeBreakdown.length > 0 && (
+                  <ChartCard title={`Grade-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.gradeBreakdown} aiType={`Grade split for ${selectedSP}`}>
+                    <Doughnut
+                      data={{
+                        labels: details.gradeBreakdown.map(g => g._id),
+                        datasets: [{
+                          label: metric === 'revenue' ? 'Revenue' : 'Quantity',
+                          data: details.gradeBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
+                          backgroundColor: pieColors('grade', details.gradeBreakdown.length),
+                          borderWidth: 2,
+                          borderColor: '#fff'
+                        }]
+                      }}
+                      options={{
+                        maintainAspectRatio: false,
+                        cutout: '35%',
+                        plugins: {
+                          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                          tooltip: {
+                            callbacks: {
+                              label: (ctx) => {
+                                const val = ctx.raw || 0;
+                                const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : `${val} units`} (${pct}%)`;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  </ChartCard>
+                )}
+
+                {/* City Breakdown — pushed down below Category/Grade. */}
                 <ChartCard title={`City Breakdown${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.cityBreakdown} aiType={`Sales Breakdown by City for ${selectedSP}`}>
-                  <Doughnut 
+                  <Doughnut
                     data={{
                       labels: details.cityBreakdown.map(c => c._id),
                       datasets: [{
@@ -622,73 +692,6 @@ const Salesperson = () => {
                   </ChartCard>
                 )}
 
-                {details.gradeBreakdown && details.gradeBreakdown.length > 0 && (
-                  <ChartCard title={`Grade-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.gradeBreakdown} aiType={`Grade split for ${selectedSP}`}>
-                    <Pie
-                      data={{
-                        labels: details.gradeBreakdown.map(g => g._id),
-                        datasets: [{
-                          label: metric === 'revenue' ? 'Revenue' : 'Quantity',
-                          data: details.gradeBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
-                          backgroundColor: pieColors('grade', details.gradeBreakdown.length),
-                          borderWidth: 2,
-                          borderColor: '#fff'
-                        }]
-                      }}
-                      options={{
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
-                          tooltip: {
-                            callbacks: {
-                              label: (ctx) => {
-                                const val = ctx.raw || 0;
-                                const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
-                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                                return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : `${val} units`} (${pct}%)`;
-                              }
-                            }
-                          }
-                        }
-                      }}
-                    />
-                  </ChartCard>
-                )}
-
-                {/* Category-wise distribution (internal field `group`: FB/FM/FN/Base…) for this salesperson. */}
-                {details.groupBreakdown && details.groupBreakdown.length > 0 && (
-                  <ChartCard title={`Category-wise ${metric === 'revenue' ? 'Revenue' : 'Quantity'}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.groupBreakdown} aiType={`Category split for ${selectedSP}`}>
-                    <Pie
-                      data={{
-                        labels: details.groupBreakdown.map(g => g._id),
-                        datasets: [{
-                          label: metric === 'revenue' ? 'Revenue' : 'Quantity',
-                          data: details.groupBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
-                          backgroundColor: pieColors('category', details.groupBreakdown.length),
-                          borderWidth: 2,
-                          borderColor: '#fff'
-                        }]
-                      }}
-                      options={{
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
-                          tooltip: {
-                            callbacks: {
-                              label: (ctx) => {
-                                const val = ctx.raw || 0;
-                                const total = ctx.dataset.data.reduce((a, b, i) => a + (ctx.chart.getDataVisibility(i) ? b : 0), 0);
-                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                                return ` ${ctx.label}: ${metric === 'revenue' ? formatCurrency(val) : `${val} units`} (${pct}%)`;
-                              }
-                            }
-                          }
-                        }
-                      }}
-                    />
-                  </ChartCard>
-                )}
-
                 {/* Colour breakdown (column chart) — colour codes until a name lookup exists. */}
                 {details.colourBreakdown && details.colourBreakdown.length > 0 && (
                   <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
@@ -715,6 +718,32 @@ const Salesperson = () => {
                     </div>
                   </ChartCard>
                 )}
+
+                {/* Thickness / Section — purple vertical columns (new, 2026-07-28). */}
+                {details.thicknessBreakdown && details.thicknessBreakdown.length > 0 && (
+                  <ChartCard title={`Thickness/Section${titleTag}`} aiContext={details.thicknessBreakdown} aiType={`Thickness / Section split for ${selectedSP}`}>
+                    <div style={{ position: 'absolute', inset: 0, overflowX: 'auto', overflowY: 'hidden' }}>
+                      <div style={{ height: '100%', minWidth: `${Math.max(details.thicknessBreakdown.length * 46, 100)}px` }}>
+                        <Bar
+                          data={{
+                            labels: details.thicknessBreakdown.map(t => String(t._id)),
+                            datasets: [{
+                              label: metric === 'revenue' ? 'Revenue' : 'Quantity',
+                              data: details.thicknessBreakdown.map(t => metric === 'revenue' ? t.totalAmount : t.totalQty),
+                              backgroundColor: ACCENTS.thickness,
+                              borderRadius: 4
+                            }]
+                          }}
+                          options={{
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false }, tooltip: metricTooltip },
+                            scales: { y: metricScaleY, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </ChartCard>
+                )}
               </div>
 
               {/* Top Customers Table */}
@@ -726,18 +755,24 @@ const Salesperson = () => {
                   <thead>
                     <tr>
                       <th>Customer Name</th>
+                      <th>State</th>
+                      <th>Zone</th>
                       <th>City</th>
                       <th>Orders</th>
-                      <th>Total Revenue (Excl. Taxes)</th>
+                      <th>{th('Revenue (Excl. Taxes)')}</th>
+                      <th>{th('Revenue (Incl. Taxes)')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {details.topCustomers.map((c, i) => (
                       <tr key={i}>
                         <td style={{ fontWeight: 500 }}>{c._id}</td>
-                        <td>{c.city}</td>
+                        <td>{c.state || '—'}</td>
+                        <td>{c.zone || '—'}</td>
+                        <td>{c.city || '—'}</td>
                         <td>{c.totalOrders}</td>
                         <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>{formatCurrency(c.totalRevenue)}</td>
+                        <td style={{ fontWeight: 600 }}>{formatCurrency(c.totalRevenueIncl)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -758,8 +793,10 @@ const Salesperson = () => {
                       <tr>
                         <th>Product</th>
                         <th style={{ textAlign: 'right' }}>Qty Sold</th>
-                        <th style={{ textAlign: 'right' }}>Avg. Rate (Excl. Taxes)</th>
-                        <th style={{ textAlign: 'right' }}>Revenue (Excl. Taxes)</th>
+                        <th>Sub-Category</th>
+                        <th style={{ textAlign: 'right' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
+                        <th style={{ textAlign: 'right' }}>{th('Revenue (Excl. Taxes)')}</th>
+                        <th style={{ textAlign: 'right' }}>{th('Revenue (Incl. Taxes)')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -767,12 +804,14 @@ const Salesperson = () => {
                         <tr key={i}>
                           <td style={{ fontWeight: 500 }}>{p._id}</td>
                           <td style={{ textAlign: 'right' }}>{formatCount(p.totalQty)}</td>
+                          <td>{p.category || '—'}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.avgRate)}</td>
                           <td style={{ textAlign: 'right', color: 'var(--primary-600)' }}>{formatCurrency(p.totalRevenue)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.totalRevenueIncl)}</td>
                         </tr>
                       ))}
                       {(!details.productRates || details.productRates.length === 0) && (
-                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No product data available</td></tr>
+                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No product data available</td></tr>
                       )}
                     </tbody>
                   </table>
