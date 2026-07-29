@@ -8,6 +8,7 @@ import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
+import ScrollColumnChart from '../components/ScrollColumnChart';
 import { averageLinePlugin } from '../utils/averageLinePlugin';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import {
@@ -54,6 +55,8 @@ const Dashboard = () => {
   const [companyTarget, setCompanyTargetState] = useState(null);
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetForm, setTargetForm] = useState('');
+  // Per-company target inputs (admin, non-scoped). Keys match the 3 daughter-company buckets.
+  const [companyTargetForm, setCompanyTargetForm] = useState({ FDL: '', UCPL: '', 'UFLP+UFPL': '' });
   const [targetSaving, setTargetSaving] = useState(false);
   const isAdmin = user.role === 'admin';
   // Scoped accounts (company / zonal head) see + edit THEIR OWN target instead of the
@@ -170,21 +173,36 @@ const Dashboard = () => {
   useEffect(() => { fetchCompanyTarget(); }, []);
 
   const openTargetModal = () => {
-    setTargetForm(companyTarget && companyTarget.amount ? String(companyTarget.amount) : '');
+    if (scoped) {
+      setTargetForm(companyTarget && companyTarget.amount ? String(companyTarget.amount) : '');
+    } else {
+      const ct = companyTarget?.companyTargets || {};
+      setCompanyTargetForm({
+        FDL: ct.FDL ? String(ct.FDL) : '',
+        UCPL: ct.UCPL ? String(ct.UCPL) : '',
+        'UFLP+UFPL': ct['UFLP+UFPL'] ? String(ct['UFLP+UFPL']) : ''
+      });
+    }
     setShowTargetModal(true);
   };
 
   const saveCompanyTarget = async () => {
-    const amt = Number(targetForm);
-    if (!isFinite(amt) || amt < 0) return;
     try {
       setTargetSaving(true);
       if (scoped && user.id) {
-        // Scoped accounts store an annual target for themselves.
+        // Scoped accounts store a single annual target for themselves.
+        const amt = Number(targetForm);
+        if (!isFinite(amt) || amt < 0) return;
         await setScopedTarget(user.id, { amount: amt, mode: 'yearly' });
         await fetchCompanyTarget();
       } else {
-        const res = await setCompanyTarget({ amount: amt });
+        // Admin: three per-company targets; the overall target = their sum (computed server-side).
+        const companyTargets = {
+          FDL: Number(companyTargetForm.FDL) || 0,
+          UCPL: Number(companyTargetForm.UCPL) || 0,
+          'UFLP+UFPL': Number(companyTargetForm['UFLP+UFPL']) || 0
+        };
+        const res = await setCompanyTarget({ companyTargets });
         setCompanyTargetState(res.data.data);
       }
       setShowTargetModal(false);
@@ -389,6 +407,11 @@ const Dashboard = () => {
       .filter(seg => seg.value > 0);
   })();
   const companySplitTotal = companySegments.reduce((a, seg) => a + seg.value, 0);
+  // Achieved revenue per company (for the per-company target table). Includes 0s so all 3 rows show.
+  const companyAchievedMap = (() => {
+    const s = data.companyTrend?.series || {};
+    return Object.fromEntries(COMPANY_ORDER.map(label => [label, (s[label] || []).reduce((a, b) => a + b, 0)]));
+  })();
 
   // Segmented horizontal bar (macOS-storage style). `denom` sets the full-scale width; when
   // `showInside` the wide-enough segments print their % share; every segment has a hover title.
@@ -411,12 +434,12 @@ const Dashboard = () => {
     </div>
   );
 
-  const CompanyLegend = () => (
-    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '8px' }}>
+  const CompanyLegend = ({ showAmount = false }) => (
+    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
       {companySegments.map(seg => (
         <span key={seg.label} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: seg.color }} />
-          {seg.label}
+          {seg.label}{showAmount ? <strong style={{ color: 'var(--text-primary)', marginLeft: '2px' }}>{formatCurrency(seg.value)}</strong> : ''}
         </span>
       ))}
     </div>
@@ -483,8 +506,15 @@ const Dashboard = () => {
             // Target is compared against the assessable (Excl. Taxes) revenue (client request).
             const achieved = data.summary.totalRevenueExclTax || 0;
             const pct = target > 0 ? (achieved / target) * 100 : 0;
+            // Per-company target rows (admin, non-scoped only) — company · target · achieved · %.
+            const perCompany = COMPANY_ORDER.map(name => {
+              const tgt = (companyTarget?.companyTargets?.[name]) || 0;
+              const ach = companyAchievedMap[name] || 0;
+              return { name, tgt, ach, p: tgt > 0 ? (ach / tgt) * 100 : 0, color: COMPANY_COLORS[name] };
+            });
+            const hasCompanyTargets = !scoped && perCompany.some(r => r.tgt > 0);
             return (
-              <div className="kpi-card" style={{ gridColumn: 'span 2' }}>
+              <div className="kpi-card" style={{ gridColumn: 'span 2', gridRow: 'span 2', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                   <div className="kpi-label">
                     {scoped ? 'My Target (Excl. Taxes)' : 'Target Turnover (Excl. Taxes)'}{companyTarget?.fiscalYear ? ` (FY ${companyTarget.fiscalYear})` : ''}
@@ -519,6 +549,38 @@ const Dashboard = () => {
                       : (canEditTarget ? 'Set a target to track achievement' : 'No target set')}
                   </div>
                 </div>
+
+                {/* Per-company targets — a compact table in the extra 2x2 space (admin only). */}
+                {!scoped && (
+                  <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Per-Company Targets</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr style={{ color: 'var(--text-muted)', textAlign: 'right' }}>
+                          <th style={{ textAlign: 'left', fontWeight: 600, padding: '4px 6px' }}>Company</th>
+                          <th style={{ fontWeight: 600, padding: '4px 6px' }}>Target</th>
+                          <th style={{ fontWeight: 600, padding: '4px 6px' }}>Achieved</th>
+                          <th style={{ fontWeight: 600, padding: '4px 6px' }}>%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {perCompany.map(r => (
+                          <tr key={r.name} style={{ borderTop: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '5px 6px', fontWeight: 600 }}>
+                              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: r.color, marginRight: '6px' }} />{r.name}
+                            </td>
+                            <td style={{ padding: '5px 6px', textAlign: 'right' }}>{r.tgt > 0 ? formatCurrency(r.tgt) : '—'}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'right' }}>{formatCurrency(r.ach)}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: 700, color: r.p >= 100 ? 'var(--success)' : 'var(--text-primary)' }}>{r.tgt > 0 ? `${Math.round(r.p)}%` : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!hasCompanyTargets && (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px' }}>Set per-company targets via Edit.</div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -536,10 +598,6 @@ const Dashboard = () => {
             <div className="kpi-label">Outstanding Amount</div>
             <div className="kpi-value" style={{ color: 'var(--text-muted)' }}>—</div>
             <div className="kpi-sub">Data coming soon</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-label">Unique Customers</div>
-            <div className="kpi-value">{formatNumber(data.summary.uniqueCustomers)}</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Quantity Sold</div>
@@ -565,22 +623,40 @@ const Dashboard = () => {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', padding: '24px', width: '100%', maxWidth: '420px', boxShadow: 'var(--shadow-md, 0 10px 30px rgba(0,0,0,0.2))' }}
+            style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', padding: '24px', width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-md, 0 10px 30px rgba(0,0,0,0.2))' }}
           >
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '4px' }}>
-              Set Target Turnover{companyTarget?.fiscalYear ? ` — FY ${companyTarget.fiscalYear}` : ''}
+              {scoped ? 'Set My Target' : 'Set Company Targets'}{companyTarget?.fiscalYear ? ` — FY ${companyTarget.fiscalYear}` : ''}
             </h3>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '18px' }}>
-              Company-wide turnover target for the current fiscal year (April–March). The
-              dashboard bar shows total revenue against this target.
+              {scoped
+                ? 'Annual turnover target (Excl. Taxes) for the current fiscal year (April–March).'
+                : 'Set a target per daughter company (Excl. Taxes). The overall Target Turnover is the sum of the three.'}
             </p>
-            <TargetAmountInput
-              value={targetForm}
-              onChange={setTargetForm}
-              presets={TURNOVER_TARGET_PRESETS}
-              label="Target amount (₹)"
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            {scoped ? (
+              <TargetAmountInput
+                value={targetForm}
+                onChange={setTargetForm}
+                presets={TURNOVER_TARGET_PRESETS}
+                label="Target amount (₹)"
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '4px' }}>
+                {['FDL', 'UCPL', 'UFLP+UFPL'].map(name => (
+                  <TargetAmountInput
+                    key={name}
+                    value={companyTargetForm[name]}
+                    onChange={(v) => setCompanyTargetForm(f => ({ ...f, [name]: v }))}
+                    presets={TURNOVER_TARGET_PRESETS}
+                    label={`${name} target (₹)`}
+                  />
+                ))}
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Total target: {formatCurrency((Number(companyTargetForm.FDL) || 0) + (Number(companyTargetForm.UCPL) || 0) + (Number(companyTargetForm['UFLP+UFPL']) || 0))}
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
               <button
                 onClick={() => setShowTargetModal(false)}
                 style={{ padding: '9px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
@@ -589,13 +665,27 @@ const Dashboard = () => {
               </button>
               <button
                 onClick={saveCompanyTarget}
-                disabled={targetSaving || targetForm === ''}
-                style={{ padding: '9px 18px', borderRadius: '8px', border: 'none', background: 'var(--primary-600)', color: '#fff', cursor: targetSaving ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: (targetSaving || targetForm === '') ? 0.6 : 1 }}
+                disabled={targetSaving || (scoped && targetForm === '')}
+                style={{ padding: '9px 18px', borderRadius: '8px', border: 'none', background: 'var(--primary-600)', color: '#fff', cursor: targetSaving ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: (targetSaving || (scoped && targetForm === '')) ? 0.6 : 1 }}
               >
                 {targetSaving ? 'Saving…' : 'Save Target'}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Company revenue-split bar (TEST) — segmented like macOS storage; shows each daughter
+          company's share of total revenue. % printed inside each segment; amounts in the legend;
+          hover for the rupee figure. Sits directly below the KPI cards. */}
+      {companySegments.length > 0 && (
+        <div className="chart-card" style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Revenue Split by Company (Revenue Excl. Taxes)</h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatCurrency(companySplitTotal)} total</span>
+          </div>
+          <CompanyBar segments={companySegments} denom={companySplitTotal} showInside={true} height={30} />
+          <CompanyLegend showAmount={true} />
         </div>
       )}
 
@@ -657,20 +747,6 @@ const Dashboard = () => {
               }}
             />
           </ChartCard>
-        )}
-
-        {/* (Full width) Company revenue-split bar (TEST) — segmented like macOS storage; shows
-            what share of total revenue each daughter company holds. % printed inside each
-            segment; hover for the rupee figure. Not a target comparison. */}
-        {companySegments.length > 0 && (
-          <div className="chart-card" style={{ gridColumn: '1 / -1' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Revenue Split by Company (Revenue Excl. Taxes)</h3>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatCurrency(companySplitTotal)} total</span>
-            </div>
-            <CompanyBar segments={companySegments} denom={companySplitTotal} showInside={true} height={30} />
-            <CompanyLegend />
-          </div>
         )}
 
         {/* (Row 2, full width) Company-wise Revenue Trend — a duplicate of the main trend with
@@ -940,24 +1016,16 @@ const Dashboard = () => {
           <ChartSkeleton />
         ) : (
           <ChartCard title={`By State${titleTag}`} aiContext={data.geo} aiType="Geographic Breakdown">
-            {/* Horizontal scroll so >15 states don't cram — each bar keeps ~46px. */}
-            <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
-              <div style={{ height: '100%', minWidth: `${Math.max((data.geo?.length || 0) * 46, 100)}px` }}>
-                <Bar
-                  data={geoChartData}
-                  plugins={[averageLinePlugin]}
-                  options={{
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: { display: false },
-                      averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
-                      tooltip: metricTooltip
-                    },
-                    scales: { y: metricScale, x: categoryScale }
-                  }}
-                />
-              </div>
-            </div>
+            {/* Horizontal scroll with a FROZEN y-axis so the bars stay readable when scrolled. */}
+            <ScrollColumnChart
+              labels={data.geo?.map(d => d._id) || []}
+              values={data.geo?.map(d => metric === 'revenue' ? d.totalRevenue : d.totalQty) || []}
+              label={metricLabel}
+              color="#f59e0b"
+              yFmt={axisFmt}
+              valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
+              avgFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v))}
+            />
           </ChartCard>
         )}
 

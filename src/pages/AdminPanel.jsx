@@ -39,7 +39,8 @@ const AdminPanel = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   // Account type drives role + scope. 'viewer'/'admin' = unrestricted; 'company'/'zonal' = scoped.
   const [accountType, setAccountType] = useState('viewer');
-  const [company, setCompany] = useState('');
+  // Company-scoped accounts can now cover MULTIPLE companies (2026-07-29).
+  const [companies, setCompanies] = useState([]);
   const [zone, setZone] = useState('');
   const [selectedSalespeople, setSelectedSalespeople] = useState([]);
   const [spNames, setSpNames] = useState([]);
@@ -154,15 +155,15 @@ const AdminPanel = () => {
     }
 
     // Scope validation + payload
-    if (accountType === 'company' && !company) {
-      return toast.warning('Select a company for a company-scoped account');
+    if (accountType === 'company' && companies.length === 0) {
+      return toast.warning('Select at least one company for a company-scoped account');
     }
     if (accountType === 'zonal' && selectedSalespeople.length === 0) {
       return toast.warning('Select at least one salesperson for a zonal-head account');
     }
     const submitRole = accountType === 'admin' ? 'admin' : 'viewer';
     const scopePayload =
-      accountType === 'company' ? { scopeType: 'company', company }
+      accountType === 'company' ? { scopeType: 'company', companies }
       : accountType === 'zonal' ? { scopeType: 'zonal', salespeople: selectedSalespeople, zone }
       : { scopeType: 'none' };
 
@@ -181,7 +182,7 @@ const AdminPanel = () => {
       setConfirmPassword('');
       setShowPassword(false);
       setAccountType('viewer');
-      setCompany('');
+      setCompanies([]);
       setZone('');
       setSelectedSalespeople([]);
       setPermissions(DEFAULT_PERMS);
@@ -206,7 +207,11 @@ const AdminPanel = () => {
       ? 'admin'
       : (userObj.scopeType && userObj.scopeType !== 'none' ? userObj.scopeType : 'viewer');
     setAccountType(at);
-    setCompany(userObj.company || '');
+    setCompanies(
+      userObj.companies && userObj.companies.length
+        ? userObj.companies
+        : (userObj.company ? [userObj.company] : [])
+    );
     setZone(userObj.zone || '');
     setSelectedSalespeople(userObj.salespeople || []);
     setPermissions(userObj.permissions || []);
@@ -221,7 +226,7 @@ const AdminPanel = () => {
     setShowPassword(false);
     setShowConfirmPassword(false);
     setAccountType('viewer');
-    setCompany('');
+    setCompanies([]);
     setZone('');
     setSelectedSalespeople([]);
     setPermissions(DEFAULT_PERMS);
@@ -463,22 +468,30 @@ const AdminPanel = () => {
                 </select>
               </div>
 
-              {/* Company-scoped: pick which of the daughter companies this account sees. */}
+              {/* Company-scoped: pick which of the daughter companies this account sees (multi). */}
               {accountType === 'company' && (
                 <div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
-                    <FiBriefcase size={14} /> Company
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FiBriefcase size={14} /> Companies</span>
+                    <span style={{ color: 'var(--primary-600)' }}>{companies.length} selected</span>
                   </label>
-                  <select
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', outline: 'none' }}
-                  >
-                    <option value="">— Select company —</option>
-                    {COMPANY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {COMPANY_OPTIONS.map(c => {
+                      const on = companies.includes(c);
+                      return (
+                        <button
+                          type="button"
+                          key={c}
+                          onClick={() => setCompanies(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${on ? 'var(--primary-600)' : 'var(--border-color)'}`, background: on ? 'var(--primary-600)' : '#fff', color: on ? '#fff' : 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
+                        >
+                          {on ? <FiCheckSquare size={14} /> : <FiSquare size={14} />} {c}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                    This account will only ever see <strong>{company || '…'}</strong> data across the whole app.
+                    This account will only ever see <strong>{companies.length ? companies.join(', ') : '…'}</strong> data across the whole app.
                   </p>
                 </div>
               )}
@@ -645,7 +658,7 @@ const AdminPanel = () => {
                   const isScoped = u.scopeType === 'company' || u.scopeType === 'zonal';
                   const prog = scopeProgress[u._id];
                   const scopeLabel = u.scopeType === 'company'
-                    ? `Company · ${u.company || '—'}`
+                    ? `Company · ${(u.companies && u.companies.length ? u.companies.join(', ') : u.company) || '—'}`
                     : u.scopeType === 'zonal'
                       ? `Zonal Head · ${(u.salespeople || []).length} salespeople${u.zone ? ` · ${u.zone}` : ''}`
                       : null;
@@ -883,7 +896,7 @@ const AdminPanel = () => {
               <FiTarget /> Set Target
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px', textTransform: 'capitalize' }}>
-              {targetModalUser.username} · {targetModalUser.scopeType === 'company' ? `Company ${targetModalUser.company || ''}` : 'Zonal Head'}
+              {targetModalUser.username} · {targetModalUser.scopeType === 'company' ? `Company ${(targetModalUser.companies && targetModalUser.companies.length ? targetModalUser.companies.join(', ') : targetModalUser.company) || ''}` : 'Zonal Head'}
             </p>
 
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Target Mode</label>

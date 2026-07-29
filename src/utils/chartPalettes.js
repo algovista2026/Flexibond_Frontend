@@ -32,6 +32,10 @@ export const PALETTES = {
   variants: ['#831843', '#9d174d', '#be185d', '#db2777', '#ec4899', '#f472b6', '#a21caf', '#c026d3', '#e879f9', '#d946ef', '#f0abfc', '#f5d0fe'],
   // Zone — indigo family
   zone: ['#312e81', '#3730a3', '#4338ca', '#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'],
+  // Muted "Media.io" palette (client swatches 2026-07-29: #C59BBE mauve · #EAD7C9 beige ·
+  // #B8C3B6 sage · #6A5B63 taupe) + nearby shades. Under trial on the Products grade/category
+  // charts; may go global later.
+  muted: ['#C59BBE', '#B8C3B6', '#EAD7C9', '#6A5B63', '#A98FB0', '#9DAF97', '#D8C4B0', '#8A7B83', '#D9B8D2', '#C7D2C0', '#EFE2D2', '#7A6E75'],
 };
 
 // Single-series bar accents (one colour per dimension).

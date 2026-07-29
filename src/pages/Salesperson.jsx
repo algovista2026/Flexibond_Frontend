@@ -7,6 +7,7 @@ import ChartCard from '../components/ChartCard';
 import { FiUsers, FiTarget, FiEdit2, FiSearch, FiChevronDown } from 'react-icons/fi';
 import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
+import ScrollColumnChart from '../components/ScrollColumnChart';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import { averageLinePlugin } from '../utils/averageLinePlugin';
@@ -169,6 +170,17 @@ const Salesperson = () => {
 
   const isAdmin = user.role === 'admin';
   const target = details?.target || null;
+
+  // Per-daughter-company revenue for this salesperson → segmented (company-coloured) progress
+  // bar in the target box. Colours match the Dashboard company charts.
+  const SP_COMPANY_COLORS = { 'FDL': '#10b981', 'UCPL': '#f59e0b', 'UFLP+UFPL': '#ec4899' };
+  const spCompanySegments = ['FDL', 'UCPL', 'UFLP+UFPL']
+    .map(name => {
+      const row = (details?.companyBreakdown || []).find(r => r._id === name);
+      return { label: name, value: row ? row.totalAmount : 0, color: SP_COMPANY_COLORS[name] };
+    })
+    .filter(s => s.value > 0);
+  const spCompanyTotal = spCompanySegments.reduce((a, s) => a + s.value, 0);
 
   // Per-period target value for the trend target line (revenue metric only). Derived from the
   // ANNUAL target, scaled to the current trend grouping.
@@ -379,6 +391,39 @@ const Salesperson = () => {
                     </button>
                   )}
                 </div>
+
+                {/* Company-coloured progress bar — achieved revenue vs annual target, split by
+                    daughter company (hover for detail). Full-width row inside the target box. */}
+                {target && (
+                  <div style={{ flexBasis: '100%', width: '100%', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', height: '14px', borderRadius: '7px', overflow: 'hidden', background: 'var(--bg-light, #eef2f7)' }}>
+                      {spCompanySegments.length > 0 ? (
+                        spCompanySegments.map(seg => {
+                          const w = target.annualTarget > 0 ? Math.min((seg.value / target.annualTarget) * 100, 100) : 0;
+                          const share = spCompanyTotal > 0 ? (seg.value / spCompanyTotal) * 100 : 0;
+                          if (w <= 0) return null;
+                          return (
+                            <div
+                              key={seg.label}
+                              title={`${seg.label}: ${formatCurrency(seg.value)} (${share.toFixed(1)}% of achieved)`}
+                              style={{ width: `${w}%`, background: seg.color }}
+                            />
+                          );
+                        })
+                      ) : (
+                        <div style={{ width: `${target.annualTarget > 0 ? Math.min((details.stats.totalRevenue / target.annualTarget) * 100, 100) : 0}%`, background: 'var(--primary-500)' }} />
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {spCompanySegments.map(seg => (
+                        <span key={seg.label} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                          <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: seg.color }} />
+                          {seg.label} <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(seg.value)}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {showTargetModal && (
@@ -695,53 +740,29 @@ const Salesperson = () => {
                 {/* Colour breakdown (column chart) — colour codes until a name lookup exists. */}
                 {details.colourBreakdown && details.colourBreakdown.length > 0 && (
                   <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
-                    {/* Horizontally scrollable — colour codes crowd the x-axis; give each bar room. */}
-                    <div style={{ position: 'absolute', inset: 0, overflowX: 'auto', overflowY: 'hidden' }}>
-                      <div style={{ height: '100%', minWidth: `${Math.max(details.colourBreakdown.length * 46, 100)}px` }}>
-                        <Bar
-                          data={{
-                            labels: details.colourBreakdown.map(c => String(c._id)),
-                            datasets: [{
-                              label: metric === 'revenue' ? 'Revenue' : 'Quantity',
-                              data: details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty),
-                              backgroundColor: ACCENTS.colour,
-                              borderRadius: 4
-                            }]
-                          }}
-                          options={{
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false }, tooltip: metricTooltip },
-                            scales: { y: metricScaleY, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
-                          }}
-                        />
-                      </div>
-                    </div>
+                    {/* Horizontal scroll with a FROZEN y-axis so bars stay readable when scrolled. */}
+                    <ScrollColumnChart
+                      labels={details.colourBreakdown.map(c => String(c._id))}
+                      values={details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty)}
+                      label={metric === 'revenue' ? 'Revenue' : 'Quantity'}
+                      color={ACCENTS.colour}
+                      yFmt={axisFmt}
+                      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : `${formatCount(v)} units`}
+                    />
                   </ChartCard>
                 )}
 
                 {/* Thickness / Section — purple vertical columns (new, 2026-07-28). */}
                 {details.thicknessBreakdown && details.thicknessBreakdown.length > 0 && (
                   <ChartCard title={`Thickness/Section${titleTag}`} aiContext={details.thicknessBreakdown} aiType={`Thickness / Section split for ${selectedSP}`}>
-                    <div style={{ position: 'absolute', inset: 0, overflowX: 'auto', overflowY: 'hidden' }}>
-                      <div style={{ height: '100%', minWidth: `${Math.max(details.thicknessBreakdown.length * 46, 100)}px` }}>
-                        <Bar
-                          data={{
-                            labels: details.thicknessBreakdown.map(t => String(t._id)),
-                            datasets: [{
-                              label: metric === 'revenue' ? 'Revenue' : 'Quantity',
-                              data: details.thicknessBreakdown.map(t => metric === 'revenue' ? t.totalAmount : t.totalQty),
-                              backgroundColor: ACCENTS.thickness,
-                              borderRadius: 4
-                            }]
-                          }}
-                          options={{
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false }, tooltip: metricTooltip },
-                            scales: { y: metricScaleY, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <ScrollColumnChart
+                      labels={details.thicknessBreakdown.map(t => String(t._id))}
+                      values={details.thicknessBreakdown.map(t => metric === 'revenue' ? t.totalAmount : t.totalQty)}
+                      label={metric === 'revenue' ? 'Revenue' : 'Quantity'}
+                      color={ACCENTS.thickness}
+                      yFmt={axisFmt}
+                      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : `${formatCount(v)} units`}
+                    />
                   </ChartCard>
                 )}
               </div>
@@ -755,9 +776,9 @@ const Salesperson = () => {
                   <thead>
                     <tr>
                       <th>Customer Name</th>
+                      <th>City</th>
                       <th>State</th>
                       <th>Zone</th>
-                      <th>City</th>
                       <th>Orders</th>
                       <th>{th('Revenue (Excl. Taxes)')}</th>
                       <th>{th('Revenue (Incl. Taxes)')}</th>
@@ -767,9 +788,9 @@ const Salesperson = () => {
                     {details.topCustomers.map((c, i) => (
                       <tr key={i}>
                         <td style={{ fontWeight: 500 }}>{c._id}</td>
+                        <td>{c.city || '—'}</td>
                         <td>{c.state || '—'}</td>
                         <td>{c.zone || '—'}</td>
-                        <td>{c.city || '—'}</td>
                         <td>{c.totalOrders}</td>
                         <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>{formatCurrency(c.totalRevenue)}</td>
                         <td style={{ fontWeight: 600 }}>{formatCurrency(c.totalRevenueIncl)}</td>
@@ -792,8 +813,8 @@ const Salesperson = () => {
                     <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-card)' }}>
                       <tr>
                         <th>Product</th>
-                        <th style={{ textAlign: 'right' }}>Qty Sold</th>
                         <th>Sub-Category</th>
+                        <th style={{ textAlign: 'right' }}>Qty Sold</th>
                         <th style={{ textAlign: 'right' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
                         <th style={{ textAlign: 'right' }}>{th('Revenue (Excl. Taxes)')}</th>
                         <th style={{ textAlign: 'right' }}>{th('Revenue (Incl. Taxes)')}</th>
@@ -803,8 +824,8 @@ const Salesperson = () => {
                       {(details.productRates || []).map((p, i) => (
                         <tr key={i}>
                           <td style={{ fontWeight: 500 }}>{p._id}</td>
-                          <td style={{ textAlign: 'right' }}>{formatCount(p.totalQty)}</td>
                           <td>{p.category || '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{formatCount(p.totalQty)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.avgRate)}</td>
                           <td style={{ textAlign: 'right', color: 'var(--primary-600)' }}>{formatCurrency(p.totalRevenue)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.totalRevenueIncl)}</td>

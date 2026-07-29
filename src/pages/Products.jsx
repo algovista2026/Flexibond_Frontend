@@ -9,6 +9,7 @@ import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
+import ScrollColumnChart from '../components/ScrollColumnChart';
 import {
   getTopProducts,
   getCategoryBreakdown,
@@ -214,19 +215,19 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: data.grades?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: pieColors('grade', (data.grades || []).length),
+      backgroundColor: pieColors('muted', (data.grades || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
   };
 
-  // Category distribution pie (FB / FM / FN / Base …, field `group`) — emerald palette. Drill in.
+  // Category distribution pie (FB / FM / FN / Base …, field `group`) — muted palette (trial). Drill in.
   const groupChartData = {
     labels: data.groups?.map(g => g._id) || [],
     datasets: [{
       label: metricLabel,
       data: data.groups?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: pieColors('category', (data.groups || []).length),
+      backgroundColor: pieColors('muted', (data.groups || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -236,7 +237,7 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: drillData?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
-      backgroundColor: pieColors('category', (drillData || []).length),
+      backgroundColor: pieColors('muted', (drillData || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -543,19 +544,15 @@ const Products = () => {
           <ChartSkeleton />
         ) : (
           <ChartCard title={`Thickness/Section${titleTag}`} aiContext={data.thickness} aiType="Thickness Analysis">
-            {/* Horizontally scrollable — many Type values crowd the x-axis; give each bar room. */}
-            <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
-              <div style={{ height: '100%', minWidth: `${Math.max((data.thickness?.length || 0) * 46, 100)}px` }}>
-                <Bar
-                  data={thicknessChartData}
-                  options={{
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: metricTooltip },
-                    scales: { y: valScale, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
-                  }}
-                />
-              </div>
-            </div>
+            {/* Horizontally scrollable with a FROZEN y-axis so bars stay readable when scrolled. */}
+            <ScrollColumnChart
+              labels={data.thickness?.map(d => d.label) || []}
+              values={data.thickness?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || []}
+              label={metricLabel}
+              color="#8b5cf6"
+              yFmt={axisFmt}
+              valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
+            />
           </ChartCard>
         )}
 

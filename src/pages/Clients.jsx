@@ -4,6 +4,7 @@ import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
 import FilterBar from '../components/FilterBar';
 import ExportControls from '../components/ExportControls';
+import ScrollColumnChart from '../components/ScrollColumnChart';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
@@ -165,21 +166,17 @@ const Clients = () => {
     </div>
   );
 
-  // Vertical column chart with a HORIZONTAL scroll wrapper (like the Products Thickness chart) —
-  // keeps columns readable and scrolls when there are many categories.
+  // Vertical column chart with a FROZEN y-axis + horizontal scroll (like the Products Thickness
+  // chart) — keeps columns + axis readable when there are many categories.
   const VColumnBar = ({ rows, color }) => (
-    <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
-      <div style={{ height: '100%', minWidth: `${Math.max((rows?.length || 0) * 46, 100)}px` }}>
-        <Bar
-          data={barData(rows, color)}
-          options={{
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: barTooltip },
-            scales: { y: { ticks: { callback: v => axisFmt(v) } }, x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 10 } } } }
-          }}
-        />
-      </div>
-    </div>
+    <ScrollColumnChart
+      labels={(rows || []).map(r => r._id || '—')}
+      values={(rows || []).map(metricVal)}
+      label={metricLabel}
+      color={color}
+      yFmt={axisFmt}
+      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
+    />
   );
 
   const totals = analysis?.totals || { revenue: 0, revenueIncl: 0, qty: 0, orderCount: 0, productCount: 0 };
@@ -433,12 +430,13 @@ const Clients = () => {
               ) : (
                 <table className="data-table" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
-                    {multi && <col style={{ width: '22%' }} />}
-                    <col style={{ width: multi ? '16%' : '22%' }} />{/* Invoice */}
-                    <col style={{ width: multi ? '14%' : '16%' }} />{/* Date */}
-                    <col style={{ width: multi ? '18%' : '24%' }} />{/* Salesperson */}
-                    <col style={{ width: multi ? '15%' : '19%' }} />{/* Rev excl */}
-                    <col style={{ width: multi ? '15%' : '19%' }} />{/* Rev incl */}
+                    {multi && <col style={{ width: '20%' }} />}
+                    <col style={{ width: multi ? '14%' : '20%' }} />{/* Invoice */}
+                    <col style={{ width: multi ? '12%' : '14%' }} />{/* Date */}
+                    <col style={{ width: multi ? '16%' : '20%' }} />{/* Salesperson */}
+                    <col style={{ width: multi ? '10%' : '12%' }} />{/* Qty */}
+                    <col style={{ width: multi ? '14%' : '17%' }} />{/* Rev excl */}
+                    <col style={{ width: multi ? '14%' : '17%' }} />{/* Rev incl */}
                   </colgroup>
                   <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                     <tr>
@@ -446,6 +444,7 @@ const Clients = () => {
                       <th>Invoice No</th>
                       <th>Date</th>
                       <th>Salesperson</th>
+                      <th style={{ textAlign: 'right' }}>Qty</th>
                       <th>{th('Revenue (Excl. Taxes)')}</th>
                       <th>{th('Revenue (Incl. Taxes)')}</th>
                     </tr>
@@ -463,13 +462,14 @@ const Clients = () => {
                           <td style={{ fontWeight: 600, color: selectedInvoice === o._id ? 'var(--primary-600)' : 'inherit', ...clip }}>{o._id}</td>
                           <td>{o.date ? new Date(o.date).toLocaleDateString('en-IN') : '—'}</td>
                           <td style={clip} title={o.salesperson}>{o.salesperson || '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{formatNumber(o.qty)}</td>
                           <td style={{ fontWeight: 600, color: 'var(--primary-600)', ...clip }}>{formatCurrency(o.revenue)}</td>
                           <td style={{ fontWeight: 600, ...clip }}>{formatCurrency(o.revenueIncl)}</td>
                         </tr>
                       );
                     })}
                     {orders && orders.length === 0 && (
-                      <tr><td colSpan={multi ? 6 : 5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>No orders for the current filters.</td></tr>
+                      <tr><td colSpan={multi ? 7 : 6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>No orders for the current filters.</td></tr>
                     )}
                   </tbody>
                 </table>
