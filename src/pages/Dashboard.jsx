@@ -367,7 +367,7 @@ const Dashboard = () => {
     datasets: [{
       label: metricLabel,
       data: data.groups?.map(g => metric === 'revenue' ? (groupBasis === 'incl' ? g.totalAmountIncl : g.totalAmount) : g.totalQty) || [],
-      backgroundColor: pieColors('category', (data.groups || []).length),
+      backgroundColor: pieColors('pastel', (data.groups || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -451,7 +451,7 @@ const Dashboard = () => {
     datasets: [{
       label: metricLabel,
       data: data.grades?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: pieColors('grade', (data.grades || []).length),
+      backgroundColor: pieColors('pastelAlt', (data.grades || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -990,10 +990,11 @@ const Dashboard = () => {
             aiType="Grade-wise Revenue Distribution"
             extra={<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a grade to toggle</span>}
           >
-            <Pie
+            <Doughnut
               data={gradeChartData}
               options={{
                 maintainAspectRatio: false,
+                cutout: '35%',
                 plugins: {
                   legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
                   tooltip: {

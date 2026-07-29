@@ -636,7 +636,7 @@ const Salesperson = () => {
                         datasets: [{
                           label: metric === 'revenue' ? 'Revenue' : 'Quantity',
                           data: details.groupBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
-                          backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#84cc16', '#14b8a6'],
+                          backgroundColor: pieColors('pastel', details.groupBreakdown.length),
                           borderWidth: 2,
                           borderColor: '#fff'
                         }]
@@ -669,7 +669,7 @@ const Salesperson = () => {
                         datasets: [{
                           label: metric === 'revenue' ? 'Revenue' : 'Quantity',
                           data: details.gradeBreakdown.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty),
-                          backgroundColor: pieColors('grade', details.gradeBreakdown.length),
+                          backgroundColor: pieColors('pastelAlt', details.gradeBreakdown.length),
                           borderWidth: 2,
                           borderColor: '#fff'
                         }]

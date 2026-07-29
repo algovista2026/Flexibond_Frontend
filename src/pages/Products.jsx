@@ -215,7 +215,7 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: data.grades?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: pieColors('muted', (data.grades || []).length),
+      backgroundColor: pieColors('pastelAlt', (data.grades || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -227,7 +227,7 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: data.groups?.map(g => metric === 'revenue' ? g.totalAmount : g.totalQty) || [],
-      backgroundColor: pieColors('muted', (data.groups || []).length),
+      backgroundColor: pieColors('pastel', (data.groups || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -237,7 +237,7 @@ const Products = () => {
     datasets: [{
       label: metricLabel,
       data: drillData?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
-      backgroundColor: pieColors('muted', (drillData || []).length),
+      backgroundColor: pieColors('pastel', (drillData || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -433,10 +433,11 @@ const Products = () => {
           <ChartSkeleton />
         ) : (data.grades && data.grades.length > 0) ? (
           <ChartCard title={`Grade-wise Distribution${titleTag}`} aiContext={data.grades} aiType="Grade-wise Revenue Distribution">
-            <Pie
+            <Doughnut
               data={gradeChartData}
               options={{
                 maintainAspectRatio: false,
+                cutout: '35%',
                 plugins: {
                   legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
                   tooltip: {

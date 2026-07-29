@@ -36,6 +36,16 @@ export const PALETTES = {
   // #B8C3B6 sage · #6A5B63 taupe) + nearby shades. Under trial on the Products grade/category
   // charts; may go global later.
   muted: ['#C59BBE', '#B8C3B6', '#EAD7C9', '#6A5B63', '#A98FB0', '#9DAF97', '#D8C4B0', '#8A7B83', '#D9B8D2', '#C7D2C0', '#EFE2D2', '#7A6E75'],
+  // Bright multi-hue PASTEL palette (2026-07-29): every slice a different hue (not shades of one
+  // colour), soft/pastel tones. Now GLOBAL for the **category-wise** charts (Dashboard / Products /
+  // Salesperson / Clients).
+  pastel: ['#FF9AA2', '#FFB347', '#FDFD96', '#CAFFBF', '#A0E7E5', '#A2D2FF', '#BDB2FF', '#E7A2FF', '#FFC6FF', '#B5EAD7', '#FFDAC1', '#C7CEEA'],
+  // Softer / less-bright multi-hue pastels (2026-07-29) — muted, desaturated versions of the
+  // `pastel` set. (Kept for reference; not currently used.)
+  pastelSoft: ['#E7BCC6', '#EBD3B0', '#DAD1B5', '#C2D0B0', '#BFD8C4', '#A7C4C2', '#AEC6DC', '#B4C1CE', '#C3BBD9', '#D2B8C9', '#CBC3B8', '#BFCBC0'],
+  // A SECOND bright multi-hue pastel set (2026-07-29) — vivid but soft, distinct tones from
+  // `pastel`. Now GLOBAL for the **grade-wise** charts (rendered as a thick 35%-cutout doughnut).
+  pastelAlt: ['#FF6FB5', '#FFA45B', '#FFE66D', '#8CE99A', '#63E6BE', '#74C0FC', '#B197FC', '#FF8787', '#66D9E8', '#A9E34B', '#DA77F2', '#FFA8D2'],
 };
 
 // Single-series bar accents (one colour per dimension).

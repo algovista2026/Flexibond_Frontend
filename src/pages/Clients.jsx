@@ -337,7 +337,7 @@ const Clients = () => {
             {/* (2,2) Category (field `group`) — emerald */}
             {(analysis?.byGroup?.length > 0) && (
               <ChartCard title={`Category-wise${titleTag}`} aiContext={analysis.byGroup} aiType="Client category mix">
-                <Pie data={pieData(analysis.byGroup, 'category')} options={pieOptions} />
+                <Pie data={pieData(analysis.byGroup, 'pastel')} options={pieOptions} />
               </ChartCard>
             )}
 
@@ -392,7 +392,7 @@ const Clients = () => {
             {/* (2,3) Grade */}
             {(analysis?.byGrade?.length > 0) && (
               <ChartCard title={`Grade-wise${titleTag}`} aiContext={analysis.byGrade} aiType="Client grade mix">
-                <Pie data={pieData(analysis.byGrade, 'grade')} options={pieOptions} />
+                <Doughnut data={pieData(analysis.byGrade, 'pastelAlt')} options={{ ...pieOptions, cutout: '35%' }} />
               </ChartCard>
             )}
 
