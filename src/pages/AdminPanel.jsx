@@ -590,6 +590,30 @@ const AdminPanel = () => {
                         </div>
                       ))}
                     </div>
+
+                    {/* Explicit list of the picked salespeople, below the selector (removable). */}
+                    {selectedSalespeople.length > 0 && (
+                      <div style={{ marginTop: '10px' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                          Selected salespeople ({selectedSalespeople.length})
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {selectedSalespeople.map(name => (
+                            <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 6px 4px 10px', borderRadius: '14px', background: 'var(--primary-50, #eff6ff)', border: '1px solid var(--primary-200, #bfdbfe)', color: 'var(--primary-700, #1d4ed8)', fontSize: '0.78rem', fontWeight: 600 }}>
+                              {name}
+                              <button
+                                type="button"
+                                onClick={() => toggleSalesperson(name)}
+                                aria-label={`Remove ${name}`}
+                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', display: 'inline-flex', width: '16px', height: '16px', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', lineHeight: 1 }}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
