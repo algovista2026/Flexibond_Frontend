@@ -56,6 +56,12 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
             <span>Salesperson Comparison</span>
           </NavLink>
         )}
+        {(isAdmin || permissions.includes('overview')) && (
+          <NavLink to="/branch" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiMapPin className="nav-icon" />
+            <span>Branch Analytics</span>
+          </NavLink>
+        )}
         {(isAdmin || permissions.includes('clients')) && (
           <NavLink to="/clients" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiBriefcase className="nav-icon" />
@@ -66,12 +72,6 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           <NavLink to="/geographic" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiMap className="nav-icon" />
             <span>Geographic</span>
-          </NavLink>
-        )}
-        {(isAdmin || permissions.includes('overview')) && (
-          <NavLink to="/branch" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <FiMapPin className="nav-icon" />
-            <span>Branch Analytics</span>
           </NavLink>
         )}
         {(isAdmin || permissions.includes('financials')) && (

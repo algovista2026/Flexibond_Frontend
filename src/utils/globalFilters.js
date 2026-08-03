@@ -8,7 +8,7 @@ const KEY = 'flexibond_global_filters';
 
 // The filter fields shared by every FilterBar page. Kept in sync with the FilterBar dropdowns.
 export const UNIVERSAL_KEYS = [
-  'startDate', 'endDate', 'company', 'master', 'group', 'category', 'grade',
+  'startDate', 'endDate', 'company', 'branch', 'master', 'group', 'category', 'grade',
   'group1', 'thickness', 'colour', 'zone', 'state', 'salesperson'
 ];
 

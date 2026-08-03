@@ -39,7 +39,7 @@ const DateField = ({ name, value, placeholder, onChange }) => {
   );
 };
 
-const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }) => {
+const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, hideBranch = false }) => {
   // Render a dropdown when it has options OR when it currently has a selection — so an
   // active filter is never hidden even if cascading momentarily empties its option list.
   const show = (list, selected) =>
@@ -76,6 +76,17 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
             selected={filters.company || []}
             accent="#d97706"
             onChange={(vals) => onFilterChange({ company: vals })}
+          />
+        )}
+
+        {/* Branch — physical branch/location (sits between Company and Master). Universal, like
+            the other dropdowns. Hidden on the Branch Analytics page (its strip is the selector). */}
+        {!hideBranch && show(options?.branches, filters.branch) && (
+          <MultiSelect
+            label="Branch"
+            options={options.branches}
+            selected={filters.branch || []}
+            onChange={(vals) => onFilterChange({ branch: vals })}
           />
         )}
 
@@ -187,7 +198,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
           onClick={() => onFilterChange({
             startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
             colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
-            group1: [], master: [], company: []
+            group1: [], master: [], company: [], branch: []
           }, true)}
         >
           Clear Filters
@@ -202,7 +213,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false }
 // Field labels + how each active filter is rendered as a removable chip below the bar.
 // Labels are the client-facing names (Company / Category / Sub-Category / Variants / …).
 const CHIP_LABELS = {
-  company: 'Company', master: 'Master', group: 'Category', category: 'Sub-Category',
+  company: 'Company', branch: 'Branch', master: 'Master', group: 'Category', category: 'Sub-Category',
   grade: 'Grade', group1: 'Variants', thickness: 'Thickness / Section', colour: 'Colours',
   zone: 'Zone', state: 'State', salesperson: 'Salesperson', product: 'Product',
   dimensions: 'Size', city: 'City'

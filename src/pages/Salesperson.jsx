@@ -99,7 +99,7 @@ const Salesperson = () => {
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: [], branch: []
   }));
   const [showTargetModal, setShowTargetModal] = useState(false);
   // Targets are ANNUAL-only now (client request 2026-07-28) — the monthly mode was removed.
@@ -259,7 +259,7 @@ const Salesperson = () => {
             clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
             setFilters({
               startDate: '', endDate: '', category: [], state: [], grade: [], zone: [], colour: [], format: '',
-              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
+              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: [], branch: []
             });
           } else {
             setFilters(prev => {

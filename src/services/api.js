@@ -203,6 +203,8 @@ export const getFilters = (params) => api.get('dashboard/filters', { params });
 export const getProductComparison = (params) => api.get('dashboard/product-comparison', { params });
 export const getCompanyTarget = (params) => api.get('dashboard/company-target', { params });
 export const setCompanyTarget = (payload) => api.put('dashboard/company-target', payload);
+export const getBranchPerformance = (params) => api.get('dashboard/branch-performance', { params });
+export const setBranchTarget = (payload) => api.put('dashboard/branch-target', payload);
 
 // Clients (Account-level analytics)
 export const getClients = (params) => api.get('clients', { params });

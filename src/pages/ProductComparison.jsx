@@ -29,7 +29,7 @@ const ProductComparison = () => {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], format: '',
-    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
+    product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: [], branch: []
   }));
   const [filterOptions, setFilterOptions] = useState({});
 
@@ -189,7 +189,7 @@ const ProductComparison = () => {
             clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
             setFilters({
               startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], format: '',
-              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: []
+              product: '', thickness: [], dimensions: '', city: '', group: [], group1: [], master: [], company: [], branch: []
             });
           } else {
             setFilters(prev => {

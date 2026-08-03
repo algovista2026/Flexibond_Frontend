@@ -16,7 +16,7 @@ import { th } from '../utils/thHeader';
 const Clients = () => {
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: []
+    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: [], branch: []
   }));
   const [filterOptions, setFilterOptions] = useState({});
   const [metric, setMetric] = useState('revenue');
@@ -76,7 +76,7 @@ const Clients = () => {
     if (clear) {
       const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-        colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: []
+        colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: [], branch: []
       };
       clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
       setFilters(reset);
@@ -397,10 +397,10 @@ const Clients = () => {
               </ChartCard>
             )}
 
-            {/* (1,4) Colour preference — teal bars, vertical scroll */}
+            {/* (1,4) Colour preference — teal COLUMN chart (frozen y-axis, horizontal scroll) */}
             {(analysis?.byColour?.length > 0) && (
               <ChartCard title={`Colour${titleTag}`} aiContext={analysis.byColour} aiType="Client colour preference">
-                <ScrollBar rows={analysis.byColour} color={ACCENTS.colour} />
+                <VColumnBar rows={analysis.byColour} color={ACCENTS.colour} />
               </ChartCard>
             )}
 

@@ -44,7 +44,7 @@ const Dashboard = () => {
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
     colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [],
-    master: [], company: []
+    master: [], company: [], branch: []
   }));
   const [metric, setMetric] = useState('revenue');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
@@ -141,7 +141,7 @@ const Dashboard = () => {
     if (clear) {
       const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-        colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [], master: [], company: []
+        colour: [], thickness: [], format: '', product: '', dimensions: '', group: [], group1: [], master: [], company: [], branch: []
       };
       clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
       setFilters(reset);

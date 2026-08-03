@@ -18,7 +18,8 @@ import {
   getFilters,
   getGradeBreakdown,
   getGroupBreakdown,
-  getZoneAnalysis
+  getZoneAnalysis,
+  getMasterBreakdown
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
@@ -36,7 +37,7 @@ const Products = () => {
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: []
+    format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: [], branch: []
   }));
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
@@ -48,7 +49,8 @@ const Products = () => {
     dimensions: null,
     zones: null,
     grades: null,
-    groups: null
+    groups: null,
+    masters: null
   });
   // Search box for the full "All Products" table (client-side filter over allProducts).
   const [tableSearch, setTableSearch] = useState('');
@@ -61,7 +63,7 @@ const Products = () => {
     try {
       setLoading(true);
       const sortBy = metric === 'revenue' ? 'totalAmount' : 'totalQty';
-      const [productsRes, allProductsRes, catRes, colourRes, sizeRes, zoneRes, gradeRes, groupRes, filtersRes] = await Promise.all([
+      const [productsRes, allProductsRes, catRes, colourRes, sizeRes, zoneRes, gradeRes, groupRes, masterRes, filtersRes] = await Promise.all([
         getTopProducts({ ...filters, limit: 15, sortBy, sortOrder }),
         getTopProducts({ ...filters, limit: 'all', sortBy, sortOrder }),
         getCategoryBreakdown({ ...filters, sortBy }),
@@ -70,6 +72,7 @@ const Products = () => {
         getZoneAnalysis(filters),
         getGradeBreakdown(filters),
         getGroupBreakdown(filters),
+        getMasterBreakdown(filters),
         getFilters(filters)
       ]);
 
@@ -82,7 +85,8 @@ const Products = () => {
         dimensions: sizeRes.data.data.dimensions,
         zones: zoneRes.data.data?.zones || [],
         grades: gradeRes.data.data || [],
-        groups: groupRes.data.data || []
+        groups: groupRes.data.data || [],
+        masters: masterRes.data.data || []
       });
       // Any filter/metric change invalidates the open drill-down.
       setDrillGroup(null);
@@ -110,7 +114,7 @@ const Products = () => {
     if (clear) {
       const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-        format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: []
+        format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: [], branch: []
       };
       clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
       setFilters(reset);
@@ -177,6 +181,18 @@ const Products = () => {
       data: data.products?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
       backgroundColor: 'var(--primary-400)',
       borderRadius: 4
+    }]
+  };
+
+  // Master-wise pie (ACP / PVC-WPC / SOFFIT …) — the headline product classification.
+  const masterChartData = {
+    labels: data.masters?.map(d => d._id) || [],
+    datasets: [{
+      label: metricLabel,
+      data: data.masters?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
+      backgroundColor: pieColors('master', (data.masters || []).length),
+      borderWidth: 2,
+      borderColor: '#fff'
     }]
   };
 
@@ -378,7 +394,27 @@ const Products = () => {
           </ChartCard>
         )}
 
-        {/* (1,2) Sub-Category doughnut — BLUE palette (reserved). Enlarged, scrollable legend
+        {/* (1,2) Master-wise pie — headline product classification. Added 2026-08-03; the rest of
+            the grid shifts down one cell so it starts below Top Products. */}
+        {loading && !data.masters ? (
+          <ChartSkeleton />
+        ) : (data.masters && data.masters.length > 0) ? (
+          <ChartCard title={`Master-wise${titleTag}`} aiContext={data.masters} aiType="Master-wise Distribution">
+            <Pie
+              data={masterChartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+                  tooltip: piePctTooltip,
+                  percentBar: false
+                }
+              }}
+            />
+          </ChartCard>
+        ) : null}
+
+        {/* (2,2) Sub-Category doughnut — BLUE palette (reserved). Enlarged, scrollable legend
             with full name on hover so long sub-category names aren't cut off. */}
         {loading && !data.categories ? (
           <ChartSkeleton />

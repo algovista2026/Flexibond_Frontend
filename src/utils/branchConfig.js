@@ -58,3 +58,18 @@ export const companyOfBranch = (value) => {
   const found = ALL_BRANCHES.find((b) => b.value === value);
   return found ? found.company : '';
 };
+
+// Per-company accent colours — the SAME family used by the main dashboard's "Revenue Split by
+// Company" bar (UFLP+UFPL pink · UCPL amber/orange · FDL green). Used to tint the branch
+// selection cards on the Branch Analytics page.
+export const COMPANY_ACCENTS = {
+  UFPL: '#ec4899', // pink (UFPL / UFLP)
+  UFLP: '#ec4899',
+  UCPL: '#f59e0b', // orange / amber
+  FDL: '#10b981',  // green
+};
+
+export const branchAccent = (branchValue) => {
+  const co = String(companyOfBranch(branchValue) || '').toUpperCase();
+  return COMPANY_ACCENTS[co] || '#6366f1';
+};
