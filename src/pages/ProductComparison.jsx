@@ -10,6 +10,7 @@ import FilterBar from '../components/FilterBar';
 import { getTopProducts, getProductComparison, getFilters } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { mergeFilterOptions } from '../utils/filterOptionsCache';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
 
@@ -40,7 +41,7 @@ const ProductComparison = () => {
   const fetchOptions = async () => {
     try {
       const res = await getFilters(filters);
-      setFilterOptions(res.data.data);
+      setFilterOptions(mergeFilterOptions(res.data.data));
     } catch (err) {
       console.error(err);
     }

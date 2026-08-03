@@ -31,6 +31,7 @@ import {
   setScopedTarget
 } from '../services/api';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
 
@@ -115,7 +116,7 @@ const Dashboard = () => {
         groups: groupRes.data.data || [],
         categories: categoryRes.data.data || []
       });
-      setFilterOptions(filtersRes.data.data);
+      setFilterOptions(mergeFilterOptions(filtersRes.data.data));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

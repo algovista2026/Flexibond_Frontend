@@ -167,9 +167,10 @@ export const approveDevice = (id) => api.post(`auth/devices/${id}/approve`);
 export const revokeDevice = (id) => api.delete(`auth/devices/${id}`);
 
 // Upload
-export const uploadFile = (file, onProgress, sessionId) => {
+export const uploadFile = (file, onProgress, sessionId, branch = '') => {
   const formData = new FormData();
   formData.append('file', file);
+  if (branch) formData.append('branch', branch);
   return api.post(`upload${sessionId ? `?sessionId=${sessionId}` : ''}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: onProgress,

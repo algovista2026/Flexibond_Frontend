@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiLayers, FiBriefcase } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase } from 'react-icons/fi';
 import NotificationPanel from './NotificationPanel';
 import './Sidebar.css';
 
@@ -66,6 +66,12 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           <NavLink to="/geographic" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiMap className="nav-icon" />
             <span>Geographic</span>
+          </NavLink>
+        )}
+        {(isAdmin || permissions.includes('overview')) && (
+          <NavLink to="/branch" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiMapPin className="nav-icon" />
+            <span>Branch Analytics</span>
           </NavLink>
         )}
         {(isAdmin || permissions.includes('financials')) && (

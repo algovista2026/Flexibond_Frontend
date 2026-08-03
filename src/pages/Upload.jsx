@@ -4,6 +4,7 @@ import { FiUploadCloud, FiFileText, FiCheckCircle, FiXCircle, FiTrash2, FiClock 
 import { toast } from 'react-toastify';
 import { uploadFile, getUploadHistory, deleteUpload, purgeAllData, API_BASE_URL } from '../services/api';
 import NotificationPanel from '../components/NotificationPanel';
+import { BRANCH_GROUPS, branchLabel } from '../utils/branchConfig';
 
 import { TableSkeleton } from '../components/Skeleton';
 
@@ -23,6 +24,8 @@ const Upload = () => {
   }
 
   const [file, setFile] = useState(null);
+  // Optional branch tag for the file being uploaded ('' = legacy / no branch).
+  const [branch, setBranch] = useState('');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
@@ -125,13 +128,14 @@ const Upload = () => {
       const res = await uploadFile(file, (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
         setProgress(Math.min(percentCompleted / 2, 50));
-      }, newSessionId);
+      }, newSessionId, branch);
 
       if (res.data.success) {
         setProgress(100);
         setResult(res.data.result);
         toast.success(res.data.message);
         setFile(null);
+        setBranch('');
         fetchHistory();
       }
     } catch (err) {
@@ -191,7 +195,7 @@ const Upload = () => {
       </div>
 
       {file && !uploading && !result && (
-        <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+        <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <FiFileText style={{ fontSize: '1.5rem', color: 'var(--primary-500)' }} />
             <div>
@@ -199,8 +203,31 @@ const Upload = () => {
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>
             </div>
           </div>
+
+          {/* Branch selector — tag this file to the branch it came from (Company › Branch).
+              Leave as "No branch" for old-style uploads that don't belong to a branch. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Branch (optional)
+            </label>
+            <select
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              style={{ minWidth: '240px', height: '42px', padding: '0 10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-light)', color: 'var(--text-primary)', fontSize: '0.9rem' }}
+            >
+              <option value="">No branch (legacy / all-company upload)</option>
+              {BRANCH_GROUPS.map((g) => (
+                <optgroup key={g.company} label={g.label}>
+                  {g.branches.map((b) => (
+                    <option key={b.value} value={b.value}>{b.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
           <button className="filter-bar btn-primary" onClick={handleUpload} style={{ margin: 0 }}>
-            Upload & Process
+            Upload{branch ? ` · ${branchLabel(branch)}` : ''} & Process
           </button>
         </div>
       )}
@@ -375,6 +402,7 @@ const Upload = () => {
                 <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                   <th style={{ padding: '12px 16px' }}>File Name</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Data Type</th>
+                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Branch</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Date Uploaded</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Records</th>
                   <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
@@ -385,6 +413,7 @@ const Upload = () => {
                   <tr key={item._id} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.87rem' }}>
                     <td style={{ padding: '12px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>{item.fileName}</td>
                     <td style={{ padding: '12px 16px', textTransform: 'uppercase', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{item.dataType?.replace(/_/g, ' ')}</td>
+                    <td style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{item.branch ? branchLabel(item.branch) : '—'}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{new Date(item.uploadDate || item.createdAt).toLocaleString('en-IN')}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{item.insertedCount}</td>
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>

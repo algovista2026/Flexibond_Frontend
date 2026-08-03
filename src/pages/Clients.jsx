@@ -9,6 +9,7 @@ import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleto
 import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../services/api';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
 
@@ -41,7 +42,7 @@ const Clients = () => {
   // Filter options — cascaded: re-fetched with the current filters so each dropdown only
   // offers values that still return rows (e.g. Master trims the others).
   useEffect(() => {
-    getFilters(filters).then(res => setFilterOptions(res.data.data)).catch(() => {});
+    getFilters(filters).then(res => setFilterOptions(mergeFilterOptions(res.data.data))).catch(() => {});
   }, [filters]);
 
   useEffect(() => {

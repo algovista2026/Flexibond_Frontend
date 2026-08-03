@@ -17,6 +17,7 @@ import TargetAmountInput, { SALESPERSON_TARGET_PRESETS } from '../components/Tar
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
 
@@ -120,7 +121,7 @@ const Salesperson = () => {
   const fetchOptions = async () => {
     try {
       const res = await getFilters(filters);
-      setFilterOptions(res.data.data);
+      setFilterOptions(mergeFilterOptions(res.data.data));
     } catch (err) {
       console.error(err);
     }

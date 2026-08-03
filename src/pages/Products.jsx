@@ -24,6 +24,7 @@ import {
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
 
@@ -86,7 +87,7 @@ const Products = () => {
       // Any filter/metric change invalidates the open drill-down.
       setDrillGroup(null);
       setDrillData(null);
-      setFilterOptions(filtersRes.data.data);
+      setFilterOptions(mergeFilterOptions(filtersRes.data.data));
     } catch (error) {
       console.error('Error fetching product data:', error);
     } finally {
