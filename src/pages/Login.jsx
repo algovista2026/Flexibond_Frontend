@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, verify2FA } from '../services/api';
+import { clearGlobalFilters } from '../utils/globalFilters';
 import { toast } from 'react-toastify';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
@@ -80,6 +81,7 @@ const Login = () => {
   const handleSuccess = (data) => {
     localStorage.setItem('flexibond_token', data.token);
     localStorage.setItem('flexibond_user', JSON.stringify(data.user));
+    clearGlobalFilters(); // start every fresh login on a clean, unfiltered dashboard
     toast.success('Login successful!');
     
     const user = data.user;

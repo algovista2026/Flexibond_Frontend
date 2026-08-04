@@ -57,7 +57,7 @@ const Dashboard = () => {
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetForm, setTargetForm] = useState('');
   // Per-company target inputs (admin, non-scoped). Keys match the 3 daughter-company buckets.
-  const [companyTargetForm, setCompanyTargetForm] = useState({ FDL: '', UCPL: '', 'UFLP+UFPL': '' });
+  const [companyTargetForm, setCompanyTargetForm] = useState({ FDL: '', UCPL: '', 'UFPL': '' });
   const [targetSaving, setTargetSaving] = useState(false);
   const isAdmin = user.role === 'admin';
   // Scoped accounts (company / zonal head) see + edit THEIR OWN target instead of the
@@ -181,7 +181,7 @@ const Dashboard = () => {
       setCompanyTargetForm({
         FDL: ct.FDL ? String(ct.FDL) : '',
         UCPL: ct.UCPL ? String(ct.UCPL) : '',
-        'UFLP+UFPL': ct['UFLP+UFPL'] ? String(ct['UFLP+UFPL']) : ''
+        'UFPL': ct['UFPL'] ? String(ct['UFPL']) : ''
       });
     }
     setShowTargetModal(true);
@@ -201,7 +201,7 @@ const Dashboard = () => {
         const companyTargets = {
           FDL: Number(companyTargetForm.FDL) || 0,
           UCPL: Number(companyTargetForm.UCPL) || 0,
-          'UFLP+UFPL': Number(companyTargetForm['UFLP+UFPL']) || 0
+          'UFPL': Number(companyTargetForm['UFPL']) || 0
         };
         const res = await setCompanyTarget({ companyTargets });
         setCompanyTargetState(res.data.data);
@@ -327,8 +327,8 @@ const Dashboard = () => {
     }]
   };
 
-  // Company-wise revenue trend (3 lines: FDL, UCPL, UFLP+UFPL) — always revenue EXCL taxes.
-  const COMPANY_COLORS = { 'FDL': '#10b981', 'UCPL': '#f59e0b', 'UFLP+UFPL': '#ec4899' };
+  // Company-wise revenue trend (3 lines: FDL, UCPL, UFPL) — always revenue EXCL taxes.
+  const COMPANY_COLORS = { 'FDL': '#10b981', 'UCPL': '#f59e0b', 'UFPL': '#ec4899' };
   const companyTrendChartData = {
     labels: data.companyTrend?.periods || [],
     datasets: [
@@ -398,9 +398,9 @@ const Dashboard = () => {
     }]
   };
 
-  // ── Company revenue split (FDL / UCPL / UFLP+UFPL) — summed from the company-trend series,
+  // ── Company revenue split (FDL / UCPL / UFPL) — summed from the company-trend series,
   // so both the target bar and the revenue-split bar respect the active filters. ──
-  const COMPANY_ORDER = ['FDL', 'UCPL', 'UFLP+UFPL'];
+  const COMPANY_ORDER = ['FDL', 'UCPL', 'UFPL'];
   const companySegments = (() => {
     const s = data.companyTrend?.series || {};
     return COMPANY_ORDER
@@ -643,7 +643,7 @@ const Dashboard = () => {
               />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '4px' }}>
-                {['FDL', 'UCPL', 'UFLP+UFPL'].map(name => (
+                {['FDL', 'UCPL', 'UFPL'].map(name => (
                   <TargetAmountInput
                     key={name}
                     value={companyTargetForm[name]}
@@ -653,7 +653,7 @@ const Dashboard = () => {
                   />
                 ))}
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  Total target: {formatCurrency((Number(companyTargetForm.FDL) || 0) + (Number(companyTargetForm.UCPL) || 0) + (Number(companyTargetForm['UFLP+UFPL']) || 0))}
+                  Total target: {formatCurrency((Number(companyTargetForm.FDL) || 0) + (Number(companyTargetForm.UCPL) || 0) + (Number(companyTargetForm['UFPL']) || 0))}
                 </div>
               </div>
             )}
@@ -751,14 +751,14 @@ const Dashboard = () => {
         )}
 
         {/* (Row 2, full width) Company-wise Revenue Trend — a duplicate of the main trend with
-            3 lines (FDL / UCPL / UFLP+UFPL combined). Always revenue Excl. Taxes, for comparison. */}
+            3 lines (FDL / UCPL / UFPL combined). Always revenue Excl. Taxes, for comparison. */}
         {loading && !data.companyTrend ? (
           <ChartSkeleton fullWidth />
         ) : (data.companyTrend?.periods?.length > 0) ? (
           <ChartCard
             title="Revenue by Company (Revenue Excl. Taxes)"
             aiContext={data.companyTrend}
-            aiType="Company-wise Revenue Trend (FDL / UCPL / UFLP+UFPL)"
+            aiType="Company-wise Revenue Trend (FDL / UCPL / UFPL)"
             fullWidth
             extra={
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

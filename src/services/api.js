@@ -225,6 +225,11 @@ export const setSalespersonTarget = (payload) => api.put('salesperson/target', p
 // Distinct salesperson names for building zonal-head accounts (admin; ?zone= optional)
 export const getSalespersonNames = (params) => api.get('salesperson/names', { params });
 
+// Branches the given salespeople have sold in (admin; for zonal-head account branch scope).
+// `salespeople` is an array of names → serialized as repeated salesperson params.
+export const getBranchSuggestions = (salespeople) =>
+  api.get('salesperson/branch-suggestions', { params: { salesperson: salespeople } });
+
 // Scoped-account targets (company-scoped + zonal-head logins)
 export const getScopedTarget = (userId, params) => api.get(`targets/scoped/${userId}`, { params });
 export const setScopedTarget = (userId, payload) => api.put(`targets/scoped/${userId}`, payload);

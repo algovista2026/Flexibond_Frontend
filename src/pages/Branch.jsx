@@ -4,6 +4,7 @@ import { FiMapPin, FiEdit2, FiX } from 'react-icons/fi';
 import ChartCard from '../components/ChartCard';
 import FilterBar from '../components/FilterBar';
 import NotificationPanel from '../components/NotificationPanel';
+import ExportControls from '../components/ExportControls';
 import ScrollColumnChart from '../components/ScrollColumnChart';
 import TargetAmountInput, { TURNOVER_TARGET_PRESETS } from '../components/TargetAmountInput';
 import {
@@ -23,7 +24,7 @@ import {
   getBranchPerformance,
   setBranchTarget,
 } from '../services/api';
-import { formatINR, formatINRShort, formatShort } from '../utils/numberFormat';
+import { formatINR, formatINRShort, formatShort, ratePerFoot } from '../utils/numberFormat';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { ALL_BRANCHES, branchLabel, branchAccent } from '../utils/branchConfig';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
@@ -45,9 +46,15 @@ const Branch = () => {
     ? (Array.isArray(user.companies) && user.companies.length ? user.companies : (user.company ? [user.company] : []))
       .map(c => String(c).toUpperCase())
     : null;
+  // Zonal-head accounts only see their hand-picked branches (2026-08-05). Empty = no restriction.
+  const scopeBranches = user.scopeType === 'zonal' && Array.isArray(user.branches) && user.branches.length
+    ? user.branches.map(b => String(b).toLowerCase())
+    : null;
   const knownBranches = scopeCompanies
     ? ALL_BRANCHES.filter(b => scopeCompanies.includes(String(b.company).toUpperCase()))
-    : ALL_BRANCHES;
+    : scopeBranches
+      ? ALL_BRANCHES.filter(b => scopeBranches.includes(String(b.value).toLowerCase()))
+      : ALL_BRANCHES;
 
   const [filters, setFilters] = useState(seedFilters({ ...EMPTY_FILTERS }));
   const [filterOptions, setFilterOptions] = useState({});
@@ -208,10 +215,12 @@ const Branch = () => {
     // Match the Products page's Top Products bars exactly (same 'var(--primary-400)' fill).
     datasets: [{ label: metricLabel, data: data?.products?.map(dimVal) || [], backgroundColor: 'var(--primary-400)', borderRadius: 4 }],
   };
-  const spRows = (data?.salespersons || []).slice(0, 15);
+  // Salesperson donut — mirrors the main Dashboard (cutout donut + side legend), top 8.
+  const spRows = (data?.salespersons || []).slice(0, 8);
+  const spColors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
   const salesmanData = {
     labels: spRows.map(s => s._id),
-    datasets: [{ label: metricLabel, data: spRows.map(s => metric === 'revenue' ? s.totalRevenue : s.totalQty), backgroundColor: '#6366f1', borderRadius: 4 }],
+    datasets: [{ label: metricLabel, data: spRows.map(s => metric === 'revenue' ? s.totalRevenue : s.totalQty), backgroundColor: spColors, borderWidth: 0 }],
   };
   const subCatData = {
     labels: data?.categories?.map(d => d._id || 'Unknown') || [],
@@ -261,7 +270,10 @@ const Branch = () => {
           <h1>Branch Analytics</h1>
           <p>An extensive dashboard for each branch. Pick one or more branches; each shows its own target.</p>
         </div>
-        {isAdmin && <NotificationPanel />}
+        <div className="page-controls">
+          <ExportControls pageTitle="Branch_Analytics" />
+          {isAdmin && <NotificationPanel />}
+        </div>
       </div>
 
       {/* Full standard filter stack (Branch is chosen via the strip below → dropdown hidden here). */}
@@ -394,9 +406,21 @@ const Branch = () => {
               <Bar data={productData} options={{ indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: metricTooltip }, scales: { x: valScale, y: { ticks: { font: { size: 10 }, callback: function (v) { const l = this.getLabelForValue(v); return l && l.length > 18 ? l.slice(0, 16) + '…' : l; } } } } }} />
             </ChartCard>
 
-            {/* Salesman-wise revenue */}
+            {/* Salesman-wise revenue — donut (matches the main Dashboard) */}
             <ChartCard title={`Salesperson${titleTag}`} aiContext={data.salespersons} aiType="Branch Salesperson Revenue">
-              <Bar data={salesmanData} options={{ indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: metricTooltip }, scales: { x: valScale, y: { ticks: { font: { size: 10 }, autoSkip: false } } } }} />
+              <div className="donut-container">
+                <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
+                  <Doughnut data={salesmanData} options={{ maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: piePctTooltip, percentBar: false } }} />
+                </div>
+                <div className="custom-legend">
+                  {(salesmanData.labels || []).map((label, i) => (
+                    <div key={i} className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: spColors[i % spColors.length], flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </ChartCard>
 
             {/* Sub-Category (blue doughnut) */}
@@ -508,8 +532,8 @@ const Branch = () => {
             <div style={{ maxHeight: '440px', overflowY: 'auto' }}>
               <table className="data-table" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '26%' }} /><col style={{ width: '12%' }} /><col style={{ width: '14%' }} />
-                  <col style={{ width: '10%' }} /><col style={{ width: '12%' }} /><col style={{ width: '13%' }} /><col style={{ width: '13%' }} />
+                  <col style={{ width: '20%' }} /><col style={{ width: '11%' }} /><col style={{ width: '13%' }} />
+                  <col style={{ width: '8%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} />
                 </colgroup>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
@@ -518,6 +542,7 @@ const Branch = () => {
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Sub-Category</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Quantity</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Avg. Rate (Excl. Taxes)</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Avg. Rate / Sq.Ft (Excl. Taxes)</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Revenue (Excl. Taxes)</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Revenue (Incl. Taxes)</th>
                   </tr>
@@ -530,12 +555,13 @@ const Branch = () => {
                       <td style={clip} title={p.category || '—'}>{p.category || '—'}</td>
                       <td>{formatNumber(p.totalQty)}</td>
                       <td>{formatCurrency(p.avgRate)}</td>
+                      <td>{ratePerFoot(p.avgRate, p.master)}</td>
                       <td style={{ fontWeight: 600, color: 'var(--primary-600)', ...clip }}>{formatCurrency(p.totalAmount)}</td>
                       <td style={{ fontWeight: 600, ...clip }}>{formatCurrency(p.totalAmountIncl)}</td>
                     </tr>
                   ))}
                   {tableProducts.length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
+                    <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
                       {tableSearch.trim() ? 'No products match your search.' : 'No products for the current selection.'}
                     </td></tr>
                   )}

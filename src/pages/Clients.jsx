@@ -7,7 +7,7 @@ import ExportControls from '../components/ExportControls';
 import ScrollColumnChart from '../components/ScrollColumnChart';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../services/api';
-import { formatINRShort, formatShort } from '../utils/numberFormat';
+import { formatINRShort, formatShort, ratePerFoot } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
@@ -397,10 +397,10 @@ const Clients = () => {
               </ChartCard>
             )}
 
-            {/* (1,4) Colour preference — teal COLUMN chart (frozen y-axis, horizontal scroll) */}
+            {/* (1,4) Colour preference — teal horizontal rows (vertical scroll) */}
             {(analysis?.byColour?.length > 0) && (
               <ChartCard title={`Colour${titleTag}`} aiContext={analysis.byColour} aiType="Client colour preference">
-                <VColumnBar rows={analysis.byColour} color={ACCENTS.colour} />
+                <ScrollBar rows={analysis.byColour} color={ACCENTS.colour} />
               </ChartCard>
             )}
 
@@ -487,17 +487,19 @@ const Clients = () => {
             <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
               <table className="data-table" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '34%' }} />
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '16%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '26%' }} />{/* Product */}
+                  <col style={{ width: '12%' }} />{/* Qty Sold */}
+                  <col style={{ width: '16%' }} />{/* Avg Rate */}
+                  <col style={{ width: '16%' }} />{/* Avg Rate / Sq.Ft */}
+                  <col style={{ width: '15%' }} />{/* Revenue excl */}
+                  <col style={{ width: '15%' }} />{/* Revenue incl */}
                 </colgroup>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-card)' }}>
                   <tr>
                     <th>Product</th>
                     <th style={{ textAlign: 'right' }}>Qty Sold</th>
                     <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Avg. Rate / Sq.Ft (Excl. Taxes)')}</th>
                     <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Revenue (Excl. Taxes)')}</th>
                     <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Revenue (Incl. Taxes)')}</th>
                   </tr>
@@ -508,12 +510,13 @@ const Clients = () => {
                       <td style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={p._id}>{p._id}</td>
                       <td style={{ textAlign: 'right' }}>{formatNumber(p.totalQty)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.avgRate)}</td>
+                      <td style={{ textAlign: 'right' }}>{ratePerFoot(p.avgRate, p.master)}</td>
                       <td style={{ textAlign: 'right', color: 'var(--primary-600)' }}>{formatCurrency(p.totalRevenue)}</td>
                       <td style={{ textAlign: 'right' }}>{formatCurrency(p.totalRevenueIncl)}</td>
                     </tr>
                   ))}
                   {rates.length === 0 && (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No product data available</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No product data available</td></tr>
                   )}
                 </tbody>
               </table>

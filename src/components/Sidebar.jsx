@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase } from 'react-icons/fi';
 import NotificationPanel from './NotificationPanel';
+import { clearGlobalFilters } from '../utils/globalFilters';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose, user: propUser }) => {
@@ -12,6 +13,7 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   const handleLogout = () => {
     localStorage.removeItem('flexibond_token');
     localStorage.removeItem('flexibond_user');
+    clearGlobalFilters(); // fresh session → next login starts with no filters applied
     if (onClose) onClose();
     navigate('/login');
   };

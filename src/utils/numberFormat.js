@@ -11,6 +11,15 @@ export const formatINR = (v) => inrFull.format(Number(v) || 0);
 // Plain grouped integer, e.g. 1,22,26,739
 export const formatCount = (v) => countFmt.format(Number(v) || 0);
 
+// Rate-per-square-foot for ACP sheets ONLY. ACP rates are quoted per square
+// metre; ÷10.764 converts to per square foot. Non-ACP masters have no per-foot
+// meaning, so they render a dash. `master` is matched case-insensitively.
+export const RATE_PER_FOOT_DIVISOR = 10.764;
+export const ratePerFoot = (avgRate, master) =>
+  String(master || '').trim().toUpperCase() === 'ACP'
+    ? formatINR((Number(avgRate) || 0) / RATE_PER_FOOT_DIVISOR)
+    : '—';
+
 // Compact Indian short form for chart axes / tight spaces.
 // 1,22,26,739 -> ₹1.22 Cr ; 4,52,000 -> ₹4.52 L ; 96,274 -> ₹96.3 K ; 850 -> ₹850
 export const formatINRShort = (v) => {

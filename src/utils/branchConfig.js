@@ -5,13 +5,10 @@
 // The `value` is what gets stored on Invoice/InvoiceItem.branch and matched by the branch
 // filter — since we control both the upload stamp and the query, these values just need to be
 // internally consistent. `label` is display-only.
-//
-// Note (per client, 2026-08-03): the "UFPL" company code is used interchangeably with "UFLP"
-// in the source data — treat them as the same company here.
 export const BRANCH_GROUPS = [
   {
     company: 'UFPL',
-    label: 'UFPL / UFLP',
+    label: 'UFPL',
     branches: [
       { value: 'Vadodara', label: 'Vadodara' },
       { value: 'Bhiwandi', label: 'Bhiwandi' },
@@ -60,11 +57,10 @@ export const companyOfBranch = (value) => {
 };
 
 // Per-company accent colours — the SAME family used by the main dashboard's "Revenue Split by
-// Company" bar (UFLP+UFPL pink · UCPL amber/orange · FDL green). Used to tint the branch
+// Company" bar (UFPL pink · UCPL amber/orange · FDL green). Used to tint the branch
 // selection cards on the Branch Analytics page.
 export const COMPANY_ACCENTS = {
-  UFPL: '#ec4899', // pink (UFPL / UFLP)
-  UFLP: '#ec4899',
+  UFPL: '#ec4899', // pink
   UCPL: '#f59e0b', // orange / amber
   FDL: '#10b981',  // green
 };

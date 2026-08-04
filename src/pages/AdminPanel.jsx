@@ -3,7 +3,7 @@ import {
   adminGetUsers, adminCreateUser, adminDeleteUser, adminUpdateUser, adminReset2FA,
   getPendingDevices, getAllDevices, approveDevice, revokeDevice,
   setup2FA, activate2FA, disable2FA,
-  getSalespersonNames, getScopedProgress, setScopedTarget
+  getSalespersonNames, getScopedProgress, setScopedTarget, getBranchSuggestions
 } from '../services/api';
 import {
   FiUserPlus, FiTrash2, FiShield, FiCheckSquare, FiSquare, FiEdit2,
@@ -12,6 +12,8 @@ import {
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
+import { formatINRShort } from '../utils/numberFormat';
+import { branchLabel } from '../utils/branchConfig';
 
 const AdminPanel = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
@@ -46,6 +48,11 @@ const AdminPanel = () => {
   const [spNames, setSpNames] = useState([]);
   const [spNamesLoading, setSpNamesLoading] = useState(false);
   const [spSearch, setSpSearch] = useState('');
+  // Zonal-head branch scope (2026-08-05): suggestions = branches the picked salespeople have
+  // sold in (with revenue), selectedBranches = the branches this account may see.
+  const [selectedBranches, setSelectedBranches] = useState([]);
+  const [branchSuggestions, setBranchSuggestions] = useState([]);
+  const [branchSuggestLoading, setBranchSuggestLoading] = useState(false);
   const [permissions, setPermissions] = useState(['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload']);
 
   // Per-scoped-account target progress (userId -> { target, achieved, pct, hasTarget }).
@@ -56,7 +63,7 @@ const AdminPanel = () => {
   const [targetMode, setTargetMode] = useState('yearly');
   const [targetSaving, setTargetSaving] = useState(false);
 
-  const COMPANY_OPTIONS = ['UFLP', 'UCPL', 'UFPL', 'FDL'];
+  const COMPANY_OPTIONS = ['UCPL', 'UFPL', 'FDL'];
   const ZONE_OPTIONS = ['West Zone', 'East Zone', 'North Zone', 'South Zone', 'Central Zone'];
   const DEFAULT_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload'];
   // Scoped accounts can't hold Invoice-level sections (mirrors the backend enforcement).
@@ -134,6 +141,20 @@ const AdminPanel = () => {
       .finally(() => setSpNamesLoading(false));
   }, [accountType, zone]);
 
+  // Zonal-head branch suggestions: whenever the picked salespeople change, fetch which branches
+  // they have sold in (with revenue) so the admin can see + pick the connected branches.
+  useEffect(() => {
+    if (accountType !== 'zonal' || selectedSalespeople.length === 0) {
+      setBranchSuggestions([]);
+      return;
+    }
+    setBranchSuggestLoading(true);
+    getBranchSuggestions(selectedSalespeople)
+      .then(res => setBranchSuggestions(res.data?.data || []))
+      .catch(() => setBranchSuggestions([]))
+      .finally(() => setBranchSuggestLoading(false));
+  }, [accountType, selectedSalespeople]);
+
   const handleTogglePerm = (modId) => {
     if (permissions.includes(modId)) {
       setPermissions(permissions.filter(p => p !== modId));
@@ -164,7 +185,7 @@ const AdminPanel = () => {
     const submitRole = accountType === 'admin' ? 'admin' : 'viewer';
     const scopePayload =
       accountType === 'company' ? { scopeType: 'company', companies }
-      : accountType === 'zonal' ? { scopeType: 'zonal', salespeople: selectedSalespeople, zone }
+      : accountType === 'zonal' ? { scopeType: 'zonal', salespeople: selectedSalespeople, branches: selectedBranches, zone }
       : { scopeType: 'none' };
 
     try {
@@ -185,6 +206,8 @@ const AdminPanel = () => {
       setCompanies([]);
       setZone('');
       setSelectedSalespeople([]);
+      setSelectedBranches([]);
+      setBranchSuggestions([]);
       setPermissions(DEFAULT_PERMS);
       setIsEditMode(false);
       setEditingUserId(null);
@@ -214,6 +237,7 @@ const AdminPanel = () => {
     );
     setZone(userObj.zone || '');
     setSelectedSalespeople(userObj.salespeople || []);
+    setSelectedBranches(userObj.branches || []);
     setPermissions(userObj.permissions || []);
   };
 
@@ -229,11 +253,19 @@ const AdminPanel = () => {
     setCompanies([]);
     setZone('');
     setSelectedSalespeople([]);
+    setSelectedBranches([]);
+    setBranchSuggestions([]);
     setPermissions(DEFAULT_PERMS);
   };
 
   const toggleSalesperson = (name) => {
     setSelectedSalespeople(prev =>
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
+  };
+
+  const toggleBranch = (name) => {
+    setSelectedBranches(prev =>
       prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
     );
   };
@@ -614,6 +646,58 @@ const AdminPanel = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Branch scope (2026-08-05) — branches the picked salespeople have sold in,
+                        with revenue so the admin can confirm the branch is connected to them.
+                        The account will see ONLY the ticked branches (data + targets). */}
+                    {selectedSalespeople.length > 0 && (
+                      <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color)', paddingTop: '14px' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <FiMapPin size={14} /> Branches for this account
+                          {selectedBranches.length > 0 && <span style={{ color: 'var(--primary-600)' }}>· {selectedBranches.length} selected</span>}
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
+                          Revenue shown is what the selected salespeople billed in each branch. Tick the branches
+                          this account may see — it will <strong>not</strong> see any other branch or its targets.
+                          Leave all unticked to allow every branch its salespeople sold in.
+                        </p>
+                        {branchSuggestLoading ? (
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>Loading branches…</p>
+                        ) : branchSuggestions.length === 0 ? (
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>No branch data for the selected salespeople.</p>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '220px', overflowY: 'auto' }}>
+                            {branchSuggestions.map(b => {
+                              const on = selectedBranches.includes(b.branch);
+                              return (
+                                <div
+                                  key={b.branch}
+                                  onClick={() => toggleBranch(b.branch)}
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', cursor: 'pointer', fontSize: '0.85rem', padding: '7px 10px', borderRadius: '8px', border: `1px solid ${on ? 'var(--primary-300, #93c5fd)' : 'var(--border-color)'}`, background: on ? 'var(--primary-50, #eff6ff)' : 'var(--bg-card)' }}
+                                >
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                    {on ? <FiCheckSquare color="var(--primary-600)" size={16} /> : <FiSquare color="var(--text-muted)" size={16} />}
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{branchLabel(b.branch)}</span>
+                                  </span>
+                                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>{formatINRShort(b.revenue)}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* Keep any already-assigned branches that aren't in the suggestion list visible. */}
+                        {selectedBranches.filter(b => !branchSuggestions.some(s => s.branch === b)).map(b => (
+                          <div
+                            key={b}
+                            onClick={() => toggleBranch(b)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', padding: '7px 10px', marginTop: '4px', borderRadius: '8px', border: '1px solid var(--primary-300, #93c5fd)', background: 'var(--primary-50, #eff6ff)', opacity: 0.85 }}
+                          >
+                            <FiCheckSquare color="var(--primary-600)" size={16} />
+                            <span>{branchLabel(b)} <em style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>(no recent sales)</em></span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -684,7 +768,7 @@ const AdminPanel = () => {
                   const scopeLabel = u.scopeType === 'company'
                     ? `Company · ${(u.companies && u.companies.length ? u.companies.join(', ') : u.company) || '—'}`
                     : u.scopeType === 'zonal'
-                      ? `Zonal Head · ${(u.salespeople || []).length} salespeople${u.zone ? ` · ${u.zone}` : ''}`
+                      ? `Zonal Head · ${(u.salespeople || []).length} salespeople${(u.branches || []).length ? ` · ${u.branches.length} branches` : ''}${u.zone ? ` · ${u.zone}` : ''}`
                       : null;
                   return (
                   <div

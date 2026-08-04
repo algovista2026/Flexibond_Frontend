@@ -4,51 +4,90 @@ import { FiDownload, FiFileText, FiImage } from 'react-icons/fi';
 const ExportControls = ({ pageTitle = 'Dashboard' }) => {
   const [loading, setLoading] = useState(false);
 
+  // Chart.js canvases that live inside scrollable / absolutely-positioned wrappers
+  // (Colour / Thickness / Dimensions charts, the frozen-axis column charts, etc.) render
+  // BLANK when html2canvas tries to rasterise them. Fix: snapshot every live canvas to a PNG
+  // first, then in html2canvas's `onclone` swap each cloned canvas for a plain <img> of that
+  // snapshot and un-clip its scroll wrapper, so the full chart always shows in the export.
+  const buildCanvas = async (targetElement) => {
+    const originals = Array.from(targetElement.querySelectorAll('canvas'));
+    const snaps = originals.map((c) => {
+      try {
+        const rect = c.getBoundingClientRect();
+        return { url: c.toDataURL('image/png'), w: rect.width, h: rect.height };
+      } catch (e) {
+        return null;
+      }
+    });
+
+    return window.html2canvas(targetElement, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#f8fafc',
+      onclone: (clonedDoc) => {
+        // WYSIWYG flip capture: the `is-exporting` CSS (index.css) flattens each flip-card and
+        // shows ONLY its currently-visible face — the chart (front) or the AI insights (back) —
+        // instead of html2canvas bleeding the rotated back face through. Apply it on the CLONE
+        // so the live page never flickers.
+        clonedDoc.body.classList.add('is-exporting');
+        // Scope everything to the cloned page-content so canvas indices line up with `snaps`
+        // (which were collected from the live .page-content, not the whole document).
+        const clonedTarget = clonedDoc.querySelector('.page-content') || clonedDoc;
+        // Hide interactive controls (export/notification buttons, AI insight) from the export.
+        clonedTarget.querySelectorAll('.page-controls, .ai-insights-btn, .ai-insights-panel')
+          .forEach((el) => { el.style.display = 'none'; });
+
+        const clones = Array.from(clonedTarget.querySelectorAll('canvas'));
+        clones.forEach((cc, i) => {
+          const snap = snaps[i];
+          if (!snap || !snap.url) return;
+          const img = clonedDoc.createElement('img');
+          img.src = snap.url;
+          img.style.width = `${snap.w}px`;
+          img.style.height = `${snap.h}px`;
+          img.style.display = 'block';
+          img.style.maxWidth = 'none';
+          // Un-clip any scroll wrapper between the canvas and its chart card so the whole
+          // chart is visible in the snapshot (no cut-off scrollable charts).
+          let p = cc.parentElement;
+          let hops = 0;
+          while (p && !p.classList.contains('chart-card') && hops < 4) {
+            p.style.overflow = 'visible';
+            p.style.position = 'static';
+            p.style.height = 'auto';
+            p.style.minHeight = '0';
+            p = p.parentElement;
+            hops += 1;
+          }
+          if (cc.parentNode) cc.parentNode.replaceChild(img, cc);
+        });
+      }
+    });
+  };
+
   const captureScreenshot = async (format) => {
     try {
       setLoading(true);
-      
+
       const targetElement = document.querySelector('.page-content');
       if (!targetElement) {
         alert('Could not find dashboard layout to export.');
         return;
       }
 
-      // Hide toggle buttons / non-printable actions temporarily
-      document.body.classList.add('is-exporting');
-      const toggleBars = document.querySelectorAll('.metric-toggle, .filter-bar, .ai-insights-btn, button');
-      toggleBars.forEach(el => el.style.visibility = 'hidden');
-
       if (format === 'image') {
-        const canvas = await window.html2canvas(targetElement, {
-          scale: 2, // Higher resolution
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#f8fafc' // Standard light dashboard background
-        });
-
-        // Restore UI
-        document.body.classList.remove('is-exporting');
-        toggleBars.forEach(el => el.style.visibility = 'visible');
+        const canvas = await buildCanvas(targetElement);
 
         const image = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.href = image;
         link.download = `${pageTitle}_Export_${new Date().toISOString().split('T')[0]}.png`;
         link.click();
-      } 
-      
-      else if (format === 'pdf') {
-        const canvas = await window.html2canvas(targetElement, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#f8fafc'
-        });
+      }
 
-        // Restore UI
-        document.body.classList.remove('is-exporting');
-        toggleBars.forEach(el => el.style.visibility = 'visible');
+      else if (format === 'pdf') {
+        const canvas = await buildCanvas(targetElement);
 
         const imgData = canvas.toDataURL('image/png');
         const { jsPDF } = window.jspdf;

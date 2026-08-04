@@ -15,7 +15,7 @@ import { targetLinePlugin } from '../utils/targetLinePlugin';
 import TargetAmountInput, { SALESPERSON_TARGET_PRESETS } from '../components/TargetAmountInput';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
-import { formatINRShort, formatShort, formatCount } from '../utils/numberFormat';
+import { formatINRShort, formatShort, formatCount, ratePerFoot } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
@@ -174,8 +174,8 @@ const Salesperson = () => {
 
   // Per-daughter-company revenue for this salesperson → segmented (company-coloured) progress
   // bar in the target box. Colours match the Dashboard company charts.
-  const SP_COMPANY_COLORS = { 'FDL': '#10b981', 'UCPL': '#f59e0b', 'UFLP+UFPL': '#ec4899' };
-  const spCompanySegments = ['FDL', 'UCPL', 'UFLP+UFPL']
+  const SP_COMPANY_COLORS = { 'FDL': '#10b981', 'UCPL': '#f59e0b', 'UFPL': '#ec4899' };
+  const spCompanySegments = ['FDL', 'UCPL', 'UFPL']
     .map(name => {
       const row = (details?.companyBreakdown || []).find(r => r._id === name);
       return { label: name, value: row ? row.totalAmount : 0, color: SP_COMPANY_COLORS[name] };
@@ -738,18 +738,30 @@ const Salesperson = () => {
                   </ChartCard>
                 )}
 
-                {/* Colour breakdown (column chart) — colour codes until a name lookup exists. */}
+                {/* Colour breakdown — horizontal rows (colour codes until a name lookup exists).
+                    Vertical scroll keeps ≤15 rows on screen. */}
                 {details.colourBreakdown && details.colourBreakdown.length > 0 && (
                   <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
-                    {/* Horizontal scroll with a FROZEN y-axis so bars stay readable when scrolled. */}
-                    <ScrollColumnChart
-                      labels={details.colourBreakdown.map(c => String(c._id))}
-                      values={details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty)}
-                      label={metric === 'revenue' ? 'Revenue' : 'Quantity'}
-                      color={ACCENTS.colour}
-                      yFmt={axisFmt}
-                      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : `${formatCount(v)} units`}
-                    />
+                    <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+                      <div style={{ width: '100%', height: `${Math.max(details.colourBreakdown.length * 32, 260)}px` }}>
+                        <Bar
+                          data={{
+                            labels: details.colourBreakdown.map(c => String(c._id)),
+                            datasets: [{
+                              label: metric === 'revenue' ? 'Revenue' : 'Quantity',
+                              data: details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty),
+                              backgroundColor: ACCENTS.colour,
+                            }]
+                          }}
+                          options={{
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            plugins: { legend: { display: false }, tooltip: metricTooltip },
+                            scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 }, autoSkip: false } } }
+                          }}
+                        />
+                      </div>
+                    </div>
                   </ChartCard>
                 )}
 
@@ -810,30 +822,44 @@ const Salesperson = () => {
                   </span>
                 </div>
                 <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
-                  <table className="data-table">
+                  <table className="data-table" style={{ tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: '20%' }} />{/* Product */}
+                      <col style={{ width: '15%' }} />{/* Sub-Category */}
+                      <col style={{ width: '10%' }} />{/* Qty Sold */}
+                      <col style={{ width: '14%' }} />{/* Avg Rate */}
+                      <col style={{ width: '14%' }} />{/* Avg Rate / Sq.Ft */}
+                      <col style={{ width: '13.5%' }} />{/* Revenue excl */}
+                      <col style={{ width: '13.5%' }} />{/* Revenue incl */}
+                    </colgroup>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-card)' }}>
                       <tr>
-                        <th>Product</th>
-                        <th>Sub-Category</th>
-                        <th style={{ textAlign: 'right' }}>Qty Sold</th>
-                        <th style={{ textAlign: 'right' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
-                        <th style={{ textAlign: 'right' }}>{th('Revenue (Excl. Taxes)')}</th>
-                        <th style={{ textAlign: 'right' }}>{th('Revenue (Incl. Taxes)')}</th>
+                        <th style={{ whiteSpace: 'normal' }}>Product</th>
+                        <th style={{ whiteSpace: 'normal' }}>Sub-Category</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>Qty Sold</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Avg. Rate / Sq.Ft (Excl. Taxes)')}</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Revenue (Excl. Taxes)')}</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'normal' }}>{th('Revenue (Incl. Taxes)')}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(details.productRates || []).map((p, i) => (
+                      {(details.productRates || []).map((p, i) => {
+                        const clip = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+                        return (
                         <tr key={i}>
-                          <td style={{ fontWeight: 500 }}>{p._id}</td>
-                          <td>{p.category || '—'}</td>
+                          <td style={{ fontWeight: 500, ...clip }} title={p._id}>{p._id}</td>
+                          <td style={clip} title={p.category || '—'}>{p.category || '—'}</td>
                           <td style={{ textAlign: 'right' }}>{formatCount(p.totalQty)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.avgRate)}</td>
+                          <td style={{ textAlign: 'right' }}>{ratePerFoot(p.avgRate, p.master)}</td>
                           <td style={{ textAlign: 'right', color: 'var(--primary-600)' }}>{formatCurrency(p.totalRevenue)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(p.totalRevenueIncl)}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                       {(!details.productRates || details.productRates.length === 0) && (
-                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No product data available</td></tr>
+                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No product data available</td></tr>
                       )}
                     </tbody>
                   </table>

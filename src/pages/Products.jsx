@@ -23,7 +23,7 @@ import {
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
-import { formatINRShort, formatShort } from '../utils/numberFormat';
+import { formatINRShort, formatShort, ratePerFoot } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
@@ -667,13 +667,14 @@ const Products = () => {
                   a horizontal scrollbar; headers wrap (taller header row), long names ellipsise. */}
               <table className="data-table" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '26%' }} />{/* Product Name */}
-                  <col style={{ width: '12%' }} />{/* Category */}
-                  <col style={{ width: '14%' }} />{/* Sub-Category */}
-                  <col style={{ width: '10%' }} />{/* Quantity */}
+                  <col style={{ width: '20%' }} />{/* Product Name */}
+                  <col style={{ width: '11%' }} />{/* Category */}
+                  <col style={{ width: '13%' }} />{/* Sub-Category */}
+                  <col style={{ width: '8%' }} />{/* Quantity */}
                   <col style={{ width: '12%' }} />{/* Avg Rate */}
-                  <col style={{ width: '13%' }} />{/* Revenue excl */}
-                  <col style={{ width: '13%' }} />{/* Revenue incl */}
+                  <col style={{ width: '12%' }} />{/* Avg Rate / Sq.Ft */}
+                  <col style={{ width: '12%' }} />{/* Revenue excl */}
+                  <col style={{ width: '12%' }} />{/* Revenue incl */}
                 </colgroup>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
@@ -682,6 +683,7 @@ const Products = () => {
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Sub-Category</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Quantity</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Avg. Rate / Sq.Ft (Excl. Taxes)')}</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Revenue (Excl. Taxes)')}</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Revenue (Incl. Taxes)')}</th>
                   </tr>
@@ -696,13 +698,14 @@ const Products = () => {
                         <td style={clip} title={p.category || '—'}>{p.category || '—'}</td>
                         <td>{formatNumber(p.totalQty)}</td>
                         <td>{formatCurrency(p.avgRate)}</td>
+                        <td>{ratePerFoot(p.avgRate, p.master)}</td>
                         <td style={{ fontWeight: 600, color: 'var(--primary-600)', ...clip }}>{formatCurrency(p.totalAmount)}</td>
                         <td style={{ fontWeight: 600, ...clip }}>{formatCurrency(p.totalAmountIncl)}</td>
                       </tr>
                     );
                   })}
                   {tableProducts.length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
+                    <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
                       {tableSearch.trim() ? 'No products match your search.' : 'No products for the current filters.'}
                     </td></tr>
                   )}
