@@ -64,7 +64,13 @@ const Dashboard = () => {
   // global company turnover; the middleware already scopes their revenue, so `achieved`
   // (data.summary.totalRevenue) is their own figure.
   const scoped = user.scopeType === 'company' || user.scopeType === 'zonal';
-  const canEditTarget = isAdmin || scoped;
+  // Company-scoped IDs see only ONE company's data, so the company-comparison charts (Revenue
+  // Split by Company + Revenue by Company trend) are meaningless for them — hidden (2026-08-06).
+  const companyScoped = user.scopeType === 'company';
+  // Non-scoped admin edits the 3-box turnover target; a scoped account may edit only when the
+  // backend says so (company targets are shared per-company + gated by the admin's canEditTarget
+  // checkbox; zonal accounts can always edit their own). `editable` comes from getScopedTarget.
+  const canEditTarget = scoped ? !!(companyTarget && companyTarget.editable) : isAdmin;
   const [data, setData] = useState({
     summary: null,
     trend: null,
@@ -161,7 +167,7 @@ const Dashboard = () => {
         // amount is the ANNUAL figure so the card's achieved/target math is consistent.
         const res = await getScopedTarget(user.id);
         const d = res.data.data;
-        setCompanyTargetState({ amount: d.annualTarget || 0, fiscalYear: d.fiscalYear, mode: d.mode });
+        setCompanyTargetState({ amount: d.annualTarget || 0, fiscalYear: d.fiscalYear, mode: d.mode, editable: !!d.editable });
       } else {
         const res = await getCompanyTarget();
         setCompanyTargetState(res.data.data);
@@ -679,7 +685,7 @@ const Dashboard = () => {
       {/* Company revenue-split bar (TEST) — segmented like macOS storage; shows each daughter
           company's share of total revenue. % printed inside each segment; amounts in the legend;
           hover for the rupee figure. Sits directly below the KPI cards. */}
-      {companySegments.length > 0 && (
+      {!companyScoped && companySegments.length > 0 && (
         <div className="chart-card" style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Revenue Split by Company (Revenue Excl. Taxes)</h3>
@@ -751,8 +757,9 @@ const Dashboard = () => {
         )}
 
         {/* (Row 2, full width) Company-wise Revenue Trend — a duplicate of the main trend with
-            3 lines (FDL / UCPL / UFPL combined). Always revenue Excl. Taxes, for comparison. */}
-        {loading && !data.companyTrend ? (
+            3 lines (FDL / UCPL / UFPL combined). Always revenue Excl. Taxes, for comparison.
+            Hidden for company-scoped IDs (single-company → nothing to compare). */}
+        {companyScoped ? null : loading && !data.companyTrend ? (
           <ChartSkeleton fullWidth />
         ) : (data.companyTrend?.periods?.length > 0) ? (
           <ChartCard

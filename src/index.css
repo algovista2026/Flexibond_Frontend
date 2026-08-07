@@ -1222,6 +1222,22 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   .filter-bar button {
     width: 100%;
   }
+  /* Date fields: the input + calendar button share one row. The generic rules above force both
+     to 100% width, which pushed the calendar button off-screen on phones. Let the input flex to
+     fill and keep the button at its icon width so it stays visible. */
+  .filter-bar .date-field {
+    width: 100%;
+    display: flex;
+  }
+  .filter-bar .date-field input {
+    flex: 1;
+    min-width: 0;
+    width: auto !important;
+  }
+  .filter-bar .date-field button {
+    width: auto !important;
+    flex: 0 0 auto;
+  }
 
   /* Upload zone */
   .upload-zone { padding: 32px 16px; }
@@ -1235,6 +1251,12 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   /* Tables scroll horizontally */
   .data-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .data-table th, .data-table td { padding: 10px 12px; font-size: 0.82rem; white-space: nowrap; }
+  /* On phones, don't squeeze columns to fit — let the table keep a readable width and scroll
+     sideways instead. Overrides the desktop `table-layout: fixed` + %-colgroups on the wide
+     product/rate tables (Products, Salesperson avg-rate, Branch all-products, Clients). The
+     enclosing scroll containers (`.data-table-wrapper` above + the inline maxHeight/overflow-y
+     wrappers, whose overflow-x computes to auto) provide the horizontal scroll. */
+  .data-table { table-layout: auto !important; min-width: 640px; }
 
   /* All wrappers with overflow-x: auto get touch scroll */
   [style*="overflow"] { -webkit-overflow-scrolling: touch; }

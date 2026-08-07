@@ -23,6 +23,11 @@ const Login = () => {
     const token = localStorage.getItem('flexibond_token');
     if (token) {
       navigate('/');
+      return;
+    }
+    // Redirected here by the admin inactivity auto-logout → explain why.
+    if (new URLSearchParams(window.location.search).get('reason') === 'idle') {
+      toast.info('You were logged out due to inactivity.');
     }
   }, [navigate]);
 

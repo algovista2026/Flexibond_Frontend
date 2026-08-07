@@ -46,15 +46,13 @@ const Branch = () => {
     ? (Array.isArray(user.companies) && user.companies.length ? user.companies : (user.company ? [user.company] : []))
       .map(c => String(c).toUpperCase())
     : null;
-  // Zonal-head accounts only see their hand-picked branches (2026-08-05). Empty = no restriction.
-  const scopeBranches = user.scopeType === 'zonal' && Array.isArray(user.branches) && user.branches.length
-    ? user.branches.map(b => String(b).toLowerCase())
-    : null;
+  // Zonal-head accounts see only the branches their own salespeople have revenue in — derived
+  // DYNAMICALLY from the branch-performance data below (2026-08-06, replaces the hand-picked list),
+  // so a sale in a brand new branch surfaces automatically.
+  const isZonal = user.scopeType === 'zonal';
   const knownBranches = scopeCompanies
     ? ALL_BRANCHES.filter(b => scopeCompanies.includes(String(b.company).toUpperCase()))
-    : scopeBranches
-      ? ALL_BRANCHES.filter(b => scopeBranches.includes(String(b.value).toLowerCase()))
-      : ALL_BRANCHES;
+    : ALL_BRANCHES;
 
   const [filters, setFilters] = useState(seedFilters({ ...EMPTY_FILTERS }));
   const [filterOptions, setFilterOptions] = useState({});
@@ -249,10 +247,12 @@ const Branch = () => {
 
   const s = data?.summary;
 
-  // Branch cards ordered by revenue (highest first); company-accent colours.
-  const orderedBranches = [...knownBranches].sort(
-    (a, b) => (perf.map[b.value]?.revenue || 0) - (perf.map[a.value]?.revenue || 0)
-  );
+  // Branch cards ordered by revenue (highest first); company-accent colours. For a zonal head,
+  // show ONLY branches where their salespeople actually have revenue (> 0) — the strip is data-
+  // driven, not a fixed list.
+  const orderedBranches = [...knownBranches]
+    .filter(b => !isZonal || (perf.map[b.value]?.revenue || 0) > 0)
+    .sort((a, b) => (perf.map[b.value]?.revenue || 0) - (perf.map[a.value]?.revenue || 0));
 
   // Full products table (all filtered products) with a client-side search.
   const tableProducts = (data?.allProducts || []).filter(p =>

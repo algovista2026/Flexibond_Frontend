@@ -89,8 +89,9 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           </NavLink>
         )}
         
-        {/* Admin and Upload Access */}
-        {(isAdmin || permissions.includes('upload')) && (
+        {/* Admin + Upload access. Company accounts get a VIEW-ONLY Upload section (2026-08-06),
+            regardless of the upload permission. */}
+        {(isAdmin || permissions.includes('upload') || user.scopeType === 'company') && (
           <NavLink to="/upload" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiUploadCloud className="nav-icon" />
             <span>Data Upload</span>

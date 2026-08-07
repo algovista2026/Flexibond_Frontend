@@ -5,7 +5,9 @@ import 'react-toastify/dist/ReactToastify.css';
 import { FiMenu } from 'react-icons/fi';
 
 import { getProfile } from './services/api';
+import { clearGlobalFilters } from './utils/globalFilters';
 import Sidebar from './components/Sidebar';
+import StickyNotes from './components/StickyNotes';
 import NotificationPanel from './components/NotificationPanel';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -35,8 +37,11 @@ const ProtectedView = ({ permission, children }) => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   const isAdmin = user.role === 'admin';
   const perms = user.permissions || [];
-  
-  if (isAdmin || perms.includes(permission)) {
+
+  // Company accounts always get the VIEW-ONLY Upload section (2026-08-06), even without the perm.
+  const companyUpload = permission === 'upload' && user.scopeType === 'company';
+
+  if (isAdmin || perms.includes(permission) || companyUpload) {
     return children;
   }
   return <Navigate to="/no-access" replace />;
@@ -82,6 +87,29 @@ const PrivateRoute = () => {
       });
   }, [token]);
 
+  // Admin inactivity auto-logout (2026-08-06): an admin session ends after 1 minute with no
+  // mouse / keyboard / touch / scroll activity, then bounces to the login screen. Only admin
+  // accounts (e.g. the master "flexibond" login) are affected; viewers/scoped stay logged in.
+  useEffect(() => {
+    if (!token || user.role !== 'admin') return;
+    const IDLE_MS = 60 * 1000;
+    let timer;
+    const logout = () => {
+      localStorage.removeItem('flexibond_token');
+      localStorage.removeItem('flexibond_user');
+      clearGlobalFilters();
+      window.location.assign('/login?reason=idle');
+    };
+    const reset = () => { clearTimeout(timer); timer = setTimeout(logout, IDLE_MS); };
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'];
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, reset));
+    };
+  }, [token, user.role]);
+
   if (!token) {
     return <Navigate to="/login" replace />;
   }
@@ -115,6 +143,9 @@ const PrivateRoute = () => {
       <main className="main-content">
         <Outlet />
       </main>
+
+      {/* Right-edge sticky notes from admin (self-hides when the account has none). */}
+      <StickyNotes />
     </div>
   );
 };

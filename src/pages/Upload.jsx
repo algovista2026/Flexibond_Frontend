@@ -12,8 +12,11 @@ const Upload = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   const isAdmin = user.role === 'admin';
   const permissions = user.permissions || ['overview', 'products', 'salesperson', 'comparison', 'upload'];
+  // Company accounts get a VIEW-ONLY Upload section (2026-08-06): history only, no upload / delete /
+  // purge, and the history is limited server-side to their own company's branches.
+  const viewOnly = user.scopeType === 'company';
 
-  if (!isAdmin && !permissions.includes('upload')) {
+  if (!isAdmin && !permissions.includes('upload') && !viewOnly) {
     return (
       <div className="page-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '16px' }}>
         <FiXCircle size={48} color="var(--danger)" />
@@ -174,13 +177,16 @@ const Upload = () => {
       <div className="page-header">
         <div>
           <h1>Data Upload</h1>
-          <p>Upload Excel or PDF files containing sales, inventory, or billing data.</p>
+          <p>{viewOnly
+            ? 'View the upload history for your company\'s branches. This section is read-only for your account.'
+            : 'Upload Excel or PDF files containing sales, inventory, or billing data.'}</p>
         </div>
         {isAdmin && <NotificationPanel />}
       </div>
 
-      <div 
-        {...getRootProps()} 
+      {!viewOnly && (
+      <div
+        {...getRootProps()}
         className={`upload-zone ${isDragActive ? 'active' : ''} ${uploading ? 'disabled' : ''}`}
         style={uploading ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
       >
@@ -193,8 +199,9 @@ const Upload = () => {
         )}
         <p>Supports .xlsx, .xls, and .pdf files (Max 50MB)</p>
       </div>
+      )}
 
-      {file && !uploading && !result && (
+      {!viewOnly && file && !uploading && !result && (
         <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <FiFileText style={{ fontSize: '1.5rem', color: 'var(--primary-500)' }} />
@@ -405,7 +412,7 @@ const Upload = () => {
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Branch</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Date Uploaded</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Records</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
+                  {!viewOnly && <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -416,6 +423,7 @@ const Upload = () => {
                     <td style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{item.branch ? branchLabel(item.branch) : '—'}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{new Date(item.uploadDate || item.createdAt).toLocaleString('en-IN')}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{item.insertedCount}</td>
+                    {!viewOnly && (
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <button
                         onClick={() => handleDeleteUpload(item._id)}
@@ -425,6 +433,7 @@ const Upload = () => {
                         <FiTrash2 size={18} />
                       </button>
                     </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -14,7 +14,7 @@ const DateField = ({ name, value, placeholder, onChange }) => {
     try { el.showPicker ? el.showPicker() : el.focus(); } catch { el.focus(); }
   };
   return (
-    <div style={{ display: 'flex', alignItems: 'stretch', gap: '4px' }}>
+    <div className="date-field" style={{ display: 'flex', alignItems: 'stretch', gap: '4px' }}>
       <input
         ref={ref}
         type={value ? 'date' : 'text'}

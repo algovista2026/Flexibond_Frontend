@@ -3,17 +3,16 @@ import {
   adminGetUsers, adminCreateUser, adminDeleteUser, adminUpdateUser, adminReset2FA,
   getPendingDevices, getAllDevices, approveDevice, revokeDevice,
   setup2FA, activate2FA, disable2FA,
-  getSalespersonNames, getScopedProgress, setScopedTarget, getBranchSuggestions
+  getSalespersonNames, getScopedProgress, setScopedTarget,
+  getNotesForUser, createNotes, deleteNote
 } from '../services/api';
 import {
   FiUserPlus, FiTrash2, FiShield, FiCheckSquare, FiSquare, FiEdit2,
   FiEye, FiEyeOff, FiLock, FiSmartphone, FiMonitor, FiCheck, FiX, FiRefreshCw,
-  FiTarget, FiBriefcase, FiMapPin, FiSearch
+  FiTarget, FiBriefcase, FiMapPin, FiSearch, FiMessageSquare, FiThumbsUp, FiThumbsDown, FiSend
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
-import { formatINRShort } from '../utils/numberFormat';
-import { branchLabel } from '../utils/branchConfig';
 
 const AdminPanel = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
@@ -43,16 +42,13 @@ const AdminPanel = () => {
   const [accountType, setAccountType] = useState('viewer');
   // Company-scoped accounts can now cover MULTIPLE companies (2026-07-29).
   const [companies, setCompanies] = useState([]);
+  // Whether a company account may edit its (shared, per-company) turnover target (2026-08-06).
+  const [canEditTargetFlag, setCanEditTargetFlag] = useState(false);
   const [zone, setZone] = useState('');
   const [selectedSalespeople, setSelectedSalespeople] = useState([]);
   const [spNames, setSpNames] = useState([]);
   const [spNamesLoading, setSpNamesLoading] = useState(false);
   const [spSearch, setSpSearch] = useState('');
-  // Zonal-head branch scope (2026-08-05): suggestions = branches the picked salespeople have
-  // sold in (with revenue), selectedBranches = the branches this account may see.
-  const [selectedBranches, setSelectedBranches] = useState([]);
-  const [branchSuggestions, setBranchSuggestions] = useState([]);
-  const [branchSuggestLoading, setBranchSuggestLoading] = useState(false);
   const [permissions, setPermissions] = useState(['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload']);
 
   // Per-scoped-account target progress (userId -> { target, achieved, pct, hasTarget }).
@@ -62,6 +58,13 @@ const AdminPanel = () => {
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMode, setTargetMode] = useState('yearly');
   const [targetSaving, setTargetSaving] = useState(false);
+
+  // Sticky-note modal (admin → account notes, 2026-08-08)
+  const [noteModalUser, setNoteModalUser] = useState(null);
+  const [noteList, setNoteList] = useState([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteLoading, setNoteLoading] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const COMPANY_OPTIONS = ['UCPL', 'UFPL', 'FDL'];
   const ZONE_OPTIONS = ['West Zone', 'East Zone', 'North Zone', 'South Zone', 'Central Zone'];
@@ -141,20 +144,6 @@ const AdminPanel = () => {
       .finally(() => setSpNamesLoading(false));
   }, [accountType, zone]);
 
-  // Zonal-head branch suggestions: whenever the picked salespeople change, fetch which branches
-  // they have sold in (with revenue) so the admin can see + pick the connected branches.
-  useEffect(() => {
-    if (accountType !== 'zonal' || selectedSalespeople.length === 0) {
-      setBranchSuggestions([]);
-      return;
-    }
-    setBranchSuggestLoading(true);
-    getBranchSuggestions(selectedSalespeople)
-      .then(res => setBranchSuggestions(res.data?.data || []))
-      .catch(() => setBranchSuggestions([]))
-      .finally(() => setBranchSuggestLoading(false));
-  }, [accountType, selectedSalespeople]);
-
   const handleTogglePerm = (modId) => {
     if (permissions.includes(modId)) {
       setPermissions(permissions.filter(p => p !== modId));
@@ -184,8 +173,8 @@ const AdminPanel = () => {
     }
     const submitRole = accountType === 'admin' ? 'admin' : 'viewer';
     const scopePayload =
-      accountType === 'company' ? { scopeType: 'company', companies }
-      : accountType === 'zonal' ? { scopeType: 'zonal', salespeople: selectedSalespeople, branches: selectedBranches, zone }
+      accountType === 'company' ? { scopeType: 'company', companies, canEditTarget: canEditTargetFlag }
+      : accountType === 'zonal' ? { scopeType: 'zonal', salespeople: selectedSalespeople, zone }
       : { scopeType: 'none' };
 
     try {
@@ -204,10 +193,9 @@ const AdminPanel = () => {
       setShowPassword(false);
       setAccountType('viewer');
       setCompanies([]);
+      setCanEditTargetFlag(false);
       setZone('');
       setSelectedSalespeople([]);
-      setSelectedBranches([]);
-      setBranchSuggestions([]);
       setPermissions(DEFAULT_PERMS);
       setIsEditMode(false);
       setEditingUserId(null);
@@ -235,9 +223,9 @@ const AdminPanel = () => {
         ? userObj.companies
         : (userObj.company ? [userObj.company] : [])
     );
+    setCanEditTargetFlag(!!userObj.canEditTarget);
     setZone(userObj.zone || '');
     setSelectedSalespeople(userObj.salespeople || []);
-    setSelectedBranches(userObj.branches || []);
     setPermissions(userObj.permissions || []);
   };
 
@@ -251,21 +239,14 @@ const AdminPanel = () => {
     setShowConfirmPassword(false);
     setAccountType('viewer');
     setCompanies([]);
+    setCanEditTargetFlag(false);
     setZone('');
     setSelectedSalespeople([]);
-    setSelectedBranches([]);
-    setBranchSuggestions([]);
     setPermissions(DEFAULT_PERMS);
   };
 
   const toggleSalesperson = (name) => {
     setSelectedSalespeople(prev =>
-      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
-    );
-  };
-
-  const toggleBranch = (name) => {
-    setSelectedBranches(prev =>
       prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
     );
   };
@@ -292,6 +273,49 @@ const AdminPanel = () => {
       toast.error(err.response?.data?.message || 'Failed to save target');
     } finally {
       setTargetSaving(false);
+    }
+  };
+
+  // ---- Sticky-note modal (admin → account) ----
+  const openNoteModal = async (u) => {
+    setNoteModalUser(u);
+    setNoteText('');
+    setNoteList([]);
+    setNoteLoading(true);
+    try {
+      const res = await getNotesForUser(u._id);
+      setNoteList(res.data?.data || []);
+    } catch {
+      /* ignore */
+    } finally {
+      setNoteLoading(false);
+    }
+  };
+
+  const sendNote = async () => {
+    if (!noteModalUser) return;
+    const msg = noteText.trim();
+    if (!msg) return toast.warning('Write a note first');
+    try {
+      setNoteSaving(true);
+      await createNotes(msg, [noteModalUser._id]);
+      toast.success('Note sent');
+      setNoteText('');
+      const res = await getNotesForUser(noteModalUser._id);
+      setNoteList(res.data?.data || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send note');
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const removeNote = async (id) => {
+    try {
+      await deleteNote(id);
+      setNoteList(prev => prev.filter(n => n._id !== id));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete note');
     }
   };
 
@@ -525,6 +549,21 @@ const AdminPanel = () => {
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
                     This account will only ever see <strong>{companies.length ? companies.join(', ') : '…'}</strong> data across the whole app.
                   </p>
+
+                  {/* Target-edit permission (2026-08-06). The company's target is SHARED by every
+                      account on that company; this only decides whether THIS login may change it. */}
+                  <label
+                    onClick={() => setCanEditTargetFlag(v => !v)}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '12px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}
+                  >
+                    {canEditTargetFlag ? <FiCheckSquare color="var(--primary-600)" size={18} style={{ flexShrink: 0, marginTop: '1px' }} /> : <FiSquare color="var(--text-muted)" size={18} style={{ flexShrink: 0, marginTop: '1px' }} />}
+                    <span>
+                      Allow this account to edit its turnover target
+                      <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        The target is shared by all IDs on the same company. Leave off to make it view-only for this login (admins can always edit).
+                      </span>
+                    </span>
+                  </label>
                 </div>
               )}
 
@@ -647,57 +686,11 @@ const AdminPanel = () => {
                       </div>
                     )}
 
-                    {/* Branch scope (2026-08-05) — branches the picked salespeople have sold in,
-                        with revenue so the admin can confirm the branch is connected to them.
-                        The account will see ONLY the ticked branches (data + targets). */}
-                    {selectedSalespeople.length > 0 && (
-                      <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color)', paddingTop: '14px' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <FiMapPin size={14} /> Branches for this account
-                          {selectedBranches.length > 0 && <span style={{ color: 'var(--primary-600)' }}>· {selectedBranches.length} selected</span>}
-                        </div>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
-                          Revenue shown is what the selected salespeople billed in each branch. Tick the branches
-                          this account may see — it will <strong>not</strong> see any other branch or its targets.
-                          Leave all unticked to allow every branch its salespeople sold in.
-                        </p>
-                        {branchSuggestLoading ? (
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>Loading branches…</p>
-                        ) : branchSuggestions.length === 0 ? (
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px' }}>No branch data for the selected salespeople.</p>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '220px', overflowY: 'auto' }}>
-                            {branchSuggestions.map(b => {
-                              const on = selectedBranches.includes(b.branch);
-                              return (
-                                <div
-                                  key={b.branch}
-                                  onClick={() => toggleBranch(b.branch)}
-                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', cursor: 'pointer', fontSize: '0.85rem', padding: '7px 10px', borderRadius: '8px', border: `1px solid ${on ? 'var(--primary-300, #93c5fd)' : 'var(--border-color)'}`, background: on ? 'var(--primary-50, #eff6ff)' : 'var(--bg-card)' }}
-                                >
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                                    {on ? <FiCheckSquare color="var(--primary-600)" size={16} /> : <FiSquare color="var(--text-muted)" size={16} />}
-                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{branchLabel(b.branch)}</span>
-                                  </span>
-                                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>{formatINRShort(b.revenue)}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {/* Keep any already-assigned branches that aren't in the suggestion list visible. */}
-                        {selectedBranches.filter(b => !branchSuggestions.some(s => s.branch === b)).map(b => (
-                          <div
-                            key={b}
-                            onClick={() => toggleBranch(b)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', padding: '7px 10px', marginTop: '4px', borderRadius: '8px', border: '1px solid var(--primary-300, #93c5fd)', background: 'var(--primary-50, #eff6ff)', opacity: 0.85 }}
-                          >
-                            <FiCheckSquare color="var(--primary-600)" size={16} />
-                            <span>{branchLabel(b)} <em style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>(no recent sales)</em></span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>
+                      The account sees only <strong>its salespeople's</strong> data, and on the Branch page only the
+                      branches where those salespeople actually have revenue — new branches appear automatically as
+                      they sell there.
+                    </p>
                   </div>
                 </div>
               )}
@@ -768,7 +761,7 @@ const AdminPanel = () => {
                   const scopeLabel = u.scopeType === 'company'
                     ? `Company · ${(u.companies && u.companies.length ? u.companies.join(', ') : u.company) || '—'}`
                     : u.scopeType === 'zonal'
-                      ? `Zonal Head · ${(u.salespeople || []).length} salespeople${(u.branches || []).length ? ` · ${u.branches.length} branches` : ''}${u.zone ? ` · ${u.zone}` : ''}`
+                      ? `Zonal Head · ${(u.salespeople || []).length} salespeople${u.zone ? ` · ${u.zone}` : ''}`
                       : null;
                   return (
                   <div
@@ -800,6 +793,13 @@ const AdminPanel = () => {
                           <FiTarget size={16} />
                         </button>
                       )}
+                      <button
+                        onClick={() => openNoteModal(u)}
+                        style={{ padding: '8px', background: 'transparent', border: 'none', color: '#b7962f', cursor: 'pointer', borderRadius: '6px' }}
+                        title="Send a note"
+                      >
+                        <FiMessageSquare size={16} />
+                      </button>
                       <button
                         onClick={() => handleEditClick(u)}
                         style={{ padding: '8px', background: 'transparent', border: 'none', color: 'var(--primary-600)', cursor: 'pointer', borderRadius: '6px' }}
@@ -1054,6 +1054,90 @@ const AdminPanel = () => {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin → account sticky-note modal */}
+      {noteModalUser && (
+        <div
+          onClick={() => !noteSaving && setNoteModalUser(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: '480px', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}
+          >
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#b7962f', marginBottom: '4px' }}>
+              <FiMessageSquare /> Notes
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'capitalize' }}>
+              To: {noteModalUser.username}
+            </p>
+
+            {/* Compose */}
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Write a note for this account…"
+              rows={3}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', fontSize: '0.9rem', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+            />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', marginBottom: '18px' }}>
+              <button
+                onClick={sendNote}
+                disabled={noteSaving}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'linear-gradient(135deg, #fbbf24, #d97706)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: noteSaving ? 'default' : 'pointer', opacity: noteSaving ? 0.7 : 1 }}
+              >
+                <FiSend size={14} /> {noteSaving ? 'Sending…' : 'Send Note'}
+              </button>
+              <button
+                onClick={() => setNoteModalUser(null)}
+                style={{ marginLeft: 'auto', padding: '10px 16px', background: 'var(--bg-light)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Sent notes + reactions */}
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
+              Sent notes {noteList.length > 0 ? `(${noteList.length})` : ''}
+            </div>
+            {noteLoading ? (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading…</p>
+            ) : noteList.length === 0 ? (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No notes sent to this account yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {noteList.map(n => {
+                  const react = n.reaction === 'up'
+                    ? { icon: <FiThumbsUp size={13} />, color: '#16a34a', label: 'Liked' }
+                    : n.reaction === 'down'
+                      ? { icon: <FiThumbsDown size={13} />, color: '#dc2626', label: 'Disliked' }
+                      : { icon: null, color: 'var(--text-muted)', label: 'No reaction yet' };
+                  return (
+                    <div key={n._id} style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', background: '#fffdf5' }}>
+                      <div style={{ fontSize: '0.87rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{n.message}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600, color: react.color }}>
+                          {react.icon} {react.label}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </span>
+                        <button
+                          onClick={() => removeNote(n._id)}
+                          style={{ marginLeft: 'auto', padding: '4px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }}
+                          title="Delete note"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
