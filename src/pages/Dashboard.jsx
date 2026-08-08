@@ -409,9 +409,17 @@ const Dashboard = () => {
   const COMPANY_ORDER = ['FDL', 'UCPL', 'UFPL'];
   const companySegments = (() => {
     const s = data.companyTrend?.series || {};
-    return COMPANY_ORDER
+    const named = COMPANY_ORDER
       .map(label => ({ label, value: (s[label] || []).reduce((a, b) => a + b, 0), color: COMPANY_COLORS[label] }))
       .filter(seg => seg.value > 0);
+    // Revenue on rows whose company is blank / unmapped (not FDL/UCPL/UFPL) is in the backend's
+    // `total` line but not in the named series. Surface it as an "Other" segment so the split
+    // reconciles with the headline Total Revenue (Excl. Taxes) instead of coming up short.
+    const totalAll = (data.companyTrend?.total || []).reduce((a, b) => a + b, 0);
+    const namedSum = named.reduce((a, seg) => a + seg.value, 0);
+    const other = totalAll - namedSum;
+    if (other > 1) named.push({ label: 'Other', value: other, color: '#94a3b8' });
+    return named;
   })();
   const companySplitTotal = companySegments.reduce((a, seg) => a + seg.value, 0);
   // Achieved revenue per company (for the per-company target table). Includes 0s so all 3 rows show.

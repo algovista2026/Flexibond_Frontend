@@ -58,6 +58,10 @@ const Products = () => {
   const [drillGroup, setDrillGroup] = useState(null);
   const [drillData, setDrillData] = useState(null);
   const [drillLoading, setDrillLoading] = useState(false);
+  // Colour → Category drill-down: which colour is expanded + its per-category distribution.
+  const [drillColour, setDrillColour] = useState(null);
+  const [colourDrillData, setColourDrillData] = useState(null);
+  const [colourDrillLoading, setColourDrillLoading] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -88,9 +92,11 @@ const Products = () => {
         groups: groupRes.data.data || [],
         masters: masterRes.data.data || []
       });
-      // Any filter/metric change invalidates the open drill-down.
+      // Any filter/metric change invalidates the open drill-downs.
       setDrillGroup(null);
       setDrillData(null);
+      setDrillColour(null);
+      setColourDrillData(null);
       setFilterOptions(mergeFilterOptions(filtersRes.data.data));
     } catch (error) {
       console.error('Error fetching product data:', error);
@@ -141,6 +147,24 @@ const Products = () => {
       setDrillData([]);
     } finally {
       setDrillLoading(false);
+    }
+  };
+
+  // Drill into a colour bar → fetch the Category (group) distribution WITHIN that colour by
+  // adding the colour to the filter set and reusing the group-breakdown aggregation.
+  const handleColourDrill = async (colour) => {
+    if (colour == null || colour === '') return;
+    if (colour === drillColour) { setDrillColour(null); setColourDrillData(null); return; } // toggle off
+    setDrillColour(colour);
+    setColourDrillLoading(true);
+    try {
+      const res = await getGroupBreakdown({ ...filters, colour: [colour] });
+      setColourDrillData(res.data.data || []);
+    } catch (error) {
+      console.error('Error fetching colour drill-down:', error);
+      setColourDrillData([]);
+    } finally {
+      setColourDrillLoading(false);
     }
   };
 
@@ -255,6 +279,18 @@ const Products = () => {
       label: metricLabel,
       data: drillData?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
       backgroundColor: pieColors('pastel', (drillData || []).length),
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  };
+  // Colour drill-down: Category (group) distribution within the selected colour — shades of grey.
+  const GREY_SHADES = ['#374151', '#4b5563', '#6b7280', '#9ca3af', '#b0b7c0', '#cbd1d9', '#e2e6eb', '#1f2937', '#525c6b', '#818b99'];
+  const colourDrillChartData = {
+    labels: colourDrillData?.map(d => d._id || '—') || [],
+    datasets: [{
+      label: metricLabel,
+      data: colourDrillData?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
+      backgroundColor: (colourDrillData || []).map((_, i) => GREY_SHADES[i % GREY_SHADES.length]),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -594,21 +630,71 @@ const Products = () => {
           </ChartCard>
         )}
 
-        {/* (2,4) Colour Breakdown — teal bars. */}
+        {/* (2,4) Colour Breakdown — teal bars. Click a colour to drill into its Category mix. */}
         {loading && !data.colours ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={data.colours} aiType="Colour Breakdown">
-            <Bar
-              data={coloursChartData}
-              options={{
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: { legend: { display: false }, tooltip: metricTooltip },
-                scales: { x: { ticks: { callback: v => axisFmt(v) } } }
-              }}
-            />
-          </ChartCard>
+          <div style={{ gridColumn: drillColour ? '1 / -1' : 'auto', display: 'grid', gridTemplateColumns: drillColour ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: '20px' }}>
+            <ChartCard
+              title={`Colour Breakdown${titleTag}`}
+              aiContext={data.colours}
+              aiType="Colour Breakdown"
+              extra={<span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Click a bar to drill in</span>}
+            >
+              <Bar
+                data={coloursChartData}
+                options={{
+                  maintainAspectRatio: false,
+                  indexAxis: 'y',
+                  onClick: (_evt, elements) => {
+                    if (elements && elements.length > 0) {
+                      handleColourDrill(data.colours[elements[0].index]?._id);
+                    }
+                  },
+                  onHover: (evt, elements) => {
+                    evt.native.target.style.cursor = elements && elements.length ? 'pointer' : 'default';
+                  },
+                  plugins: { legend: { display: false }, tooltip: metricTooltip },
+                  scales: { x: { ticks: { callback: v => axisFmt(v) } } }
+                }}
+              />
+            </ChartCard>
+
+            {drillColour && (
+              colourDrillLoading ? (
+                <ChartSkeleton />
+              ) : (
+                <ChartCard
+                  title={`Colour ${drillColour} — Category-wise${titleTag}`}
+                  aiContext={colourDrillData}
+                  aiType={`Categories within colour ${drillColour}`}
+                  extra={
+                    <button
+                      onClick={() => { setDrillColour(null); setColourDrillData(null); }}
+                      style={{ border: '1px solid var(--border-color)', borderRadius: '6px', background: '#fff', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', padding: '4px 10px' }}
+                    >
+                      ✕ Close
+                    </button>
+                  }
+                >
+                  {(colourDrillData && colourDrillData.length > 0) ? (
+                    <Pie
+                      data={colourDrillChartData}
+                      options={{
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 11 } } },
+                          tooltip: piePctTooltip
+                        }
+                      }}
+                    />
+                  ) : (
+                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>No categories for this colour.</p>
+                  )}
+                </ChartCard>
+              )
+            )}
+          </div>
         )}
 
         {/* (1,5) Dimensions Preference — orange bars, vertical scroll. */}
