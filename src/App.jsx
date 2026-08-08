@@ -52,7 +52,7 @@ const DefaultRedirect = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   if (!user || !user.role) return <Navigate to="/login" replace />;
   if (user.role === 'admin') return <Navigate to="/dashboard" replace />;
-  
+
   const perms = user.permissions || [];
   if (perms.includes('overview')) return <Navigate to="/dashboard" replace />;
   if (perms.includes('products')) return <Navigate to="/products" replace />;
@@ -70,10 +70,10 @@ const PrivateRoute = () => {
   const token = localStorage.getItem('flexibond_token');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('flexibond_user') || '{}'));
-  
+
   useEffect(() => {
     if (!token) return;
-    
+
     // Refresh user profile/permissions periodically/on-navigation
     getProfile()
       .then(res => {
@@ -92,7 +92,7 @@ const PrivateRoute = () => {
   // accounts (e.g. the master "flexibond" login) are affected; viewers/scoped stay logged in.
   useEffect(() => {
     if (!token || user.role !== 'admin') return;
-    const IDLE_MS = 60 * 1000;
+    const IDLE_MS = 600 * 1000;
     let timer;
     const logout = () => {
       localStorage.removeItem('flexibond_token');
@@ -137,7 +137,7 @@ const PrivateRoute = () => {
       </header>
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={user} />
-      
+
       {isSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)}></div>}
 
       <main className="main-content">
@@ -156,7 +156,7 @@ const App = () => {
       <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<DefaultRedirect />} />
           <Route path="/no-access" element={<NoAccessPage />} />
@@ -174,7 +174,7 @@ const App = () => {
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/logs" element={<LogsPanel />} />
         </Route>
-        
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
