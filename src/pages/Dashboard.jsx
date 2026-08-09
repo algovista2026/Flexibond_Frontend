@@ -412,12 +412,13 @@ const Dashboard = () => {
     const named = COMPANY_ORDER
       .map(label => ({ label, value: (s[label] || []).reduce((a, b) => a + b, 0), color: COMPANY_COLORS[label] }))
       .filter(seg => seg.value > 0);
-    // Revenue on rows whose company is blank / unmapped (not FDL/UCPL/UFPL) is in the backend's
-    // `total` line but not in the named series. Surface it as an "Other" segment so the split
-    // reconciles with the headline Total Revenue (Excl. Taxes) instead of coming up short.
-    const totalAll = (data.companyTrend?.total || []).reduce((a, b) => a + b, 0);
+    // Reconcile the split with the headline Total Revenue (Excl. Taxes). Company lives only on
+    // line items, so any assessable value on invoices WITHOUT company-tagged line items (or under
+    // a blank/unmapped company) isn't in the named series. Surface that remainder as an "Other"
+    // segment so the split total equals the revenue card instead of coming up short.
+    const headline = data.summary?.totalRevenueExclTax || 0;
     const namedSum = named.reduce((a, seg) => a + seg.value, 0);
-    const other = totalAll - namedSum;
+    const other = headline - namedSum;
     if (other > 1) named.push({ label: 'Other', value: other, color: '#94a3b8' });
     return named;
   })();
