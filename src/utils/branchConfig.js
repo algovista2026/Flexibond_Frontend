@@ -2,39 +2,40 @@
 // Used by BOTH the Data Upload branch selector (tag a file to a branch) and the Branch
 // Analytics section's branch picker, so the two always stay in sync.
 //
-// The `value` is what gets stored on Invoice/InvoiceItem.branch and matched by the branch
-// filter — since we control both the upload stamp and the query, these values just need to be
-// internally consistent. `label` is display-only.
+// The `value` MUST equal the Kuber ingest source key stored on Invoice/InvoiceItem.branch
+// (routes/ingest.js `BRANCH_COMPANY`), e.g. "uflp-ahmedabad" — the ingestion pipeline stamps the
+// branch from that key, so the Branch Analytics strip only binds to real data when these match.
+// `label` is display-only.
 export const BRANCH_GROUPS = [
   {
     company: 'UFPL',
     label: 'UFPL',
     branches: [
-      { value: 'Vadodara', label: 'Vadodara' },
-      { value: 'Bhiwandi', label: 'Bhiwandi' },
-      { value: 'Pune', label: 'Pune' },
-      { value: 'Raipur', label: 'Raipur' },
-      { value: 'Indore', label: 'Indore' },
-      { value: 'Lucknow', label: 'Lucknow' },
-      { value: 'Guwahati', label: 'Guwahati' },
-      { value: 'Kolkata', label: 'Kolkata' },
-      { value: 'Delhi', label: 'Delhi' },
-      { value: 'UFPL_home', label: 'UFPL Home (Ahmedabad)' },
+      { value: 'uflp-ahmedabad', label: 'Ahmedabad (Home)' },
+      { value: 'uflp-vadodara', label: 'Vadodara' },
+      { value: 'uflp-bhiwandi', label: 'Bhiwandi' },
+      { value: 'uflp-pune', label: 'Pune' },
+      { value: 'uflp-raipur', label: 'Raipur' },
+      { value: 'uflp-indore', label: 'Indore' },
+      { value: 'uflp-lucknow', label: 'Lucknow' },
+      { value: 'uflp-guwahati', label: 'Guwahati' },
+      { value: 'uflp-kolkata', label: 'Kolkata' },
+      { value: 'uflp-delhi', label: 'Delhi' },
     ],
   },
   {
     company: 'UCPL',
     label: 'UCPL',
     branches: [
-      { value: 'UCPL_home', label: 'UCPL Home' },
-      { value: 'Kochin', label: 'Kochin' },
+      { value: 'ucpl-home', label: 'Ahmedabad (Home)' },
+      { value: 'ucpl-kochi', label: 'Kochi' },
     ],
   },
   {
     company: 'FDL',
     label: 'FDL',
     branches: [
-      { value: 'FDL_home', label: 'FDL Home' },
+      { value: 'fdl-home', label: 'Ahmedabad (Home)' },
     ],
   },
 ];

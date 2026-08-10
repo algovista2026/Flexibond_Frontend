@@ -6,6 +6,7 @@ import { FiMenu } from 'react-icons/fi';
 
 import { getProfile } from './services/api';
 import { clearGlobalFilters } from './utils/globalFilters';
+import { MANUAL_UPLOAD_ENABLED } from './config';
 import Sidebar from './components/Sidebar';
 import StickyNotes from './components/StickyNotes';
 import NotificationPanel from './components/NotificationPanel';
@@ -60,7 +61,7 @@ const DefaultRedirect = () => {
   if (perms.includes('comparison')) return <Navigate to="/comparison" replace />;
   if (perms.includes('financials')) return <Navigate to="/financial" replace />;
   if (perms.includes('channel')) return <Navigate to="/channel" replace />;
-  if (perms.includes('upload')) return <Navigate to="/upload" replace />;
+  if (MANUAL_UPLOAD_ENABLED && perms.includes('upload')) return <Navigate to="/upload" replace />;
 
   return <Navigate to="/no-access" replace />;
 };
@@ -168,7 +169,7 @@ const App = () => {
           <Route path="/clients" element={<ProtectedView permission="clients"><Clients /></ProtectedView>} />
           <Route path="/branch" element={<ProtectedView permission="overview"><Branch /></ProtectedView>} />
           <Route path="/product-comparison" element={<ProtectedView permission="products"><ProductComparison /></ProtectedView>} />
-          <Route path="/upload" element={<ProtectedView permission="upload"><Upload /></ProtectedView>} />
+          <Route path="/upload" element={MANUAL_UPLOAD_ENABLED ? <ProtectedView permission="upload"><Upload /></ProtectedView> : <Navigate to="/no-access" replace />} />
           <Route path="/financial" element={<ProtectedView permission="financials"><Financial /></ProtectedView>} />
           <Route path="/channel" element={<ProtectedView permission="channel"><Channel /></ProtectedView>} />
           <Route path="/admin" element={<AdminPanel />} />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase } from 'react-icons/fi';
+import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
 import './Sidebar.css';
@@ -91,7 +92,7 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
         
         {/* Admin + Upload access. Company accounts get a VIEW-ONLY Upload section (2026-08-06),
             regardless of the upload permission. */}
-        {(isAdmin || permissions.includes('upload') || user.scopeType === 'company') && (
+        {MANUAL_UPLOAD_ENABLED && (isAdmin || permissions.includes('upload') || user.scopeType === 'company') && (
           <NavLink to="/upload" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiUploadCloud className="nav-icon" />
             <span>Data Upload</span>
