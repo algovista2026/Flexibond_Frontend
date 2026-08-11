@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase, FiDatabase } from 'react-icons/fi';
 import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
@@ -109,6 +109,10 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
             <NavLink to="/logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <FiBarChart2 className="nav-icon" />
               <span>System Logs</span>
+            </NavLink>
+            <NavLink to="/data-logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <FiDatabase className="nav-icon" />
+              <span>Data Logs</span>
             </NavLink>
           </>
         )}

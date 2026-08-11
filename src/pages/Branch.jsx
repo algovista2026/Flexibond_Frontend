@@ -6,6 +6,7 @@ import FilterBar from '../components/FilterBar';
 import NotificationPanel from '../components/NotificationPanel';
 import ExportControls from '../components/ExportControls';
 import ScrollColumnChart from '../components/ScrollColumnChart';
+import ScrollRowChart from '../components/ScrollRowChart';
 import TargetAmountInput, { TURNOVER_TARGET_PRESETS } from '../components/TargetAmountInput';
 import {
   getDashboardSummary,
@@ -475,11 +476,15 @@ const Branch = () => {
             {/* Dimensions — vertical scroll */}
             {(data.dimensions && data.dimensions.length > 0) && (
               <ChartCard title={`Dimensions${titleTag}`} aiContext={data.dimensions} aiType="Branch Dimensions Preference">
-                <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-                  <div style={{ width: '100%', height: `${Math.max(data.dimensions.length * 34, 260)}px` }}>
-                    <Bar data={dimensionData} options={{ maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, tooltip: metricTooltip }, scales: { x: valScale, y: { ticks: { autoSkip: false, font: { size: 10 } } } } }} />
-                  </div>
-                </div>
+                <ScrollRowChart
+                  labels={data.dimensions.map(d => d.label)}
+                  values={data.dimensions.map(dimVal)}
+                  label={metricLabel}
+                  color={ACCENTS.dimension}
+                  valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
+                  xFmt={axisFmt}
+                  barHeight={34}
+                />
               </ChartCard>
             )}
           </div>

@@ -10,6 +10,7 @@ import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import ScrollColumnChart from '../components/ScrollColumnChart';
+import ScrollRowChart from '../components/ScrollRowChart';
 import {
   getTopProducts,
   getCategoryBreakdown,
@@ -704,31 +705,15 @@ const Products = () => {
           <ChartCard title={`Dimensions Preference${titleTag}`} aiContext={data.dimensions} aiType="Size Dimensions Preference">
             {/* Vertically scrollable — many dimension rows crowd the y-axis. Absolute-fill the
                 card body and give each row a fixed height so the content reliably overflows. */}
-            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-              <div style={{ width: '100%', height: `${Math.max((data.dimensions?.length || 0) * 34, 260)}px` }}>
-                <Bar
-                  data={dimensionsChartData}
-                  options={{
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
-                    plugins: { legend: { display: false }, tooltip: metricTooltip },
-                    scales: {
-                      x: { ticks: { callback: v => axisFmt(v) } },
-                      y: {
-                        ticks: {
-                          autoSkip: false,
-                          callback: function(value) {
-                            const label = this.getLabelForValue(value);
-                            return label && label.length > 18 ? label.substring(0, 16) + '...' : label;
-                          },
-                          font: { size: 10 }
-                        }
-                      }
-                    }
-                  }}
-                />
-              </div>
-            </div>
+            <ScrollRowChart
+              labels={data.dimensions.map(d => d.label)}
+              values={data.dimensions.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty)}
+              label={metricLabel}
+              color={ACCENTS.dimension}
+              valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
+              xFmt={axisFmt}
+              barHeight={34}
+            />
           </ChartCard>
         ) : null}
 

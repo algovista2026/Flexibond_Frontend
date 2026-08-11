@@ -22,6 +22,7 @@ import Branch from './pages/Branch';
 import ProductComparison from './pages/ProductComparison';
 import AdminPanel from './pages/AdminPanel';
 import LogsPanel from './pages/LogsPanel';
+import DataLogs from './pages/DataLogs';
 import Financial from './pages/Financial';
 import Channel from './pages/Channel';
 
@@ -174,6 +175,7 @@ const App = () => {
           <Route path="/channel" element={<ProtectedView permission="channel"><Channel /></ProtectedView>} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/logs" element={<LogsPanel />} />
+          <Route path="/data-logs" element={<DataLogs />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

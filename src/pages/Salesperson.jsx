@@ -8,6 +8,7 @@ import { FiUsers, FiTarget, FiEdit2, FiSearch, FiChevronDown } from 'react-icons
 import AIInsightButton from '../components/AIInsightButton';
 import ExportControls from '../components/ExportControls';
 import ScrollColumnChart from '../components/ScrollColumnChart';
+import ScrollRowChart from '../components/ScrollRowChart';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import { averageLinePlugin } from '../utils/averageLinePlugin';
@@ -742,26 +743,14 @@ const Salesperson = () => {
                     Vertical scroll keeps ≤15 rows on screen. */}
                 {details.colourBreakdown && details.colourBreakdown.length > 0 && (
                   <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={details.colourBreakdown} aiType={`Colour split for ${selectedSP}`}>
-                    <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-                      <div style={{ width: '100%', height: `${Math.max(details.colourBreakdown.length * 32, 260)}px` }}>
-                        <Bar
-                          data={{
-                            labels: details.colourBreakdown.map(c => String(c._id)),
-                            datasets: [{
-                              label: metric === 'revenue' ? 'Revenue' : 'Quantity',
-                              data: details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty),
-                              backgroundColor: ACCENTS.colour,
-                            }]
-                          }}
-                          options={{
-                            maintainAspectRatio: false,
-                            indexAxis: 'y',
-                            plugins: { legend: { display: false }, tooltip: metricTooltip },
-                            scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 }, autoSkip: false } } }
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <ScrollRowChart
+                      labels={details.colourBreakdown.map(c => String(c._id))}
+                      values={details.colourBreakdown.map(c => metric === 'revenue' ? c.totalAmount : c.totalQty)}
+                      label={metric === 'revenue' ? 'Revenue' : 'Quantity'}
+                      color={ACCENTS.colour}
+                      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
+                      xFmt={axisFmt}
+                    />
                   </ChartCard>
                 )}
 

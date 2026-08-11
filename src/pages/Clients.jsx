@@ -5,6 +5,7 @@ import ChartCard from '../components/ChartCard';
 import FilterBar from '../components/FilterBar';
 import ExportControls from '../components/ExportControls';
 import ScrollColumnChart from '../components/ScrollColumnChart';
+import ScrollRowChart from '../components/ScrollRowChart';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { getFilters, getClients, getClientOrders, getClientAnalysis } from '../services/api';
 import { formatINRShort, formatShort, ratePerFoot } from '../utils/numberFormat';
@@ -152,19 +153,14 @@ const Clients = () => {
   // Horizontal bar with a VERTICAL scroll wrapper — keeps ≤15 rows on screen and scrolls the
   // rest (global small-bar-chart rule). Inner height grows with the row count.
   const ScrollBar = ({ rows, color }) => (
-    <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-      <div style={{ width: '100%', height: `${Math.max((rows?.length || 0) * 32, 260)}px` }}>
-        <Bar
-          data={barData(rows, color)}
-          options={{
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            plugins: { legend: { display: false }, tooltip: barTooltip },
-            scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 }, autoSkip: false } } }
-          }}
-        />
-      </div>
-    </div>
+    <ScrollRowChart
+      labels={(rows || []).map(r => r._id || '—')}
+      values={(rows || []).map(metricVal)}
+      label={metricLabel}
+      color={color}
+      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
+      xFmt={axisFmt}
+    />
   );
 
   // Vertical column chart with a FROZEN y-axis + horizontal scroll (like the Products Thickness

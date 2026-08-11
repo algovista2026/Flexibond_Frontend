@@ -204,6 +204,10 @@ export const getProductComparison = (params) => api.get('dashboard/product-compa
 export const getCompanyTarget = (params) => api.get('dashboard/company-target', { params });
 export const setCompanyTarget = (payload) => api.put('dashboard/company-target', payload);
 export const getBranchPerformance = (params) => api.get('dashboard/branch-performance', { params });
+
+// --- Data Logs (admin: Kuber ingest arrivals + manual sync) ---
+export const getDataLogs = () => api.get('datalogs/summary');
+export const triggerDataSync = () => api.post('datalogs/sync');
 export const setBranchTarget = (payload) => api.put('dashboard/branch-target', payload);
 
 // Clients (Account-level analytics)

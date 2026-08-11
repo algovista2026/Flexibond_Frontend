@@ -11,7 +11,7 @@ export const BRANCH_GROUPS = [
     company: 'UFPL',
     label: 'UFPL',
     branches: [
-      { value: 'uflp-ahmedabad', label: 'Ahmedabad (Home)' },
+      { value: 'uflp-ahmedabad', label: 'UFPL Home (Ahmedabad)' },
       { value: 'uflp-vadodara', label: 'Vadodara' },
       { value: 'uflp-bhiwandi', label: 'Bhiwandi' },
       { value: 'uflp-pune', label: 'Pune' },
@@ -27,7 +27,7 @@ export const BRANCH_GROUPS = [
     company: 'UCPL',
     label: 'UCPL',
     branches: [
-      { value: 'ucpl-home', label: 'Ahmedabad (Home)' },
+      { value: 'ucpl-home', label: 'UCPL Home (Ahmedabad)' },
       { value: 'ucpl-kochi', label: 'Kochi' },
     ],
   },
@@ -35,7 +35,7 @@ export const BRANCH_GROUPS = [
     company: 'FDL',
     label: 'FDL',
     branches: [
-      { value: 'fdl-home', label: 'Ahmedabad (Home)' },
+      { value: 'fdl-home', label: 'FDL Home (Ahmedabad)' },
     ],
   },
 ];
