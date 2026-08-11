@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { FiInfo, FiX, FiCalendar } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
 
@@ -49,6 +49,18 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
   // (the server already forces their company on every request).
   const me = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   const hideCompany = me.scopeType === 'company';
+
+  // Global "INTER only" toggle — universal + persisted (localStorage). ON = every dashboard shows
+  // ONLY the INTER salesperson; OFF (default) = INTER included with everyone (drops out when a
+  // specific salesperson is picked). The api interceptor injects interMode='only' only when ON, so
+  // toggling just needs to trigger a re-fetch.
+  const [interOnly, setInterOnly] = useState(() => localStorage.getItem('flexibond_inter_only') === '1');
+  const toggleInter = () => {
+    const next = !interOnly;
+    setInterOnly(next);
+    localStorage.setItem('flexibond_inter_only', next ? '1' : '0');
+    onFilterChange({}); // re-fetch with the new interMode
+  };
 
   return (
     <>
@@ -187,7 +199,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         {!hideSalesperson && show(options?.salespersons, filters.salesperson) && (
           <MultiSelect
             label="Salesperson"
-            options={options.salespersons}
+            options={(options.salespersons || []).filter(o => String(typeof o === 'string' ? o : (o?.value ?? o?.label ?? '')).toUpperCase() !== 'INTER')}
             selected={filters.salesperson || []}
             onChange={(vals) => onFilterChange({ salesperson: vals })}
           />
@@ -202,6 +214,22 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           }, true)}
         >
           Clear Filters
+        </button>
+
+        {/* INTER toggle — placed after Clear Filters. ON = show ONLY the INTER (inter-company)
+            salesperson everywhere; OFF (default) = exclude INTER. Red-accent (like Company's amber).
+            Universal + persisted; the api interceptor sends the mode on every request. */}
+        <button
+          onClick={toggleInter}
+          title="On = show ONLY the INTER (inter-company) salesperson. Off = INTER is included with everyone (and drops out automatically when you pick specific salespeople)."
+          style={{
+            padding: '9px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap',
+            border: '1px solid #dc2626',
+            background: interOnly ? '#dc2626' : '#fff',
+            color: interOnly ? '#fff' : '#dc2626',
+          }}
+        >
+          INTER only
         </button>
       </div>
 

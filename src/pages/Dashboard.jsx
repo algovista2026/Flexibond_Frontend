@@ -522,6 +522,12 @@ const Dashboard = () => {
             // Target is compared against the assessable (Excl. Taxes) revenue (client request).
             const achieved = data.summary.totalRevenueExclTax || 0;
             const pct = target > 0 ? (achieved / target) * 100 : 0;
+            // Day-by-day pace ("Rate" column): daily target = annual target / 365; expected-by-today
+            // = daily × days since 1 AUGUST (inclusive). Anchored to Aug (the data start) rather than
+            // the FY's April for now, since the branches only began sending data in Aug — from April
+            // everyone reads ~90% behind. Rate = how far achieved is ahead/behind that pace.
+            const fyStartYear = companyTarget?.fiscalYear ? parseInt(String(companyTarget.fiscalYear).split('-')[0], 10) : new Date().getFullYear();
+            const daysElapsed = Math.min(365, Math.max(1, Math.floor((Date.now() - new Date(fyStartYear, 7, 1).getTime()) / 86400000) + 1));
             // Per-company target rows (admin, non-scoped only) — company · target · achieved · %.
             const perCompany = COMPANY_ORDER.map(name => {
               const tgt = (companyTarget?.companyTargets?.[name]) || 0;
@@ -559,7 +565,7 @@ const Dashboard = () => {
                       <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct >= 100 ? 'var(--success)' : 'var(--primary-500)', borderRadius: '6px', transition: 'width 0.4s ease' }} />
                     </div>
                   )}
-                  <div className="kpi-sub" style={{ marginTop: '6px' }}>
+                  <div className="kpi-sub" style={{ marginTop: '6px', color: 'var(--text-primary)', fontWeight: 700 }}>
                     {target > 0
                       ? `${formatCurrency(achieved)} achieved · ${Math.round(pct)}%`
                       : (canEditTarget ? 'Set a target to track achievement' : 'No target set')}
@@ -577,6 +583,7 @@ const Dashboard = () => {
                           <th style={{ fontWeight: 600, padding: '4px 6px' }}>Target</th>
                           <th style={{ fontWeight: 600, padding: '4px 6px' }}>Achieved</th>
                           <th style={{ fontWeight: 600, padding: '4px 6px' }}>%</th>
+                          <th style={{ fontWeight: 600, padding: '4px 6px' }} title="Ahead of / behind the day-by-day pace (target ÷ 365 × days since 1 Aug)">Rate</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -588,6 +595,15 @@ const Dashboard = () => {
                             <td style={{ padding: '5px 6px', textAlign: 'right' }}>{r.tgt > 0 ? formatCurrency(r.tgt) : '—'}</td>
                             <td style={{ padding: '5px 6px', textAlign: 'right' }}>{formatCurrency(r.ach)}</td>
                             <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: 700, color: r.p >= 100 ? 'var(--success)' : 'var(--text-primary)' }}>{r.tgt > 0 ? `${Math.round(r.p)}%` : '—'}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: 700 }}>
+                              {(() => {
+                                const expected = r.tgt > 0 ? (r.tgt / 365) * daysElapsed : 0;
+                                const rate = expected > 0 ? ((r.ach - expected) / expected) * 100 : null;
+                                return rate === null ? '—' : (
+                                  <span style={{ color: rate >= 0 ? 'var(--success)' : '#ef4444' }}>{rate >= 0 ? '▲' : '▼'} {Math.abs(Math.round(rate))}%</span>
+                                );
+                              })()}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
