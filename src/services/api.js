@@ -82,11 +82,11 @@ api.interceptors.request.use(async (config) => {
     config.headers['x-device-id'] = currentId;
   }
 
-  // Global "INTER" toggle (set by the FilterBar button, persisted in localStorage). When ON, inject
-  // interMode='only' on every GET so every dashboard shows just the INTER salesperson. When OFF,
-  // send nothing → INTER is included with everyone (the normal, unfiltered view).
-  if ((config.method || 'get').toLowerCase() === 'get' && localStorage.getItem('flexibond_inter_only') === '1') {
-    config.params = { ...(config.params || {}), interMode: 'only' };
+  // Global "INTER" toggle (set by the FilterBar button, persisted in localStorage). Injected on
+  // every GET so it applies universally with no per-page wiring: 'only' = show just the INTER
+  // salesperson everywhere; 'exclude' (default) = hide INTER everywhere.
+  if ((config.method || 'get').toLowerCase() === 'get') {
+    config.params = { ...(config.params || {}), interMode: localStorage.getItem('flexibond_inter_only') === '1' ? 'only' : 'exclude' };
   }
   return config;
 });

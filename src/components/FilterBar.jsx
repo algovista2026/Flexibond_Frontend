@@ -51,9 +51,8 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
   const hideCompany = me.scopeType === 'company';
 
   // Global "INTER only" toggle — universal + persisted (localStorage). ON = every dashboard shows
-  // ONLY the INTER salesperson; OFF (default) = INTER included with everyone (drops out when a
-  // specific salesperson is picked). The api interceptor injects interMode='only' only when ON, so
-  // toggling just needs to trigger a re-fetch.
+  // ONLY the INTER salesperson; OFF (default) excludes INTER. The api interceptor injects the
+  // interMode on every request, so toggling just needs to trigger a re-fetch.
   const [interOnly, setInterOnly] = useState(() => localStorage.getItem('flexibond_inter_only') === '1');
   const toggleInter = () => {
     const next = !interOnly;
@@ -221,7 +220,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
             Universal + persisted; the api interceptor sends the mode on every request. */}
         <button
           onClick={toggleInter}
-          title="On = show ONLY the INTER (inter-company) salesperson. Off = INTER is included with everyone (and drops out automatically when you pick specific salespeople)."
+          title="Show ONLY the INTER (inter-company) salesperson across all dashboards. Off = INTER excluded everywhere."
           style={{
             padding: '9px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap',
             border: '1px solid #dc2626',

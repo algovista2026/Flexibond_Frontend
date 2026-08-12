@@ -8,8 +8,11 @@ import NotificationPanel from '../components/NotificationPanel';
 import {
   getFinancialSummary, getFinancialTaxTrend,
   getFinancialStateWiseTax, getFinancialGSTTypeSplit,
-  getFinancialInvoices, getFinancialInvoicesAll, getFinancialFilters
+  getFinancialInvoices, getFinancialInvoicesAll, getFinancialFilters, getFilters
 } from '../services/api';
+import FilterBar from '../components/FilterBar';
+import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
+import { mergeFilterOptions } from '../utils/filterOptionsCache';
 
 import { formatINRShort } from '../utils/numberFormat';
 import { th } from '../utils/thHeader';
@@ -21,9 +24,14 @@ import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleto
 const Financial = () => {
   const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
 
-  const [filterOptions, setFilterOptions] = useState({ salespersons: [], states: [], gstTypes: [] });
-  const [filters, setFilters] = useState({ startDate: '', endDate: '', salesperson: '', state: '', gstType: '' });
-  const [appliedFilters, setAppliedFilters] = useState({});
+  const [filterOptions, setFilterOptions] = useState({});
+  // Full shared-FilterBar filter set (arrays), persisted across pages. Financials is invoice-level;
+  // the backend cross-references line-level traits (master/category/grade/…) to invoiceNos.
+  const emptyFilters = {
+    startDate: '', endDate: '', salesperson: [], state: [], zone: [], branch: [], company: [],
+    master: [], group: [], category: [], grade: [], group1: [], thickness: [], colour: []
+  };
+  const [filters, setFilters] = useState(seedFilters(emptyFilters));
 
   const [summary, setSummary] = useState(null);
   const [taxTrend, setTaxTrend] = useState([]);
@@ -46,36 +54,34 @@ const Financial = () => {
   const moneyScaleY = { ticks: { callback: v => formatINRShort(v) } };
   const moneyTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${formatCurrency(ctx.raw)}` } };
 
-  useEffect(() => {
-    getFinancialFilters().then(r => setFilterOptions(r.data.data)).catch(() => {});
-  }, []);
-
-  const fetchAll = useCallback(async (params = appliedFilters) => {
+  const fetchAll = useCallback(async (params = filters) => {
     setLoading(true);
     try {
-      const [sumRes, stateRes, gstRes] = await Promise.all([
+      const [sumRes, stateRes, gstRes, filtersRes] = await Promise.all([
         getFinancialSummary(params),
         getFinancialStateWiseTax(params),
-        getFinancialGSTTypeSplit(params)
+        getFinancialGSTTypeSplit(params),
+        getFilters(params)
       ]);
       setSummary(sumRes.data.data);
       setStateWiseTax(stateRes.data.data);
       setGstTypeSplit(gstRes.data.data);
+      setFilterOptions(mergeFilterOptions(filtersRes.data.data));
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters]);
+  }, [filters]);
 
-  const fetchTrend = useCallback(async (params = appliedFilters, groupBy = trendGroupBy) => {
+  const fetchTrend = useCallback(async (params = filters, groupBy = trendGroupBy) => {
     try {
       const res = await getFinancialTaxTrend({ ...params, groupBy });
       setTaxTrend(res.data.data);
     } catch (err) { console.error(err); }
-  }, [appliedFilters, trendGroupBy]);
+  }, [filters, trendGroupBy]);
 
-  const fetchInvoices = useCallback(async (page = 1, params = appliedFilters, search = tableSearch) => {
+  const fetchInvoices = useCallback(async (page = 1, params = filters, search = tableSearch) => {
     setTableLoading(true);
     try {
       const res = await getFinancialInvoices({ ...params, page, limit: 50, ...(search ? { search } : {}) });
@@ -85,13 +91,13 @@ const Financial = () => {
       setInvoicePage(page);
     } catch (err) { console.error(err); }
     finally { setTableLoading(false); }
-  }, [appliedFilters, tableSearch]);
+  }, [filters, tableSearch]);
 
   const handleTableSearch = (value) => {
     setTableSearch(value);
     clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
-      fetchInvoices(1, appliedFilters, value);
+      fetchInvoices(1, filters, value);
     }, 400);
   };
 
@@ -116,7 +122,7 @@ const Financial = () => {
   const downloadInvoices = async (format) => {
     try {
       setDownloading(true);
-      const res = await getFinancialInvoicesAll({ ...appliedFilters, ...(tableSearch ? { search: tableSearch } : {}) });
+      const res = await getFinancialInvoicesAll({ ...filters, ...(tableSearch ? { search: tableSearch } : {}) });
       const rows = res.data.data || [];
       if (rows.length === 0) { alert('No invoices to download.'); return; }
       const stamp = new Date().toISOString().split('T')[0];
@@ -158,35 +164,30 @@ const Financial = () => {
     }
   };
 
+  // Live-refetch everything whenever the filter set changes (the shared FilterBar has no Apply btn).
   useEffect(() => {
-    fetchAll();
-    fetchTrend();
-    fetchInvoices(1);
-  }, []);
+    fetchAll(filters);
+    fetchTrend(filters, trendGroupBy);
+    fetchInvoices(1, filters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   useEffect(() => {
-    fetchTrend(appliedFilters, trendGroupBy);
+    fetchTrend(filters, trendGroupBy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trendGroupBy]);
 
-  const applyFilters = () => {
-    const params = {};
-    if (filters.startDate) params.startDate = filters.startDate;
-    if (filters.endDate) params.endDate = filters.endDate;
-    if (filters.salesperson) params.salesperson = filters.salesperson;
-    if (filters.state) params.state = filters.state;
-    if (filters.gstType) params.gstType = filters.gstType;
-    setAppliedFilters(params);
-    fetchAll(params);
-    fetchTrend(params, trendGroupBy);
-    fetchInvoices(1, params);
-  };
-
-  const clearFilters = () => {
-    setFilters({ startDate: '', endDate: '', salesperson: '', state: '', gstType: '' });
-    setAppliedFilters({});
-    fetchAll({});
-    fetchTrend({}, trendGroupBy);
-    fetchInvoices(1, {});
+  const handleFilterChange = (newFilters, clear = false) => {
+    if (clear) {
+      clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
+      setFilters({ ...emptyFilters });
+    } else {
+      setFilters(prev => {
+        const next = { ...prev, ...newFilters };
+        setGlobalFilters(next); // persist so the whole filter set carries across pages.
+        return next;
+      });
+    }
   };
 
   // --- Chart Data ---
@@ -287,51 +288,8 @@ const Financial = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="filter-bar" style={{ marginBottom: '24px' }}>
-        <input
-          type="date"
-          value={filters.startDate}
-          onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))}
-          style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', background: '#fff' }}
-        />
-        <input
-          type="date"
-          value={filters.endDate}
-          onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))}
-          style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', background: '#fff' }}
-        />
-        <select
-          value={filters.salesperson}
-          onChange={e => setFilters(f => ({ ...f, salesperson: e.target.value }))}
-          style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', background: '#fff' }}
-        >
-          <option value="">All Salespersons</option>
-          {filterOptions.salespersons.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select
-          value={filters.state}
-          onChange={e => setFilters(f => ({ ...f, state: e.target.value }))}
-          style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', background: '#fff' }}
-        >
-          <option value="">All States</option>
-          {filterOptions.states.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select
-          value={filters.gstType}
-          onChange={e => setFilters(f => ({ ...f, gstType: e.target.value }))}
-          style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', background: '#fff' }}
-        >
-          <option value="">All GST Types</option>
-          {filterOptions.gstTypes.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-        <button className="btn-primary" onClick={applyFilters} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: 'var(--primary-500)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}>
-          Apply
-        </button>
-        <button onClick={clearFilters} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}>
-          Clear
-        </button>
-      </div>
+      {/* Filters — the shared default FilterBar (same rich filter set as the other dashboards). */}
+      <FilterBar filters={filters} options={filterOptions} onFilterChange={handleFilterChange} />
 
       {/* AI Banner — above KPIs */}
       {summary && (
