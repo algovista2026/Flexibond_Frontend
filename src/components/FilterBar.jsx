@@ -55,7 +55,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
   //   'only'    → only the INTER salesperson
   //   'exclude' → all data with INTER removed
   // The api interceptor injects interMode on every request, so switching just triggers a re-fetch.
-  const [interMode, setInterModeState] = useState(() => localStorage.getItem('flexibond_inter_mode') || 'with');
+  const [interMode, setInterModeState] = useState(() => localStorage.getItem('flexibond_inter_mode') || 'exclude');
   const setInter = (mode) => {
     setInterModeState(mode);
     localStorage.setItem('flexibond_inter_mode', mode);
@@ -86,7 +86,6 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
             label="Company"
             options={options.companies}
             selected={filters.company || []}
-            accent="#d97706"
             onChange={(vals) => onFilterChange({ company: vals })}
           />
         )}
@@ -216,19 +215,19 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           Clear Filters
         </button>
 
-        {/* INTER view — 3-way segmented control after Clear Filters (red accent). Universal +
-            persisted; the api interceptor sends the mode on every request. */}
+        {/* INTER view — 3-way segmented control, pushed to the right corner of the filter box.
+            Universal + persisted; the api interceptor sends the mode on every request. */}
         <div
           title="INTER (inter-company) salesperson view — applies to every dashboard: include it with everyone, show only INTER, or remove INTER."
-          style={{ display: 'inline-flex', border: '1px solid #dc2626', borderRadius: '8px', overflow: 'hidden' }}
+          style={{ display: 'inline-flex', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', marginLeft: 'auto' }}
         >
           {[['with', 'With INTER'], ['only', 'Only INTER'], ['exclude', 'No INTER']].map(([m, label], i) => (
             <button
               key={m}
               onClick={() => setInter(m)}
               style={{
-                padding: '9px 12px', border: 'none', borderLeft: i === 0 ? 'none' : '1px solid #dc2626',
-                background: interMode === m ? '#dc2626' : '#fff', color: interMode === m ? '#fff' : '#dc2626',
+                padding: '9px 12px', border: 'none', borderLeft: i === 0 ? 'none' : '1px solid var(--border-color)',
+                background: interMode === m ? 'var(--primary-600)' : '#fff', color: interMode === m ? '#fff' : 'var(--text-primary)',
                 fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap',
               }}
             >

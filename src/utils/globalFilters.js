@@ -39,6 +39,7 @@ export const setGlobalFilters = (filters) => {
 export const clearGlobalFilters = () => {
   try {
     localStorage.removeItem(KEY);
+    localStorage.setItem('flexibond_inter_mode', 'exclude'); // fresh session → default to "No INTER"
   } catch {
     /* ignore */
   }

@@ -86,7 +86,7 @@ api.interceptors.request.use(async (config) => {
   // every GET so it applies universally with no per-page wiring: 'with' (default) = INTER included;
   // 'only' = just the INTER salesperson; 'exclude' = INTER removed.
   if ((config.method || 'get').toLowerCase() === 'get') {
-    config.params = { ...(config.params || {}), interMode: localStorage.getItem('flexibond_inter_mode') || 'with' };
+    config.params = { ...(config.params || {}), interMode: localStorage.getItem('flexibond_inter_mode') || 'exclude' };
   }
   return config;
 });

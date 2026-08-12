@@ -528,13 +528,20 @@ const Dashboard = () => {
             // everyone reads ~90% behind. Rate = how far achieved is ahead/behind that pace.
             const fyStartYear = companyTarget?.fiscalYear ? parseInt(String(companyTarget.fiscalYear).split('-')[0], 10) : new Date().getFullYear();
             const daysElapsed = Math.min(365, Math.max(1, Math.floor((Date.now() - new Date(fyStartYear, 7, 1).getTime()) / 86400000) + 1));
-            // Per-company target rows (admin, non-scoped only) — company · target · achieved · %.
-            const perCompany = COMPANY_ORDER.map(name => {
-              const tgt = (companyTarget?.companyTargets?.[name]) || 0;
-              const ach = companyAchievedMap[name] || 0;
-              return { name, tgt, ach, p: tgt > 0 ? (ach / tgt) * 100 : 0, color: COMPANY_COLORS[name] };
-            });
-            const hasCompanyTargets = !scoped && perCompany.some(r => r.tgt > 0);
+            // Per-company target rows. Admin sees all 3 daughter companies (from companyTargets + the
+            // company-trend achieved map). A COMPANY-scoped account sees a single row for its own
+            // company — target = its shared per-company target, achieved = its (already-scoped)
+            // revenue — so it gets the same Target · Achieved · % · Rate table.
+            const scopedCompanyName = (Array.isArray(user.companies) && user.companies.length === 1)
+              ? user.companies[0] : (user.company || companySegments[0]?.label || 'My Company');
+            const perCompany = companyScoped
+              ? [{ name: scopedCompanyName, tgt: target, ach: achieved, p: target > 0 ? (achieved / target) * 100 : 0, color: COMPANY_COLORS[scopedCompanyName] || '#ec4899' }]
+              : COMPANY_ORDER.map(name => {
+                  const tgt = (companyTarget?.companyTargets?.[name]) || 0;
+                  const ach = companyAchievedMap[name] || 0;
+                  return { name, tgt, ach, p: tgt > 0 ? (ach / tgt) * 100 : 0, color: COMPANY_COLORS[name] };
+                });
+            const hasCompanyTargets = perCompany.some(r => r.tgt > 0);
             return (
               <div className="kpi-card" style={{ gridColumn: 'span 2', gridRow: 'span 2', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
@@ -572,8 +579,9 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Per-company targets — a compact table in the extra 2x2 space (admin only). */}
-                {!scoped && (
+                {/* Per-company targets table — admin (all 3 companies) + company-scoped accounts
+                    (their own company). Zonal heads keep the simple single-target view. */}
+                {(!scoped || companyScoped) && (
                   <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                     <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Per-Company Targets</div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
