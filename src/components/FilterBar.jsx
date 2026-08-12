@@ -50,14 +50,15 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
   const me = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
   const hideCompany = me.scopeType === 'company';
 
-  // Global "INTER only" toggle — universal + persisted (localStorage). ON = every dashboard shows
-  // ONLY the INTER salesperson; OFF (default) excludes INTER. The api interceptor injects the
-  // interMode on every request, so toggling just needs to trigger a re-fetch.
-  const [interOnly, setInterOnly] = useState(() => localStorage.getItem('flexibond_inter_only') === '1');
-  const toggleInter = () => {
-    const next = !interOnly;
-    setInterOnly(next);
-    localStorage.setItem('flexibond_inter_only', next ? '1' : '0');
+  // Global INTER view — universal + persisted (localStorage). Three modes across every dashboard:
+  //   'with'    → all data, INTER included (default)
+  //   'only'    → only the INTER salesperson
+  //   'exclude' → all data with INTER removed
+  // The api interceptor injects interMode on every request, so switching just triggers a re-fetch.
+  const [interMode, setInterModeState] = useState(() => localStorage.getItem('flexibond_inter_mode') || 'with');
+  const setInter = (mode) => {
+    setInterModeState(mode);
+    localStorage.setItem('flexibond_inter_mode', mode);
     onFilterChange({}); // re-fetch with the new interMode
   };
 
@@ -215,21 +216,26 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           Clear Filters
         </button>
 
-        {/* INTER toggle — placed after Clear Filters. ON = show ONLY the INTER (inter-company)
-            salesperson everywhere; OFF (default) = exclude INTER. Red-accent (like Company's amber).
-            Universal + persisted; the api interceptor sends the mode on every request. */}
-        <button
-          onClick={toggleInter}
-          title="Show ONLY the INTER (inter-company) salesperson across all dashboards. Off = INTER excluded everywhere."
-          style={{
-            padding: '9px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap',
-            border: '1px solid #dc2626',
-            background: interOnly ? '#dc2626' : '#fff',
-            color: interOnly ? '#fff' : '#dc2626',
-          }}
+        {/* INTER view — 3-way segmented control after Clear Filters (red accent). Universal +
+            persisted; the api interceptor sends the mode on every request. */}
+        <div
+          title="INTER (inter-company) salesperson view — applies to every dashboard: include it with everyone, show only INTER, or remove INTER."
+          style={{ display: 'inline-flex', border: '1px solid #dc2626', borderRadius: '8px', overflow: 'hidden' }}
         >
-          INTER only
-        </button>
+          {[['with', 'With INTER'], ['only', 'Only INTER'], ['exclude', 'No INTER']].map(([m, label], i) => (
+            <button
+              key={m}
+              onClick={() => setInter(m)}
+              style={{
+                padding: '9px 12px', border: 'none', borderLeft: i === 0 ? 'none' : '1px solid #dc2626',
+                background: interMode === m ? '#dc2626' : '#fff', color: interMode === m ? '#fff' : '#dc2626',
+                fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <AppliedFilters filters={filters} onFilterChange={onFilterChange} />
