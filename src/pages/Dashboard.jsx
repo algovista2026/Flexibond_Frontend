@@ -629,15 +629,24 @@ const Dashboard = () => {
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
             <div className="kpi-sub">Assessable value</div>
           </div>
+          {/* "Oth Amt" on the Kuber sales register: invoice-level freight/labour charges less
+              discounts. Negative = discounts outweighed charges over the filtered period. */}
+          <div className="kpi-card">
+            <div className="kpi-label">Discount / Freight</div>
+            <div
+              className="kpi-value"
+              style={{ color: (data.summary.otherAmount || 0) < 0 ? 'var(--danger, #dc2626)' : undefined }}
+            >
+              {formatCurrency(data.summary.otherAmount)}
+            </div>
+            <div className="kpi-sub">
+              Other amount · {(data.summary.otherAmount || 0) < 0 ? 'net discount' : 'net charges'} (excl. taxes)
+            </div>
+          </div>
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenue)}</div>
             <div className="kpi-sub">Bill amount</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-label">Outstanding Amount</div>
-            <div className="kpi-value" style={{ color: 'var(--text-muted)' }}>—</div>
-            <div className="kpi-sub">Data coming soon</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Quantity Sold</div>
