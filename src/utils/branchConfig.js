@@ -59,7 +59,8 @@ export const branchDisplay = (value) => {
   const raw = String(value == null ? '' : value).trim();
   if (!raw) return raw;
   const [company, ...rest] = raw.split('-');
-  const head = company.toUpperCase();
+  let head = company.toUpperCase();
+  if (head === 'UFLP') head = 'UFPL'; // the mistyped daughter-company code was retired 2026-08-05
   const tail = rest.map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p));
   return [head, ...tail].join('-');
 };
