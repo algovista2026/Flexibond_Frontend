@@ -629,19 +629,30 @@ const Dashboard = () => {
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
             <div className="kpi-sub">Assessable value</div>
           </div>
-          {/* "Oth Amt" on the Kuber sales register: invoice-level freight/labour charges less
-              discounts. Negative = discounts outweighed charges over the filtered period. */}
-          <div className="kpi-card">
-            <div className="kpi-label">Discount / Freight</div>
+          {/* "Oth Amt" on the Kuber sales register — freight charges less discounts, both applied
+              to the assessable value BEFORE tax. Split into the net (2×1) plus each half (1×1). */}
+          <div className="kpi-card" style={{ gridColumn: 'span 2' }}>
+            <div className="kpi-label">Discount / Freight (Net)</div>
             <div
               className="kpi-value"
-              style={{ color: (data.summary.otherAmount || 0) < 0 ? 'var(--danger, #dc2626)' : undefined }}
+              style={{ color: (data.summary.otherAmount || 0) < 0 ? 'var(--danger)' : undefined }}
             >
               {formatCurrency(data.summary.otherAmount)}
             </div>
-            <div className="kpi-sub">
-              Other amount · {(data.summary.otherAmount || 0) < 0 ? 'net discount' : 'net charges'} (excl. taxes)
+            <div className="kpi-sub">Other amount · freight less discount (excl. taxes)</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Discount</div>
+            {/* Always shown as a deduction, hence the forced negative sign. */}
+            <div className="kpi-value" style={{ color: 'var(--danger)' }}>
+              {formatCurrency(-Math.abs(data.summary.discountAmount || 0))}
             </div>
+            <div className="kpi-sub">Deducted before taxes</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Freight</div>
+            <div className="kpi-value">{formatCurrency(Math.abs(data.summary.freightAmount || 0))}</div>
+            <div className="kpi-sub">Added before taxes</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
