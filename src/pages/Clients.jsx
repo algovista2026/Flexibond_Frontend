@@ -417,9 +417,23 @@ const Clients = () => {
 
           {/* Orders table — non-scrollable horizontally (fixed layout). */}
           <div className="data-table-wrapper" style={{ marginTop: '24px' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-color)' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Orders {orders ? `(${orders.length})` : ''}</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>Click an order to see just that order's analytics above.</p>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Orders {orders ? `(${orders.length})` : ''}</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                  {selectedInvoice
+                    ? <>Showing analytics for order <strong>{selectedInvoice}</strong>. Click it again or use “Show all orders”.</>
+                    : "Click an order to see just that order's analytics above."}
+                </p>
+              </div>
+              {selectedInvoice && (
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  style={{ flexShrink: 0, border: '1px solid var(--border-color)', borderRadius: '8px', background: '#fff', color: 'var(--primary-600)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', padding: '7px 14px', whiteSpace: 'nowrap' }}
+                >
+                  ✕ Show all orders
+                </button>
+              )}
             </div>
             <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
               {detailLoading && !orders ? (
@@ -452,7 +466,7 @@ const Clients = () => {
                       return (
                         <tr
                           key={o._id}
-                          onClick={() => setSelectedInvoice(o._id)}
+                          onClick={() => setSelectedInvoice(sel => sel === o._id ? null : o._id)}
                           style={{ cursor: 'pointer', background: selectedInvoice === o._id ? 'var(--primary-50, #eff6ff)' : 'transparent' }}
                         >
                           {multi && <td style={clip} title={o.customerName}>{o.customerName || '—'}</td>}

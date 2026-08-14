@@ -116,7 +116,7 @@ export default function DataLogs() {
                 <th style={{ padding: '10px', textAlign: 'right' }}>Products</th>
                 <th style={{ padding: '10px', textAlign: 'right' }}>Accounts</th>
                 <th style={{ padding: '10px', textAlign: 'right' }}>Pushes</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right' }}>Last Received</th>
+                <th style={{ padding: '10px 16px', textAlign: 'right' }}>Date &amp; Time Received (Latest)</th>
               </tr>
             </thead>
             <tbody>
@@ -134,7 +134,9 @@ export default function DataLogs() {
                     <td style={{ padding: '10px', textAlign: 'right' }}>{n(b.products)}</td>
                     <td style={{ padding: '10px', textAlign: 'right' }}>{n(b.accounts)}</td>
                     <td style={{ padding: '10px', textAlign: 'right' }}>{n(b.pushes)}</td>
-                    <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>{relTime(b.lastReceived)}</td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {b.lastReceived ? new Date(b.lastReceived).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                    </td>
                   </tr>
                 );
               })}

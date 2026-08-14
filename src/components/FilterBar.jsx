@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { FiInfo, FiX, FiCalendar } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
+import { branchDisplay } from '../utils/branchConfig';
 
 // A date field that keeps a text placeholder when empty, but has an explicit calendar
 // button that reliably opens the native date picker (showPicker) — the old focus-driven
@@ -97,6 +98,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
             label="Branch"
             options={options.branches}
             selected={filters.branch || []}
+            formatOption={branchDisplay}
             onChange={(vals) => onFilterChange({ branch: vals })}
           />
         )}
@@ -258,10 +260,11 @@ const AppliedFilters = ({ filters, onFilterChange }) => {
 
   Object.entries(CHIP_LABELS).forEach(([key, label]) => {
     const v = filters[key];
+    const disp = (val) => (key === 'branch' ? branchDisplay(val) : val);
     if (Array.isArray(v)) {
-      v.forEach(val => chips.push({ key, val, text: `${label}: ${val}` }));
+      v.forEach(val => chips.push({ key, val, text: `${label}: ${disp(val)}` }));
     } else if (v) {
-      chips.push({ key, scalar: true, text: `${label}: ${v}` });
+      chips.push({ key, scalar: true, text: `${label}: ${disp(v)}` });
     }
   });
   if (chips.length === 0) return null;

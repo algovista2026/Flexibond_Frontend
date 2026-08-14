@@ -51,6 +51,19 @@ export const branchLabel = (value) => {
   return found ? found.label : value;
 };
 
+// Pretty-print a raw branch KEY like "ucpl-kochi" → "UCPL-Kochi": the company code (before the
+// first "-") is UPPERCASED and every remaining segment is Title-Cased. Used by the FilterBar
+// branch dropdown + chips so the raw ingest keys never surface in lowercase. Unlike `branchLabel`
+// (which returns curated names like "Kochi"), this keeps the key's shape, just cased.
+export const branchDisplay = (value) => {
+  const raw = String(value == null ? '' : value).trim();
+  if (!raw) return raw;
+  const [company, ...rest] = raw.split('-');
+  const head = company.toUpperCase();
+  const tail = rest.map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p));
+  return [head, ...tail].join('-');
+};
+
 // value -> its daughter company code (or '' if unknown).
 export const companyOfBranch = (value) => {
   const found = ALL_BRANCHES.find((b) => b.value === value);
