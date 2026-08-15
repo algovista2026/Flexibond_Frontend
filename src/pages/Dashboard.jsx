@@ -627,7 +627,9 @@ const Dashboard = () => {
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Excl. Taxes)</div>
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
-            <div className="kpi-sub">Assessable value</div>
+            {/* Product value only — freight/discount are their own cards, so the four compose as
+                (Excl. + Freight − Discount) × 1.18 = Incl. */}
+            <div className="kpi-sub">Assessable value · excl. freight</div>
           </div>
           {/* "Oth Amt" on the Kuber sales register — freight charges less discounts, both applied
               to the assessable value BEFORE tax. Split into the net (2×1) plus each half (1×1). */}
@@ -657,7 +659,7 @@ const Dashboard = () => {
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenue)}</div>
-            <div className="kpi-sub">Bill amount</div>
+            <div className="kpi-sub">Bill amount · (excl. + freight − discount) + GST</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Quantity Sold</div>

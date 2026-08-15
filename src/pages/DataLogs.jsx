@@ -49,17 +49,30 @@ export default function DataLogs() {
     return () => clearInterval(t);
   }, [load]);
 
+  // The rebuild runs detached on the server and returns immediately (a long rebuild used to blow the
+  // 60 s HTTP timeout and show "Import failed" even though it had succeeded). So we just start it,
+  // then poll /summary until `rebuildRunning` clears and report the outcome from there.
   const runSync = async () => {
     setSyncing(true);
     try {
       const res = await triggerDataSync();
       const r = res.data.data || {};
-      if (r.reason === 'in-progress') toast.info('A rebuild is already running — try again shortly.');
-      else if (r.swapped === false) toast.warn('No invoices built — dashboards left unchanged.');
-      else toast.success(`Imported — ${n(r.invoices)} invoices / ${n(r.items)} line items rebuilt.`);
-      await load();
+      if (r.started === false) toast.info('A rebuild is already running — this page will update when it finishes.');
+      else toast.info('Import started — this page updates automatically when it finishes.');
+
+      for (let i = 0; i < 60; i++) {                 // poll up to ~5 minutes
+        await new Promise((s) => setTimeout(s, 5000));
+        const fresh = await getDataLogs();
+        setData(fresh.data.data);
+        if (!fresh.data.data?.totals?.rebuildRunning) {
+          toast.success(`Import complete — ${n(fresh.data.data?.totals?.invoices)} invoices / `
+            + `${n(fresh.data.data?.totals?.items)} line items in the dashboards.`);
+          return;
+        }
+      }
+      toast.info('Still rebuilding — leave this page open, it will refresh on its own.');
     } catch (e) {
-      toast.error('Import failed: ' + (e.response?.data?.message || e.message));
+      toast.error('Could not start the import: ' + (e.response?.data?.message || e.message));
     } finally {
       setSyncing(false);
     }
