@@ -1125,13 +1125,15 @@ const Dashboard = () => {
                   the card width without a horizontal scrollbar; long text ellipsises. */}
               <table className="data-table" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '22%' }} />{/* Customer */}
-                  <col style={{ width: '11%' }} />{/* City */}
-                  <col style={{ width: '12%' }} />{/* State */}
-                  <col style={{ width: '9%' }} />{/* Zone */}
-                  <col style={{ width: '14%' }} />{/* Salesperson */}
-                  <col style={{ width: '7%' }} />{/* Orders */}
-                  <col style={{ width: '13%' }} />{/* Revenue excl */}
+                  <col style={{ width: '18%' }} />{/* Customer */}
+                  <col style={{ width: '8%' }} />{/* City */}
+                  <col style={{ width: '9%' }} />{/* State */}
+                  <col style={{ width: '7%' }} />{/* Zone */}
+                  <col style={{ width: '11%' }} />{/* Salesperson */}
+                  <col style={{ width: '5%' }} />{/* Orders */}
+                  <col style={{ width: '12%' }} />{/* Revenue excl */}
+                  <col style={{ width: '9%' }} />{/* Discount */}
+                  <col style={{ width: '9%' }} />{/* Freight */}
                   <col style={{ width: '12%' }} />{/* Revenue incl */}
                 </colgroup>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-card)' }}>
@@ -1143,6 +1145,8 @@ const Dashboard = () => {
                     <th>Salesperson</th>
                     <th>Orders</th>
                     <th>{th('Revenue (Excl. Taxes)')}</th>
+                    <th>Discount</th>
+                    <th>Freight</th>
                     <th>{th('Revenue (Incl. Taxes)')}</th>
                   </tr>
                 </thead>
@@ -1158,6 +1162,11 @@ const Dashboard = () => {
                         <td style={cellClip} title={cust.salesperson}>{cust.salesperson}</td>
                         <td>{cust.totalOrders}</td>
                         <td style={{ fontWeight: 600, ...cellClip }}>{formatCurrency(cust.totalRevenue)}</td>
+                        {/* Discount always reads as a deduction, hence the forced sign + red. */}
+                        <td style={{ ...cellClip, color: 'var(--danger)' }}>
+                          {formatCurrency(-Math.abs(cust.totalDiscount || 0))}
+                        </td>
+                        <td style={cellClip}>{formatCurrency(Math.abs(cust.totalFreight || 0))}</td>
                         <td style={{ fontWeight: 600, ...cellClip }}>{formatCurrency(cust.totalRevenueIncl)}</td>
                       </tr>
                     );

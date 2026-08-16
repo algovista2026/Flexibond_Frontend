@@ -112,6 +112,8 @@ const Financial = () => {
     'GST Type': inv.gstType || '',
     'Salesperson': inv.salesperson || '',
     'Assessable': inv.assessableAmount || 0,
+    'Discount': -Math.abs(inv.discountAmount || 0),
+    'Freight': Math.abs(inv.freightAmount || 0),
     'CGST': inv.cgst || 0,
     'SGST': inv.sgst || 0,
     'IGST': inv.igst || 0,
@@ -141,7 +143,7 @@ const Financial = () => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
         if (typeof doc.autoTable !== 'function') { alert('PDF table plugin failed to load.'); return; }
         const headers = Object.keys(exportRows[0]);
-        const money = new Set(['Assessable', 'CGST', 'SGST', 'IGST', 'Cess', 'Bill Amount']);
+        const money = new Set(['Assessable', 'Discount', 'Freight', 'CGST', 'SGST', 'IGST', 'Cess', 'Bill Amount']);
         const body = exportRows.map(r => headers.map(h => (money.has(h) ? formatCurrency(r[h]) : r[h])));
         doc.setFontSize(13);
         doc.text('Invoice Register', 40, 30);
@@ -528,7 +530,7 @@ const Financial = () => {
           {tableLoading ? (
             <TableSkeleton />
           ) : (
-            <table className="data-table" style={{ minWidth: '1100px' }}>
+            <table className="data-table" style={{ minWidth: '1280px' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--bg-light)' }}>
                 <tr>
                   <th style={{ whiteSpace: 'nowrap' }}>Date</th>
@@ -540,6 +542,8 @@ const Financial = () => {
                   <th style={{ whiteSpace: 'nowrap' }}>GST Type</th>
                   <th style={{ whiteSpace: 'nowrap' }}>Salesperson</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{th('Assessable (excl. GST)')}</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Discount</th>
+                  <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>Freight</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>CGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>SGST</th>
                   <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>IGST</th>
@@ -549,7 +553,7 @@ const Financial = () => {
               </thead>
               <tbody>
                 {invoices.length === 0 ? (
-                  <tr><td colSpan={14} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No invoices found</td></tr>
+                  <tr><td colSpan={16} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No invoices found</td></tr>
                 ) : invoices.map((inv, i) => (
                   <tr key={inv._id || i}>
                     <td style={{ whiteSpace: 'nowrap' }}>{new Date(inv.date).toLocaleDateString('en-IN')}</td>
@@ -569,6 +573,11 @@ const Financial = () => {
                     <td style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{inv.gstType || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{inv.salesperson || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{formatCurrency(inv.assessableAmount)}</td>
+                    {/* Discount always reads as a deduction, hence the forced sign + red. */}
+                    <td style={{ whiteSpace: 'nowrap', textAlign: 'right', color: 'var(--danger)' }}>
+                      {formatCurrency(-Math.abs(inv.discountAmount || 0))}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{formatCurrency(Math.abs(inv.freightAmount || 0))}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'right', color: 'var(--primary-600)' }}>{formatCurrency(inv.cgst)}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'right', color: 'var(--success)' }}>{formatCurrency(inv.sgst)}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'right', color: inv.igst > 0 ? '#f97316' : 'var(--text-muted)' }}>{formatCurrency(inv.igst)}</td>
