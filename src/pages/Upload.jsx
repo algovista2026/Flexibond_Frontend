@@ -9,7 +9,7 @@ import { BRANCH_GROUPS, branchLabel } from '../utils/branchConfig';
 import { TableSkeleton } from '../components/Skeleton';
 
 const Upload = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const isAdmin = user.role === 'admin';
   const permissions = user.permissions || ['overview', 'products', 'salesperson', 'comparison', 'upload'];
   // Company accounts get a VIEW-ONLY Upload section (2026-08-06): history only, no upload / delete /

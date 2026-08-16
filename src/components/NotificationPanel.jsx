@@ -10,7 +10,7 @@ const NotificationPanel = ({ isDark = false }) => {
 
   const fetchRecentLogs = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
       if (user.role !== 'admin') return;
 
       const res = await adminGetLogs();
@@ -52,7 +52,7 @@ const NotificationPanel = ({ isDark = false }) => {
     if (!isOpen) setUnreadCount(0);
   };
 
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   if (user.role !== 'admin') return null;
 
   return (

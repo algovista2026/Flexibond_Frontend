@@ -8,12 +8,12 @@ import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   const navigate = useNavigate();
-  const localUser = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const localUser = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const user = propUser || localUser;
 
   const handleLogout = () => {
-    localStorage.removeItem('flexibond_token');
-    localStorage.removeItem('flexibond_user');
+    sessionStorage.removeItem('flexibond_token');
+    sessionStorage.removeItem('flexibond_user');
     clearGlobalFilters(); // fresh session → next login starts with no filters applied
     if (onClose) onClose();
     navigate('/login');

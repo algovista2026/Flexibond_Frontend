@@ -19,7 +19,7 @@ import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../componen
 
 const Comparison = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [loading, setLoading] = useState(true);
   const [allSP, setAllSP] = useState([]);
   const [selected, setSelected] = useState([]);

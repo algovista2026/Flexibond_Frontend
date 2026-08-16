@@ -32,7 +32,7 @@ import { th } from '../utils/thHeader';
 
 const Products = () => {
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [loading, setLoading] = useState(true);
   const [metric, setMetric] = useState('revenue');
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom

@@ -24,7 +24,7 @@ const INDIA_GEOJSON_URL = 'https://raw.githubusercontent.com/HindustanTimesLabs/
 import { Skeleton } from '../components/Skeleton';
 
 const Geographic = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [salespersons, setSalespersons] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNames, setSelectedNames] = useState([]);

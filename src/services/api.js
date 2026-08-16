@@ -70,7 +70,7 @@ const api = axios.create({
 
 // Attach JWT token to every request
 api.interceptors.request.use(async (config) => {
-  const token = localStorage.getItem('flexibond_token');
+  const token = sessionStorage.getItem('flexibond_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -96,7 +96,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('flexibond_token');
+      sessionStorage.removeItem('flexibond_token');
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
@@ -104,8 +104,8 @@ api.interceptors.response.use(
     
     // Check for Device Revocation
     if (error.response && error.response.status === 403 && error.response.data?.message === 'DEVICE_UNAUTHORIZED') {
-      localStorage.removeItem('flexibond_token');
-      localStorage.removeItem('flexibond_user');
+      sessionStorage.removeItem('flexibond_token');
+      sessionStorage.removeItem('flexibond_user');
       toast.error('Access revoked for this device. Please contact Admin.');
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';

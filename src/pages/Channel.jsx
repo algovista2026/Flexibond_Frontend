@@ -18,7 +18,7 @@ import { formatINRShort } from '../utils/numberFormat';
 import { th } from '../utils/thHeader';
 
 const Channel = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
 
   const [filters, setFilters] = useState({ startDate: '', endDate: '' });
   const [applied, setApplied] = useState({});

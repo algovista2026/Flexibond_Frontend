@@ -39,7 +39,7 @@ import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleto
 
 const Dashboard = () => {
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],

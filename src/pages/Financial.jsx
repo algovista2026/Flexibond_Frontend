@@ -22,7 +22,7 @@ const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ef4444', '#06b6d4'
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 
 const Financial = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
 
   const [filterOptions, setFilterOptions] = useState({});
   // Full shared-FilterBar filter set (arrays), persisted across pages. Financials is invoice-level;

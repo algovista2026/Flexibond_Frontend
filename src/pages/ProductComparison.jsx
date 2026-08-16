@@ -19,7 +19,7 @@ import { ChartSkeleton, Skeleton } from '../components/Skeleton';
 const shorten = (l, n = 20) => (l && l.length > n ? l.substring(0, n - 2) + '…' : l);
 
 const ProductComparison = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [loading, setLoading] = useState(true);
   const [allProducts, setAllProducts] = useState([]);
   const [selected, setSelected] = useState([]);

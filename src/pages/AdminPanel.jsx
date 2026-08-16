@@ -15,7 +15,7 @@ import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
 
 const AdminPanel = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('users');

@@ -48,7 +48,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
   // A company-scoped account is locked to one company — hide the Company filter entirely
   // (the server already forces their company on every request).
-  const me = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const me = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const hideCompany = me.scopeType === 'company';
 
   // Global INTER view — universal + persisted (localStorage). Three modes across every dashboard:

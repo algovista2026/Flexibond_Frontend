@@ -39,7 +39,7 @@ const EMPTY_FILTERS = {
 };
 
 const Branch = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const isAdmin = user.role === 'admin';
 
   // Company-scoped accounts only see branches within their own company.

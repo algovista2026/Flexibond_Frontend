@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
 
 const LogsPanel = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

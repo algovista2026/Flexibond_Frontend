@@ -89,7 +89,7 @@ const SalespersonPicker = ({ list, selected, onSelect }) => {
 
 const Salesperson = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const [list, setList] = useState([]);
   const [selectedSP, setSelectedSP] = useState(null);
   const [search, setSearch] = useState('');       // leaderboard inline search

@@ -20,7 +20,7 @@ const Login = () => {
 
   useEffect(() => {
     // Check if already logged in
-    const token = localStorage.getItem('flexibond_token');
+    const token = sessionStorage.getItem('flexibond_token');
     if (token) {
       navigate('/');
       return;
@@ -84,8 +84,8 @@ const Login = () => {
   };
 
   const handleSuccess = (data) => {
-    localStorage.setItem('flexibond_token', data.token);
-    localStorage.setItem('flexibond_user', JSON.stringify(data.user));
+    sessionStorage.setItem('flexibond_token', data.token);
+    sessionStorage.setItem('flexibond_user', JSON.stringify(data.user));
     clearGlobalFilters(); // start every fresh login on a clean, unfiltered dashboard
     toast.success('Login successful!');
     

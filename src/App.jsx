@@ -36,7 +36,7 @@ const NoAccessPage = () => (
 
 // Protected View Wrapper
 const ProtectedView = ({ permission, children }) => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const isAdmin = user.role === 'admin';
   const perms = user.permissions || [];
 
@@ -51,7 +51,7 @@ const ProtectedView = ({ permission, children }) => {
 
 // Default Route Calculator
 const DefaultRedirect = () => {
-  const user = JSON.parse(localStorage.getItem('flexibond_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   if (!user || !user.role) return <Navigate to="/login" replace />;
   if (user.role === 'admin') return <Navigate to="/dashboard" replace />;
 
@@ -69,9 +69,9 @@ const DefaultRedirect = () => {
 
 // Auth Guard component
 const PrivateRoute = () => {
-  const token = localStorage.getItem('flexibond_token');
+  const token = sessionStorage.getItem('flexibond_token');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('flexibond_user') || '{}'));
+  const [user, setUser] = useState(() => JSON.parse(sessionStorage.getItem('flexibond_user') || '{}'));
 
   useEffect(() => {
     if (!token) return;
@@ -80,7 +80,7 @@ const PrivateRoute = () => {
     getProfile()
       .then(res => {
         if (res.data && res.data.user) {
-          localStorage.setItem('flexibond_user', JSON.stringify(res.data.user));
+          sessionStorage.setItem('flexibond_user', JSON.stringify(res.data.user));
           setUser(res.data.user);
         }
       })
@@ -97,8 +97,8 @@ const PrivateRoute = () => {
     const IDLE_MS = 600 * 1000;
     let timer;
     const logout = () => {
-      localStorage.removeItem('flexibond_token');
-      localStorage.removeItem('flexibond_user');
+      sessionStorage.removeItem('flexibond_token');
+      sessionStorage.removeItem('flexibond_user');
       clearGlobalFilters();
       window.location.assign('/login?reason=idle');
     };
