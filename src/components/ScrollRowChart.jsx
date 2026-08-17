@@ -25,7 +25,7 @@ const ScrollRowChart = ({
   valueFmt = (v) => v,   // tooltip formatter
   xFmt = (v) => v,       // frozen-axis tick formatter
   barHeight = 30,
-  labelWidth = 108,
+  labelWidth = 92,
   axisHeight = 80, // room for the rotated ₹ tick labels so they aren't clipped
 }) => {
   const scrollRef = useRef(null);

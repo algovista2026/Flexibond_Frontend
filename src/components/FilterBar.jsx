@@ -40,7 +40,7 @@ const DateField = ({ name, value, placeholder, onChange }) => {
   );
 };
 
-const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, hideBranch = false }) => {
+const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, hideBranch = false, showBatch = false }) => {
   // Render a dropdown when it has options OR when it currently has a selection — so an
   // active filter is never hidden even if cascading momentarily empties its option list.
   const show = (list, selected) =>
@@ -179,6 +179,17 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           />
         )}
 
+        {/* Batch (Kuber line field `UColour`: BB / BG / BJ / JB / JV / …). Products page only,
+            via the `showBatch` prop — it sits right after Colours. */}
+        {showBatch && show(options?.batches, filters.batch) && (
+          <MultiSelect
+            label="Batch"
+            options={options.batches}
+            selected={filters.batch || []}
+            onChange={(vals) => onFilterChange({ batch: vals })}
+          />
+        )}
+
         {show(options?.zones, filters.zone) && (
           <MultiSelect
             label="Zone"
@@ -210,7 +221,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           className="btn-secondary"
           onClick={() => onFilterChange({
             startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-            colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
+            colour: [], batch: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
             group1: [], master: [], company: [], branch: []
           }, true)}
         >
@@ -248,7 +259,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 // Labels are the client-facing names (Company / Category / Sub-Category / Variants / …).
 const CHIP_LABELS = {
   company: 'Company', branch: 'Branch', master: 'Master', group: 'Category', category: 'Sub-Category',
-  grade: 'Grade', group1: 'Variants', thickness: 'Thickness / Section', colour: 'Colours',
+  grade: 'Grade', group1: 'Variants', thickness: 'Thickness / Section', colour: 'Colours', batch: 'Batch',
   zone: 'Zone', state: 'State', salesperson: 'Salesperson', product: 'Product',
   dimensions: 'Size', city: 'City'
 };
@@ -280,7 +291,7 @@ const AppliedFilters = ({ filters, onFilterChange }) => {
 
   const clearAll = () => onFilterChange({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
+    colour: [], batch: [], thickness: [], format: '', product: '', dimensions: '', city: '', group: [],
     group1: [], master: [], company: []
   }, true);
 

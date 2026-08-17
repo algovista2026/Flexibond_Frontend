@@ -25,7 +25,7 @@ const ScrollColumnChart = ({
   valueFmt = (v) => v,
   avgFmt = null,          // when set, draws the dashed average line on the scrollable chart
   barWidth = 46,
-  axisWidth = 94,
+  axisWidth = 80,
   topPad = 22
 }) => {
   const maxV = values.length ? Math.max(...values) : 0;

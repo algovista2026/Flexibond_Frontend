@@ -38,7 +38,8 @@ const Products = () => {
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: [], branch: []
+    format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: [], branch: [],
+    colour: [], batch: []
   }));
   const [filterOptions, setFilterOptions] = useState({});
   const [data, setData] = useState({
@@ -121,7 +122,8 @@ const Products = () => {
     if (clear) {
       const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-        format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: [], branch: []
+        format: '', product: '', thickness: [], dimensions: '', group1: [], master: [], company: [], branch: [],
+        colour: [], batch: []
       };
       clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
       setFilters(reset);
@@ -284,14 +286,14 @@ const Products = () => {
       borderColor: '#fff'
     }]
   };
-  // Colour drill-down: Category (group) distribution within the selected colour — shades of grey.
-  const GREY_SHADES = ['#374151', '#4b5563', '#6b7280', '#9ca3af', '#b0b7c0', '#cbd1d9', '#e2e6eb', '#1f2937', '#525c6b', '#818b99'];
+  // Colour drill-down: Category (group) distribution within the selected colour — matches the
+  // Category-wise Distribution pie's palette (`pastel`) instead of the old grey shades.
   const colourDrillChartData = {
     labels: colourDrillData?.map(d => d._id || '—') || [],
     datasets: [{
       label: metricLabel,
       data: colourDrillData?.map(d => metric === 'revenue' ? d.totalAmount : d.totalQty) || [],
-      backgroundColor: (colourDrillData || []).map((_, i) => GREY_SHADES[i % GREY_SHADES.length]),
+      backgroundColor: pieColors('pastel', (colourDrillData || []).length),
       borderWidth: 2,
       borderColor: '#fff'
     }]
@@ -346,7 +348,7 @@ const Products = () => {
         </div>
       </div>
 
-      <FilterBar filters={filters} options={filterOptions} onFilterChange={handleFilterChange} showGroup />
+      <FilterBar showBatch filters={filters} options={filterOptions} onFilterChange={handleFilterChange} showGroup />
 
       {data.products && (
         <div style={{ marginBottom: '24px' }}>

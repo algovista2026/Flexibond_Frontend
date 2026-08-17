@@ -58,7 +58,7 @@ const Branch = () => {
   const [filters, setFilters] = useState(seedFilters({ ...EMPTY_FILTERS }));
   const [filterOptions, setFilterOptions] = useState({});
   const [metric, setMetric] = useState('revenue');
-  const [trendGroupBy, setTrendGroupBy] = useState('month');
+  const [trendGroupBy, setTrendGroupBy] = useState('day');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [perf, setPerf] = useState({ fiscalYear: '', map: {} }); // branch -> { revenue, target }

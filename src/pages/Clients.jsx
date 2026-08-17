@@ -318,7 +318,18 @@ const Clients = () => {
                     maintainAspectRatio: false,
                     indexAxis: 'y',
                     plugins: { legend: { display: false }, tooltip: barTooltip },
-                    scales: { x: { ticks: { callback: v => axisFmt(v) } }, y: { ticks: { font: { size: 10 } } } }
+                    scales: {
+                      x: { ticks: { callback: v => axisFmt(v) } },
+                      y: {
+                        ticks: {
+                          callback: function(value) {
+                            const label = this.getLabelForValue(value);
+                            return label && label.length > 18 ? label.substring(0, 16) + '...' : label;
+                          },
+                          font: { size: 10 }
+                        }
+                      }
+                    }
                   }}
                 />
               </ChartCard>
@@ -395,7 +406,7 @@ const Clients = () => {
 
             {/* (1,4) Colour preference — teal horizontal rows (vertical scroll) */}
             {(analysis?.byColour?.length > 0) && (
-              <ChartCard title={`Colour${titleTag}`} aiContext={analysis.byColour} aiType="Client colour preference">
+              <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={analysis.byColour} aiType="Client colour preference">
                 <ScrollBar rows={analysis.byColour} color={ACCENTS.colour} />
               </ChartCard>
             )}
@@ -409,7 +420,7 @@ const Clients = () => {
 
             {/* (1,5) Dimension preference — orange bars, vertical scroll */}
             {(analysis?.byDimension?.length > 0) && (
-              <ChartCard title={`Dimensions${titleTag}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
+              <ChartCard title={`Dimensions Preference${titleTag}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
                 <ScrollBar rows={analysis.byDimension} color={ACCENTS.dimension} />
               </ChartCard>
             )}

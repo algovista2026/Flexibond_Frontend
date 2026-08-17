@@ -318,6 +318,20 @@ const Financial = () => {
             <div className="kpi-value">{formatCurrency(summary.totalAssessable)}</div>
             <div className="kpi-sub">{formatNumber(summary.invoiceCount)} invoices</div>
           </div>
+          {/* Pre-tax adjustments, placed between assessable and the tax cards so the KPI row reads
+              in calculation order: Assessable → Discount → Freight → GST → TCS → Bill. */}
+          <div className="kpi-card">
+            <div className="kpi-label">Discount</div>
+            <div className="kpi-value" style={{ color: 'var(--danger)' }}>
+              {formatCurrency(-Math.abs(summary.totalDiscount || 0))}
+            </div>
+            <div className="kpi-sub">Deducted before taxes</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Freight</div>
+            <div className="kpi-value">{formatCurrency(Math.abs(summary.totalFreight || 0))}</div>
+            <div className="kpi-sub">Added before taxes</div>
+          </div>
           <div className="kpi-card">
             <div className="kpi-label">CGST</div>
             <div className="kpi-value">{formatCurrency(summary.totalCGST)}</div>
@@ -338,10 +352,20 @@ const Financial = () => {
             <div className="kpi-value">{formatCurrency(summary.totalTax)}</div>
             <div className="kpi-sub">CGST + SGST + IGST + Cess</div>
           </div>
+          {/* TCS — charged AFTER GST (~2 % on scrap sales). Kuber does not send it as a field yet, so
+              this reads ₹0 and its value currently sits inside the round-off residual. It populates
+              automatically the moment the vendor adds the column. */}
+          <div className="kpi-card">
+            <div className="kpi-label">TCS</div>
+            <div className="kpi-value">{formatCurrency(summary.totalTcs)}</div>
+            <div className="kpi-sub">
+              {summary.totalTcs ? 'Charged after GST' : 'Awaiting field from Kuber'}
+            </div>
+          </div>
           <div className="kpi-card">
             <div className="kpi-label">Effective Tax Rate</div>
             <div className="kpi-value">{summary.effectiveTaxRate}%</div>
-            <div className="kpi-sub">Tax / Assessable Value</div>
+            <div className="kpi-sub">Tax / (assessable + freight − discount)</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Credit Notes</div>
