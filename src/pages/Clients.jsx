@@ -54,23 +54,31 @@ const Clients = () => {
       .finally(() => setListLoading(false));
   }, [filters]);
 
-  // When the client selection (or filters/invoice) changes, pull orders + analysis for all
-  // selected clients (aggregated) via the ?names= list.
+  // Orders list for all selected clients (aggregated) via the ?names= list. Deliberately NOT
+  // keyed on `selectedInvoice` — picking an order only re-scopes the analytics above, the order
+  // list itself is unchanged, so refetching it just made the table re-render for nothing.
   useEffect(() => {
-    if (!selected.length) { setOrders(null); setAnalysis(null); return; }
+    if (!selected.length) { setOrders(null); return; }
+    let cancelled = false;
+    getClientOrders(selected[0], { ...filters, names: selected })
+      .then(res => { if (!cancelled) setOrders(res.data.data || []); })
+      .catch(() => { if (!cancelled) setOrders([]); });
+    return () => { cancelled = true; };
+  }, [selected, filters]);
+
+  // Analytics — cumulative across the selection, or scoped to one order via ?invoiceNo=.
+  // `detailLoading` is cleared in the same tick as the data (NOT in a `.finally`, which is a
+  // separate microtask and therefore a separate React commit + repaint).
+  useEffect(() => {
+    if (!selected.length) { setAnalysis(null); setDetailLoading(false); return; }
+    let cancelled = false;
     setDetailLoading(true);
-    const base = { ...filters, names: selected };
-    const analysisParams = selectedInvoice ? { ...base, invoiceNo: selectedInvoice } : base;
-    Promise.all([
-      getClientOrders(selected[0], base),
-      getClientAnalysis(selected[0], analysisParams)
-    ])
-      .then(([ordRes, anRes]) => {
-        setOrders(ordRes.data.data || []);
-        setAnalysis(anRes.data.data || null);
-      })
-      .catch(() => { setOrders([]); setAnalysis(null); })
-      .finally(() => setDetailLoading(false));
+    const params = { ...filters, names: selected };
+    if (selectedInvoice) params.invoiceNo = selectedInvoice;
+    getClientAnalysis(selected[0], params)
+      .then(res => { if (!cancelled) { setAnalysis(res.data.data || null); setDetailLoading(false); } })
+      .catch(() => { if (!cancelled) { setAnalysis(null); setDetailLoading(false); } });
+    return () => { cancelled = true; };
   }, [selected, selectedInvoice, filters]);
 
   const handleFilterChange = (newFilters, clear = false) => {
@@ -150,31 +158,29 @@ const Clients = () => {
   };
   const barTooltip = { callbacks: { label: (ctx) => ` ${metric === 'revenue' ? formatCurrency(ctx.raw) : formatNumber(ctx.raw)}` } };
 
-  // Horizontal bar with a VERTICAL scroll wrapper — keeps ≤15 rows on screen and scrolls the
-  // rest (global small-bar-chart rule). Inner height grows with the row count.
-  const ScrollBar = ({ rows, color }) => (
-    <ScrollRowChart
-      labels={(rows || []).map(r => r._id || '—')}
-      values={(rows || []).map(metricVal)}
-      label={metricLabel}
-      color={color}
-      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
-      xFmt={axisFmt}
-    />
-  );
+  // Shared prop bundles for the two wrapper charts. These used to be inline `ScrollBar` /
+  // `VColumnBar` COMPONENTS declared here in the render body — a fresh component *type* on every
+  // render, which made React unmount + remount the Chart.js canvases on every state change. That
+  // is what made the page flicker twice per order click (blank → old data → blank → new data):
+  // clicking a row commits twice (selection + loaded data) and each commit rebuilt the canvas.
+  // Passing plain prop objects to a stable component keeps the same canvas and just updates it.
+  const rowChartProps = (rows, color) => ({
+    labels: (rows || []).map(r => r._id || '—'),
+    values: (rows || []).map(metricVal),
+    label: metricLabel,
+    color,
+    valueFmt: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v),
+    xFmt: axisFmt,
+  });
 
-  // Vertical column chart with a FROZEN y-axis + horizontal scroll (like the Products Thickness
-  // chart) — keeps columns + axis readable when there are many categories.
-  const VColumnBar = ({ rows, color }) => (
-    <ScrollColumnChart
-      labels={(rows || []).map(r => r._id || '—')}
-      values={(rows || []).map(metricVal)}
-      label={metricLabel}
-      color={color}
-      yFmt={axisFmt}
-      valueFmt={(v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v)}
-    />
-  );
+  const columnChartProps = (rows, color) => ({
+    labels: (rows || []).map(r => r._id || '—'),
+    values: (rows || []).map(metricVal),
+    label: metricLabel,
+    color,
+    yFmt: axisFmt,
+    valueFmt: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(v),
+  });
 
   const totals = analysis?.totals || { revenue: 0, revenueIncl: 0, qty: 0, orderCount: 0, productCount: 0 };
   const fav = analysis?.favSalesman;
@@ -404,24 +410,24 @@ const Clients = () => {
               </ChartCard>
             )}
 
-            {/* (1,4) Colour preference — teal horizontal rows (vertical scroll) */}
+            {/* (1,4) Colour preference — teal horizontal rows, fills the card */}
             {(analysis?.byColour?.length > 0) && (
               <ChartCard title={`Colour Breakdown${titleTag}`} aiContext={analysis.byColour} aiType="Client colour preference">
-                <ScrollBar rows={analysis.byColour} color={ACCENTS.colour} />
+                <ScrollRowChart {...rowChartProps(analysis.byColour, ACCENTS.colour)} />
               </ChartCard>
             )}
 
             {/* (2,4) Thickness / Section — purple vertical columns. */}
             {(analysis?.byThickness?.length > 0) && (
               <ChartCard title={`Thickness/Section${titleTag}`} aiContext={analysis.byThickness} aiType="Client thickness preference">
-                <VColumnBar rows={analysis.byThickness} color={ACCENTS.thickness} />
+                <ScrollColumnChart {...columnChartProps(analysis.byThickness, ACCENTS.thickness)} />
               </ChartCard>
             )}
 
-            {/* (1,5) Dimension preference — orange bars, vertical scroll */}
+            {/* (1,5) Dimension preference — orange bars, fills the card */}
             {(analysis?.byDimension?.length > 0) && (
               <ChartCard title={`Dimensions Preference${titleTag}`} aiContext={analysis.byDimension} aiType="Client dimension preference">
-                <ScrollBar rows={analysis.byDimension} color={ACCENTS.dimension} />
+                <ScrollRowChart {...rowChartProps(analysis.byDimension, ACCENTS.dimension)} />
               </ChartCard>
             )}
           </div>
@@ -447,7 +453,9 @@ const Clients = () => {
               )}
             </div>
             <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
-              {detailLoading && !orders ? (
+              {/* `!orders` (not `detailLoading && !orders`) — the orders fetch has its own effect
+                  now and doesn't drive `detailLoading`, so key the skeleton off the data itself. */}
+              {!orders ? (
                 <div style={{ padding: '18px' }}><TableSkeleton /></div>
               ) : (
                 <table className="data-table" style={{ tableLayout: 'fixed' }}>

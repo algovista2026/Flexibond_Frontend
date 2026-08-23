@@ -7,6 +7,7 @@ import NotificationPanel from '../components/NotificationPanel';
 import ExportControls from '../components/ExportControls';
 import ScrollColumnChart from '../components/ScrollColumnChart';
 import ScrollRowChart from '../components/ScrollRowChart';
+import DonutLegend from '../components/DonutLegend';
 import TargetAmountInput, { TURNOVER_TARGET_PRESETS } from '../components/TargetAmountInput';
 import {
   getDashboardSummary,
@@ -413,14 +414,11 @@ const Branch = () => {
                 <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                   <Doughnut data={salesmanData} options={{ maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: piePctTooltip, percentBar: false } }} />
                 </div>
-                <div className="custom-legend">
-                  {(salesmanData.labels || []).map((label, i) => (
-                    <div key={i} className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: spColors[i % spColors.length], flexShrink: 0 }} />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>{label}</span>
-                    </div>
-                  ))}
-                </div>
+                <DonutLegend
+                  labels={salesmanData.labels}
+                  values={salesmanData.datasets[0].data}
+                  colors={spColors}
+                />
               </div>
             </ChartCard>
 

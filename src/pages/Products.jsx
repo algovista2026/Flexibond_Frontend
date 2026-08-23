@@ -187,6 +187,9 @@ const Products = () => {
   const topProduct = data.products?.[0] || null;
   // Total Quantity Sold — sum of qty across the full filtered product set (TotQty).
   const totalQtySold = (data.allProducts || []).reduce((s, p) => s + (p.totalQty || 0), 0);
+  // Total revenue (excl. taxes) across the full filtered product set — same source as the table's
+  // Revenue (Excl. Taxes) column, so the KPI and the table always agree.
+  const totalRevenueExcl = (data.allProducts || []).reduce((s, p) => s + (p.totalAmount || 0), 0);
   // Top-product name can be very long — scale the KPI value font to fit on one/two lines.
   const topProductName = topProduct ? String(topProduct._id) : 'N/A';
   const topProductFont = topProductName.length > 34 ? '0.82rem'
@@ -353,7 +356,7 @@ const Products = () => {
       {data.products && (
         <div style={{ marginBottom: '24px' }}>
           <AIInsightButton 
-            contextData={{ totalProducts, totalCategories, totalColours, topProduct: topProduct?._id, sortOrder: sortOrder === -1 ? 'Top' : 'Bottom' }} 
+            contextData={{ totalProducts, totalCategories, totalColours, totalRevenueExcl, topProduct: topProduct?._id, sortOrder: sortOrder === -1 ? 'Top' : 'Bottom' }}
             contextType="Products Dashboard Overview" 
             title={`Generate AI ${sortOrder === -1 ? 'Top' : 'Bottom'} Products Summary`} 
             isBanner={true} 
@@ -373,7 +376,7 @@ const Products = () => {
           <KPICard title="Unique Products" value={formatNumber(totalProducts)} />
           <KPICard title="Total Quantity Sold" value={formatNumber(totalQtySold)} subtext="TotQty across filtered products" />
           <KPICard title="Sub-Categories" value={formatNumber(totalCategories)} />
-          <KPICard title="Colours" value={formatNumber(totalColours)} />
+          <KPICard title="Revenue (Excl. Taxes)" value={formatCurrency(totalRevenueExcl)} subtext="Across filtered products" />
         </div>
       )}
 

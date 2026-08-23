@@ -276,4 +276,13 @@ export const adminDeleteUser = (userId) => api.delete(`auth/users/${userId}`);
 export const adminReset2FA = (userId) => api.post(`auth/users/${userId}/disable-2fa`);
 export const adminGetLogs = () => api.get('auth/logs');
 
+// Salesperson Change (Admin Only) — re-assign ONE invoice to a different salesperson.
+export const spChangeGetSalespeople = () => api.get('salesperson-change/salespeople');
+export const spChangeLookupInvoice = (invoiceNo) =>
+  api.get(`salesperson-change/invoice/${encodeURIComponent(invoiceNo)}`);
+export const spChangeApply = (invoiceNo, salesperson) =>
+  api.put('salesperson-change', { invoiceNo, salesperson });
+export const spChangeHistory = (params) => api.get('salesperson-change/history', { params });
+export const spChangeUndo = (id) => api.delete(`salesperson-change/${id}`);
+
 export default api;

@@ -42,6 +42,10 @@ const Financial = () => {
   const [invoiceTotal, setInvoiceTotal] = useState(0);
   const [invoiceTotalPages, setInvoiceTotalPages] = useState(1);
   const [tableSearch, setTableSearch] = useState('');
+  // Invoice Register CR/DR filter — '' = all, 'credit' = credit notes only, 'debit' = debit only.
+  // Deliberately TABLE-ONLY: it is not passed to the summary/chart endpoints, so the KPI cards keep
+  // showing the true overall split while the table narrows.
+  const [crDrFilter, setCrDrFilter] = useState('');
   const [trendGroupBy, setTrendGroupBy] = useState('day');
   const searchDebounceRef = useRef(null);
 
@@ -81,24 +85,36 @@ const Financial = () => {
     } catch (err) { console.error(err); }
   }, [filters, trendGroupBy]);
 
-  const fetchInvoices = useCallback(async (page = 1, params = filters, search = tableSearch) => {
+  const fetchInvoices = useCallback(async (page = 1, params = filters, search = tableSearch, crDr = crDrFilter) => {
     setTableLoading(true);
     try {
-      const res = await getFinancialInvoices({ ...params, page, limit: 50, ...(search ? { search } : {}) });
+      const res = await getFinancialInvoices({
+        ...params, page, limit: 50,
+        ...(search ? { search } : {}),
+        ...(crDr ? { crDr } : {}),
+      });
       setInvoices(res.data.data);
       setInvoiceTotal(res.data.total);
       setInvoiceTotalPages(res.data.totalPages);
       setInvoicePage(page);
     } catch (err) { console.error(err); }
     finally { setTableLoading(false); }
-  }, [filters, tableSearch]);
+  }, [filters, tableSearch, crDrFilter]);
 
   const handleTableSearch = (value) => {
     setTableSearch(value);
     clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
-      fetchInvoices(1, filters, value);
+      fetchInvoices(1, filters, value, crDrFilter);
     }, 400);
+  };
+
+  // CR/DR toggle — clicking the active option clears it (back to All). Always resets to page 1,
+  // since the current page number is meaningless against a different-sized result set.
+  const handleCrDr = (value) => {
+    const next = crDrFilter === value ? '' : value;
+    setCrDrFilter(next);
+    fetchInvoices(1, filters, tableSearch, next);
   };
 
   // Download the ENTIRE filtered invoice register (all pages) as Excel or PDF.
@@ -124,7 +140,11 @@ const Financial = () => {
   const downloadInvoices = async (format) => {
     try {
       setDownloading(true);
-      const res = await getFinancialInvoicesAll({ ...filters, ...(tableSearch ? { search: tableSearch } : {}) });
+      const res = await getFinancialInvoicesAll({
+        ...filters,
+        ...(tableSearch ? { search: tableSearch } : {}),
+        ...(crDrFilter ? { crDr: crDrFilter } : {}), // export exactly what the table is showing
+      });
       const rows = res.data.data || [];
       if (rows.length === 0) { alert('No invoices to download.'); return; }
       const stamp = new Date().toISOString().split('T')[0];
@@ -496,6 +516,32 @@ const Financial = () => {
             </span>
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 200px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            {/* CR/DR filter — table only, does not change the KPI cards above. */}
+            <div style={{ display: 'inline-flex', background: 'var(--bg-light)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)' }}>
+              {[
+                { id: '', label: 'All' },
+                { id: 'credit', label: 'Credit' },
+                { id: 'debit', label: 'Debit' },
+              ].map(opt => {
+                const active = crDrFilter === opt.id;
+                return (
+                  <button
+                    key={opt.id || 'all'}
+                    onClick={() => { if (!active) handleCrDr(opt.id || crDrFilter); }}
+                    disabled={tableLoading}
+                    title={opt.id === '' ? 'Show all invoices' : `Show ${opt.label.toLowerCase()} notes only`}
+                    style={{
+                      padding: '5px 12px', borderRadius: '6px', border: 'none',
+                      background: active ? '#fff' : 'transparent',
+                      boxShadow: active ? 'var(--shadow-sm)' : 'none',
+                      color: active ? 'var(--primary-600)' : 'var(--text-secondary)',
+                      fontWeight: 600, fontSize: '0.8rem',
+                      cursor: tableLoading ? 'wait' : 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >{opt.label}</button>
+                );
+              })}
+            </div>
             {/* Search box */}
             <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: '280px', minWidth: '140px' }}>
               <FiSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.85rem', pointerEvents: 'none' }} />

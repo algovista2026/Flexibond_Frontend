@@ -70,7 +70,10 @@ const AdminPanel = () => {
   const ZONE_OPTIONS = ['West Zone', 'East Zone', 'North Zone', 'South Zone', 'Central Zone'];
   const DEFAULT_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload'];
   // Scoped accounts can't hold Invoice-level sections (mirrors the backend enforcement).
-  const SCOPED_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'clients'];
+  // Starting selection when an account is switched to a scoped type. Only a DEFAULT since
+  // 2026-08-23 — the admin can now grant ANY module to a scoped account (Financials/Channel are
+  // data-scoped server-side rather than denied), so nothing is filtered out of the list below.
+  const SCOPED_DEFAULT_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'clients'];
   const fmtINR = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
 
   const availableModules = [
@@ -512,7 +515,7 @@ const AdminPanel = () => {
                     const at = e.target.value;
                     setAccountType(at);
                     // Scoped accounts get the restricted permission default.
-                    if (at === 'company' || at === 'zonal') setPermissions(SCOPED_PERMS);
+                    if (at === 'company' || at === 'zonal') setPermissions(SCOPED_DEFAULT_PERMS);
                     else if (at === 'viewer') setPermissions(DEFAULT_PERMS);
                   }}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', outline: 'none' }}
@@ -718,12 +721,12 @@ const AdminPanel = () => {
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>Module Access Permissions</label>
                   {(accountType === 'company' || accountType === 'zonal') && (
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                      Financials, Channel and Data Upload are unavailable for scoped accounts.
+                      Every module can be granted to a scoped account — it will still only ever see its
+                      own {accountType === 'company' ? 'company\u2019s' : 'salespeople\u2019s'} data.
                     </p>
                   )}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', background: 'var(--bg-light)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     {availableModules
-                      .filter(mod => !((accountType === 'company' || accountType === 'zonal') && ['financials', 'channel', 'upload'].includes(mod.id)))
                       .map(mod => (
                       <div 
                         key={mod.id} 

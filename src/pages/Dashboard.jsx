@@ -9,6 +9,7 @@ import ExportControls from '../components/ExportControls';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationPanel from '../components/NotificationPanel';
 import ScrollColumnChart from '../components/ScrollColumnChart';
+import DonutLegend from '../components/DonutLegend';
 import { averageLinePlugin } from '../utils/averageLinePlugin';
 import { formatINRShort, formatShort } from '../utils/numberFormat';
 import {
@@ -949,23 +950,11 @@ const Dashboard = () => {
                   }}
                 />
               </div>
-              <div className="custom-legend">
-                {(spChartData.labels || []).map((label, i) => {
-                  const val = spChartData.datasets[0].data[i];
-                  const total = spChartData.datasets[0].data.reduce((a, b) => a + b, 0);
-                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                  const color = spChartData.datasets[0].backgroundColor[i % spChartData.datasets[0].backgroundColor.length];
-                  return (
-                    <div key={i} className="legend-item">
-                      <div className="legend-label">
-                        <div className="legend-dot" style={{ background: color }} />
-                        <span>{label}</span>
-                      </div>
-                      <span className="legend-percentage">{pct}%</span>
-                    </div>
-                  );
-                })}
-              </div>
+              <DonutLegend
+                labels={spChartData.labels}
+                values={spChartData.datasets[0].data}
+                colors={spChartData.datasets[0].backgroundColor}
+              />
             </div>
           </ChartCard>
         )}
