@@ -730,13 +730,40 @@ const Products = () => {
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
                 All Products {data.allProducts ? `(${tableProducts.length}${tableSearch.trim() ? ` of ${data.allProducts.length}` : ''})` : ''}
               </h3>
-              <input
-                type="text"
-                value={tableSearch}
-                onChange={(e) => setTableSearch(e.target.value)}
-                placeholder="Search products…"
-                style={{ height: '38px', minWidth: '220px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}
-              />
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={tableSearch}
+                  onChange={(e) => setTableSearch(e.target.value)}
+                  placeholder="Search products…"
+                  style={{ height: '38px', minWidth: '220px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const XLSX = window.XLSX;
+                    if (!XLSX) { alert('Excel library failed to load. Check your connection and retry.'); return; }
+                    const exportRows = tableProducts.map(p => ({
+                      'Product Name': p._id,
+                      'Category': p.group || '',
+                      'Sub-Category': p.category || '',
+                      'Quantity': p.totalQty,
+                      'Avg. Rate (Excl. Taxes)': p.avgRate,
+                      'Avg. Rate / Sq.Ft (Excl. Taxes)': ratePerFoot(p.avgRate, p.master),
+                      'Revenue (Excl. Taxes)': p.totalAmount,
+                      'Revenue (Incl. Taxes)': p.totalAmountIncl
+                    }));
+                    const ws = XLSX.utils.json_to_sheet(exportRows);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'All Products');
+                    const stamp = new Date().toISOString().split('T')[0];
+                    XLSX.writeFile(wb, `All_Products_${stamp}.xlsx`);
+                  }}
+                  style={{ height: '38px', padding: '0 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--primary-600)', color: '#fff', fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Download Excel
+                </button>
+              </div>
             </div>
             <div style={{ maxHeight: '460px', overflowY: 'auto' }}>
               {/* Fixed layout + colgroup so the extra Category / dual-revenue columns fit without
