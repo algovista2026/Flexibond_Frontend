@@ -65,6 +65,12 @@ const Dashboard = () => {
   // global company turnover; the middleware already scopes their revenue, so `achieved`
   // (data.summary.totalRevenue) is their own figure.
   const scoped = user.scopeType === 'company' || user.scopeType === 'zonal';
+  // ⚠️ Accept either key. The login response returns `id` while GET /auth/me used to return only
+  // `_id`, and App.jsx overwrites the stored session with the /me payload — so `user.id` went
+  // undefined after the first refresh and every `scoped && uid` branch below silently fell
+  // through to the COMPANY-WIDE target. Root-caused + fixed server-side 2026-09-01; this stays as a
+  // belt-and-braces for sessions cached before that deploy.
+  const uid = user.id || user._id;
   // Company-scoped IDs see only ONE company's data, so the company-comparison charts (Revenue
   // Split by Company + Revenue by Company trend) are meaningless for them — hidden (2026-08-06).
   const companyScoped = user.scopeType === 'company';
@@ -163,10 +169,10 @@ const Dashboard = () => {
 
   const fetchCompanyTarget = async () => {
     try {
-      if (scoped && user.id) {
+      if (scoped && uid) {
         // Scoped account: load its own target. Normalise to { amount, fiscalYear } where
         // amount is the ANNUAL figure so the card's achieved/target math is consistent.
-        const res = await getScopedTarget(user.id);
+        const res = await getScopedTarget(uid);
         const d = res.data.data;
         setCompanyTargetState({ amount: d.annualTarget || 0, fiscalYear: d.fiscalYear, mode: d.mode, editable: !!d.editable });
       } else {
@@ -197,11 +203,11 @@ const Dashboard = () => {
   const saveCompanyTarget = async () => {
     try {
       setTargetSaving(true);
-      if (scoped && user.id) {
+      if (scoped && uid) {
         // Scoped accounts store a single annual target for themselves.
         const amt = Number(targetForm);
         if (!isFinite(amt) || amt < 0) return;
-        await setScopedTarget(user.id, { amount: amt, mode: 'yearly' });
+        await setScopedTarget(uid, { amount: amt, mode: 'yearly' });
         await fetchCompanyTarget();
       } else {
         // Admin: three per-company targets; the overall target = their sum (computed server-side).
@@ -529,22 +535,17 @@ const Dashboard = () => {
             // everyone reads ~90% behind. Rate = how far achieved is ahead/behind that pace.
             const fyStartYear = companyTarget?.fiscalYear ? parseInt(String(companyTarget.fiscalYear).split('-')[0], 10) : new Date().getFullYear();
             const daysElapsed = Math.min(365, Math.max(1, Math.floor((Date.now() - new Date(fyStartYear, 7, 1).getTime()) / 86400000) + 1));
-            // Per-company target rows. Admin sees all 3 daughter companies (from companyTargets + the
-            // company-trend achieved map). A COMPANY-scoped account sees a single row for its own
-            // company — target = its shared per-company target, achieved = its (already-scoped)
-            // revenue — so it gets the same Target · Achieved · % · Rate table.
-            const scopedCompanyName = (Array.isArray(user.companies) && user.companies.length === 1)
-              ? user.companies[0] : (user.company || companySegments[0]?.label || 'My Company');
-            const perCompany = companyScoped
-              ? [{ name: scopedCompanyName, tgt: target, ach: achieved, p: target > 0 ? (achieved / target) * 100 : 0, color: COMPANY_COLORS[scopedCompanyName] || '#ec4899' }]
-              : COMPANY_ORDER.map(name => {
-                  const tgt = (companyTarget?.companyTargets?.[name]) || 0;
-                  const ach = companyAchievedMap[name] || 0;
-                  return { name, tgt, ach, p: tgt > 0 ? (ach / tgt) * 100 : 0, color: COMPANY_COLORS[name] };
-                });
+            // Per-company target rows — super admin only (the table is hidden for scoped accounts).
+            const perCompany = COMPANY_ORDER.map(name => {
+              const tgt = (companyTarget?.companyTargets?.[name]) || 0;
+              const ach = companyAchievedMap[name] || 0;
+              return { name, tgt, ach, p: tgt > 0 ? (ach / tgt) * 100 : 0, color: COMPANY_COLORS[name] };
+            });
             const hasCompanyTargets = perCompany.some(r => r.tgt > 0);
             return (
-              <div className="kpi-card" style={{ gridColumn: 'span 2', gridRow: 'span 2', display: 'flex', flexDirection: 'column' }}>
+              /* The 2x2 footprint exists to hold the per-company targets table, which is super-admin
+                 only — a scoped account would otherwise get a big half-empty card (2026-09-01). */
+              <div className="kpi-card" style={{ gridColumn: scoped ? 'span 1' : 'span 2', gridRow: scoped ? 'span 1' : 'span 2', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                   <div className="kpi-label">
                     {scoped ? 'My Target (Excl. Taxes)' : 'Target Turnover (Excl. Taxes)'}{companyTarget?.fiscalYear ? ` (FY ${companyTarget.fiscalYear})` : ''}
@@ -563,7 +564,7 @@ const Dashboard = () => {
                 <div style={{ marginTop: '10px' }}>
                   {/* Segmented bar — % of target achieved, split by daughter company (hover for
                       detail). Falls back to a single fill if the company split is unavailable. */}
-                  {target > 0 && companySegments.length > 0 ? (
+                  {target > 0 && !scoped && companySegments.length > 0 ? (
                     <>
                       <CompanyBar segments={companySegments} denom={target} showInside={false} height={10} />
                       <CompanyLegend />
@@ -576,13 +577,17 @@ const Dashboard = () => {
                   <div className="kpi-sub" style={{ marginTop: '6px', color: 'var(--text-primary)', fontWeight: 700 }}>
                     {target > 0
                       ? `${formatCurrency(achieved)} achieved · ${Math.round(pct)}%`
-                      : (canEditTarget ? 'Set a target to track achievement' : 'No target set')}
+                      : (canEditTarget
+                        ? 'Set a target to track achievement'
+                        : scoped ? 'No target set for this account' : 'No target set')}
                   </div>
                 </div>
 
-                {/* Per-company targets table — admin (all 3 companies) + company-scoped accounts
-                    (their own company). Zonal heads keep the simple single-target view. */}
-                {(!scoped || companyScoped) && (
+                {/* Per-company targets table — SUPER ADMIN ONLY (all 3 companies).
+                    ⚠️ Was also shown to company-scoped accounts until 2026-09-01, which is how a
+                    salesperson's login could read the company turnover target. Scoped accounts now
+                    only ever see their OWN target (the single figure above). */}
+                {!scoped && (
                   <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                     <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Per-Company Targets</div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>

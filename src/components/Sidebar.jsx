@@ -19,8 +19,15 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
     navigate('/login');
   };
 
-  const isAdmin = user.role === 'admin';
-  const permissions = user.permissions || ['overview', 'products', 'salesperson', 'comparison', 'clients', 'upload', 'financials', 'channel'];
+  // Tiers (2026-09-01): 'admin' = SUPER admin (Flexibond), 'companyadmin' = master control over ONE
+  // company. A company admin gets the admin section too, minus System Logs (global audit trail).
+  const isSuperAdmin = user.role === 'admin';
+  const isCompanyAdmin = user.role === 'companyadmin';
+  const isAdmin = isSuperAdmin || isCompanyAdmin; // "sees everything its scope allows"
+  const permissions = user.permissions || [
+    'overview', 'products', 'salesperson', 'comparison', 'clients', 'branch', 'geographic',
+    'financials', 'channel',
+  ];
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
@@ -59,7 +66,9 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
             <span>Salesperson Comparison</span>
           </NavLink>
         )}
-        {(isAdmin || permissions.includes('overview')) && (
+        {/* Branch Analytics has its own permission since 2026-09-01 (it used to ride on `overview`,
+            so it could not be withheld). Same for Geographic below (used to ride on `salesperson`). */}
+        {(isAdmin || permissions.includes('branch')) && (
           <NavLink to="/branch" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiMapPin className="nav-icon" />
             <span>Branch Analytics</span>
@@ -71,7 +80,7 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
             <span>Clients</span>
           </NavLink>
         )}
-        {(isAdmin || permissions.includes('salesperson')) && (
+        {(isAdmin || permissions.includes('geographic')) && (
           <NavLink to="/geographic" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiMap className="nav-icon" />
             <span>Geographic</span>
@@ -106,10 +115,13 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
               <FiUsers className="nav-icon" />
               <span>User Management</span>
             </NavLink>
-            <NavLink to="/logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <FiBarChart2 className="nav-icon" />
-              <span>System Logs</span>
-            </NavLink>
+            {/* System Logs is the GLOBAL audit trail — super admin only. */}
+            {isSuperAdmin && (
+              <NavLink to="/logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <FiBarChart2 className="nav-icon" />
+                <span>System Logs</span>
+              </NavLink>
+            )}
             <NavLink to="/data-logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <FiDatabase className="nav-icon" />
               <span>Data Logs</span>

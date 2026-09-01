@@ -38,7 +38,8 @@ const NoAccessPage = () => (
 // Protected View Wrapper
 const ProtectedView = ({ permission, children }) => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
-  const isAdmin = user.role === 'admin';
+  // Both admin tiers bypass module permissions; their DATA is still bounded by their scope.
+  const isAdmin = user.role === 'admin' || user.role === 'companyadmin';
   const perms = user.permissions || [];
 
   // Company accounts always get the VIEW-ONLY Upload section (2026-08-06), even without the perm.
@@ -54,7 +55,7 @@ const ProtectedView = ({ permission, children }) => {
 const DefaultRedirect = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   if (!user || !user.role) return <Navigate to="/login" replace />;
-  if (user.role === 'admin') return <Navigate to="/dashboard" replace />;
+  if (user.role === 'admin' || user.role === 'companyadmin') return <Navigate to="/dashboard" replace />;
 
   const perms = user.permissions || [];
   if (perms.includes('overview')) return <Navigate to="/dashboard" replace />;
@@ -94,7 +95,8 @@ const PrivateRoute = () => {
   // mouse / keyboard / touch / scroll activity, then bounces to the login screen. Only admin
   // accounts (e.g. the master "flexibond" login) are affected; viewers/scoped stay logged in.
   useEffect(() => {
-    if (!token || user.role !== 'admin') return;
+    // Both admin tiers hold master controls, so both get the idle auto-logout.
+    if (!token || !(user.role === 'admin' || user.role === 'companyadmin')) return;
     const IDLE_MS = 600 * 1000;
     let timer;
     const logout = () => {
@@ -166,10 +168,10 @@ const App = () => {
           <Route path="/dashboard" element={<ProtectedView permission="overview"><Dashboard /></ProtectedView>} />
           <Route path="/products" element={<ProtectedView permission="products"><Products /></ProtectedView>} />
           <Route path="/salesperson" element={<ProtectedView permission="salesperson"><Salesperson /></ProtectedView>} />
-          <Route path="/geographic" element={<ProtectedView permission="salesperson"><Geographic /></ProtectedView>} />
+          <Route path="/geographic" element={<ProtectedView permission="geographic"><Geographic /></ProtectedView>} />
           <Route path="/comparison" element={<ProtectedView permission="comparison"><Comparison /></ProtectedView>} />
           <Route path="/clients" element={<ProtectedView permission="clients"><Clients /></ProtectedView>} />
-          <Route path="/branch" element={<ProtectedView permission="overview"><Branch /></ProtectedView>} />
+          <Route path="/branch" element={<ProtectedView permission="branch"><Branch /></ProtectedView>} />
           <Route path="/product-comparison" element={<ProtectedView permission="products"><ProductComparison /></ProtectedView>} />
           <Route path="/upload" element={MANUAL_UPLOAD_ENABLED ? <ProtectedView permission="upload"><Upload /></ProtectedView> : <Navigate to="/no-access" replace />} />
           <Route path="/financial" element={<ProtectedView permission="financials"><Financial /></ProtectedView>} />

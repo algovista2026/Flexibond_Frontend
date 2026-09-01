@@ -28,6 +28,14 @@ const AdminPanel = () => {
   const [show2FASetup, setShow2FASetup] = useState(false);
   const [currentUserData, setCurrentUserData] = useState(null);
 
+  // Tier of the LOGGED-IN admin (2026-09-01). A company admin manages only its own company's
+  // ordinary accounts — the backend enforces this; the UI just hides what it can't do.
+  const isSuperAdmin = user.role === 'admin';
+  const isCompanyAdminUser = user.role === 'companyadmin';
+  const myCompany = (Array.isArray(user.companies) && user.companies.length
+    ? user.companies[0]
+    : user.company) || null;
+
   // Edit mode tracking
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -38,8 +46,14 @@ const AdminPanel = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // Account type drives role + scope. 'viewer'/'admin' = unrestricted; 'company'/'zonal' = scoped.
-  const [accountType, setAccountType] = useState('viewer');
+  // Account type drives role + scope.
+  //   'admin'        = SUPER admin (Flexibond, global)
+  //   'companyadmin' = COMPANY ADMIN — master control over ONE company (max 1 per company)
+  //   'company'      = ordinary company-scoped login
+  //   'zonal'        = zonal head (selected salespeople)
+  // The old unscoped 'viewer' type was REMOVED 2026-09-01 (it saw all data with no admin rights and
+  // none existed). Scoped logins are still stored with role 'viewer' in the DB.
+  const [accountType, setAccountType] = useState('company');
   // Company-scoped accounts can now cover MULTIPLE companies (2026-07-29).
   const [companies, setCompanies] = useState([]);
   // Whether a company account may edit its (shared, per-company) turnover target (2026-08-06).
@@ -68,24 +82,31 @@ const AdminPanel = () => {
 
   const COMPANY_OPTIONS = ['UCPL', 'UFPL', 'FDL'];
   const ZONE_OPTIONS = ['West Zone', 'East Zone', 'North Zone', 'South Zone', 'Central Zone'];
-  const DEFAULT_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'financials', 'channel', 'upload'];
-  // Scoped accounts can't hold Invoice-level sections (mirrors the backend enforcement).
   // Starting selection when an account is switched to a scoped type. Only a DEFAULT since
-  // 2026-08-23 — the admin can now grant ANY module to a scoped account (Financials/Channel are
+  // 2026-08-23 — the admin can grant ANY module to a scoped account (Financials/Channel are
   // data-scoped server-side rather than denied), so nothing is filtered out of the list below.
   const SCOPED_DEFAULT_PERMS = ['overview', 'products', 'salesperson', 'comparison', 'clients'];
   const fmtINR = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
 
+  // Every grantable module. One entry per section that actually appears in the sidebar.
+  //  • 'upload' (Data Upload Area) was REMOVED 2026-09-01 — manual Excel upload is retired
+  //    (MANUAL_UPLOAD_ENABLED=false), so the checkbox controlled a page nobody can reach.
+  //  • 'branch' + 'geographic' were ADDED 2026-09-01 — those two sections used to ride on
+  //    `overview` / `salesperson` respectively, so they could never be withheld from an account.
   const availableModules = [
     { id: 'overview', label: 'Dashboard Overview' },
     { id: 'products', label: 'Product Analytics' },
     { id: 'salesperson', label: 'Salesperson Performance' },
     { id: 'comparison', label: 'Salesperson Comparison' },
+    { id: 'branch', label: 'Branch Analytics' },
     { id: 'clients', label: 'Client Analytics' },
+    { id: 'geographic', label: 'Geographic' },
     { id: 'financials', label: 'Financials (Tax & GST)' },
     { id: 'channel', label: 'Channel (B2B vs B2C)' },
-    { id: 'upload', label: 'Data Upload Area' },
   ];
+  const ALL_PERMS = availableModules.map(m => m.id);
+  // Kept as the reset default for the create form.
+  const DEFAULT_PERMS = SCOPED_DEFAULT_PERMS;
 
   const fetchUsers = async () => {
     try {
@@ -130,9 +151,11 @@ const AdminPanel = () => {
 
   useEffect(() => {
     fetchUsers();
-    if (user.role === 'admin') {
-      fetchSecurityData();
+    if (isSuperAdmin) {
+      fetchSecurityData();   // device approvals + 2FA management are global
       fetchScopeProgress();
+    } else if (isCompanyAdminUser) {
+      fetchScopeProgress();  // backend filters this to their own company
     }
   }, []);
 
@@ -168,15 +191,24 @@ const AdminPanel = () => {
     }
 
     // Scope validation + payload
-    if (accountType === 'company' && companies.length === 0) {
+    if (accountType === 'company' && !isCompanyAdminUser && companies.length === 0) {
       return toast.warning('Select at least one company for a company-scoped account');
+    }
+    if (accountType === 'companyadmin' && companies.length !== 1) {
+      return toast.warning('A Company Admin must be assigned to exactly ONE company');
     }
     if (accountType === 'zonal' && selectedSalespeople.length === 0) {
       return toast.warning('Select at least one salesperson for a zonal-head account');
     }
-    const submitRole = accountType === 'admin' ? 'admin' : 'viewer';
+    // A Company Admin is company-SCOPED and keeps its own role; every other scoped login is a viewer.
+    const submitRole = accountType === 'admin' ? 'admin'
+      : accountType === 'companyadmin' ? 'companyadmin'
+      : 'viewer';
+    // A company admin can only ever create/edit accounts on its OWN company (backend enforces too).
+    const effCompanies = isCompanyAdminUser && myCompany ? [myCompany] : companies;
     const scopePayload =
-      accountType === 'company' ? { scopeType: 'company', companies, canEditTarget: canEditTargetFlag }
+      (accountType === 'company' || accountType === 'companyadmin')
+        ? { scopeType: 'company', companies: effCompanies, canEditTarget: canEditTargetFlag }
       : accountType === 'zonal' ? { scopeType: 'zonal', salespeople: selectedSalespeople, zone }
       : { scopeType: 'none' };
 
@@ -194,7 +226,7 @@ const AdminPanel = () => {
       setPassword('');
       setConfirmPassword('');
       setShowPassword(false);
-      setAccountType('viewer');
+      setAccountType('company');
       setCompanies([]);
       setCanEditTargetFlag(false);
       setZone('');
@@ -203,7 +235,7 @@ const AdminPanel = () => {
       setIsEditMode(false);
       setEditingUserId(null);
       fetchUsers();
-      if (user.role === 'admin') fetchScopeProgress();
+      if (isSuperAdmin || isCompanyAdminUser) fetchScopeProgress();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save user');
     }
@@ -217,9 +249,10 @@ const AdminPanel = () => {
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
-    const at = userObj.role === 'admin'
-      ? 'admin'
-      : (userObj.scopeType && userObj.scopeType !== 'none' ? userObj.scopeType : 'viewer');
+    // A Company Admin is role 'companyadmin' WITH a company scope, so check the role first.
+    const at = userObj.role === 'admin' ? 'admin'
+      : userObj.role === 'companyadmin' ? 'companyadmin'
+      : (userObj.scopeType && userObj.scopeType !== 'none' ? userObj.scopeType : 'company');
     setAccountType(at);
     setCompanies(
       userObj.companies && userObj.companies.length
@@ -240,7 +273,7 @@ const AdminPanel = () => {
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
-    setAccountType('viewer');
+    setAccountType('company');
     setCompanies([]);
     setCanEditTargetFlag(false);
     setZone('');
@@ -419,13 +452,16 @@ const AdminPanel = () => {
             >
               Users
             </button>
-            <button 
-              className={activeTab === 'security' ? 'active' : ''} 
-              onClick={() => setActiveTab('security')}
-              style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: activeTab === 'security' ? '#fff' : 'transparent', boxShadow: activeTab === 'security' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', color: activeTab === 'security' ? 'var(--primary-600)' : 'var(--text-secondary)' }}
-            >
-              Security
-            </button>
+            {/* Device approvals + 2FA management are GLOBAL — super admin only (2026-09-01). */}
+            {isSuperAdmin && (
+              <button 
+                className={activeTab === 'security' ? 'active' : ''} 
+                onClick={() => setActiveTab('security')}
+                style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: activeTab === 'security' ? '#fff' : 'transparent', boxShadow: activeTab === 'security' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', color: activeTab === 'security' ? 'var(--primary-600)' : 'var(--text-secondary)' }}
+              >
+                Security
+              </button>
+            )}
           </div>
           {user.role === 'admin' && <NotificationPanel />}
         </div>
@@ -514,21 +550,32 @@ const AdminPanel = () => {
                   onChange={(e) => {
                     const at = e.target.value;
                     setAccountType(at);
-                    // Scoped accounts get the restricted permission default.
+                    // Scoped accounts get the restricted permission default; a company admin gets
+                    // everything for its own company.
                     if (at === 'company' || at === 'zonal') setPermissions(SCOPED_DEFAULT_PERMS);
-                    else if (at === 'viewer') setPermissions(DEFAULT_PERMS);
+                    else if (at === 'companyadmin') setPermissions(ALL_PERMS);
+                    else if (at === 'admin') setPermissions(ALL_PERMS);
                   }}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', outline: 'none' }}
                 >
-                  <option value="viewer">Viewer (sees all data)</option>
-                  <option value="admin">Administrator (full access)</option>
+                  {/* Only a super admin can mint admins of any kind. */}
+                  {isSuperAdmin && <option value="admin">Super Administrator (Flexibond, all companies)</option>}
+                  {isSuperAdmin && <option value="companyadmin">Company Admin (master control, one company)</option>}
                   <option value="company">Company (one company only)</option>
                   <option value="zonal">Zonal Head (selected salespeople)</option>
                 </select>
+                {!isSuperAdmin && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    Company accounts are fixed to <strong>{myCompany || 'your company'}</strong>. For a
+                    Zonal Head you can pick from {myCompany || 'your company'}'s salespeople — if the
+                    account also covers another company, that part is managed by its own admin and is
+                    left untouched.
+                  </p>
+                )}
               </div>
 
               {/* Company-scoped: pick which of the daughter companies this account sees (multi). */}
-              {accountType === 'company' && (
+              {(accountType === 'company' || accountType === 'companyadmin') && !isCompanyAdminUser && (
                 <div>
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FiBriefcase size={14} /> Companies</span>
@@ -762,7 +809,7 @@ const AdminPanel = () => {
                   const isScoped = u.scopeType === 'company' || u.scopeType === 'zonal';
                   const prog = scopeProgress[u._id];
                   const scopeLabel = u.scopeType === 'company'
-                    ? `Company · ${(u.companies && u.companies.length ? u.companies.join(', ') : u.company) || '—'}`
+                    ? `${u.role === 'companyadmin' ? 'Master control' : 'Company'} · ${(u.companies && u.companies.length ? u.companies.join(', ') : u.company) || '—'}`
                     : u.scopeType === 'zonal'
                       ? `Zonal Head · ${(u.salespeople || []).length} salespeople${u.zone ? ` · ${u.zone}` : ''}`
                       : null;
@@ -775,7 +822,11 @@ const AdminPanel = () => {
                     <div>
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>{u.username}</span>
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: u.role === 'admin' ? '#fee2e2' : '#dbeafe', color: u.role === 'admin' ? '#ef4444' : '#2563eb', fontWeight: 600 }}>{u.role}</span>
+                        <span style={{
+                          fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 600,
+                          background: u.role === 'admin' ? '#fee2e2' : u.role === 'companyadmin' ? '#ede9fe' : '#dbeafe',
+                          color: u.role === 'admin' ? '#ef4444' : u.role === 'companyadmin' ? '#6d28d9' : '#2563eb',
+                        }}>{u.role === 'companyadmin' ? 'company admin' : u.role === 'admin' ? 'super admin' : u.role}</span>
                         {scopeLabel && (
                           <span style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', fontWeight: 600 }}>{scopeLabel}</span>
                         )}
@@ -796,13 +847,17 @@ const AdminPanel = () => {
                           <FiTarget size={16} />
                         </button>
                       )}
-                      <button
-                        onClick={() => openNoteModal(u)}
-                        style={{ padding: '8px', background: 'transparent', border: 'none', color: '#b7962f', cursor: 'pointer', borderRadius: '6px' }}
-                        title="Send a note"
-                      >
-                        <FiMessageSquare size={16} />
-                      </button>
+                      {/* Sticky notes are a super-admin tool (recipient targeting isn't
+                          company-filtered on the backend) — hidden for company admins. */}
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => openNoteModal(u)}
+                          style={{ padding: '8px', background: 'transparent', border: 'none', color: '#b7962f', cursor: 'pointer', borderRadius: '6px' }}
+                          title="Send a note"
+                        >
+                          <FiMessageSquare size={16} />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEditClick(u)}
                         style={{ padding: '8px', background: 'transparent', border: 'none', color: 'var(--primary-600)', cursor: 'pointer', borderRadius: '6px' }}
