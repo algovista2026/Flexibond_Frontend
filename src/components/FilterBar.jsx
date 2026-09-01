@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { FiInfo, FiX, FiCalendar } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
 import { branchDisplay } from '../utils/branchConfig';
+import { getDdMode, setDdMode, canSeeDd } from '../utils/ddMode';
 
 // A date field that keeps a text placeholder when empty, but has an explicit calendar
 // button that reliably opens the native date picker (showPicker) — the old focus-driven
@@ -61,6 +62,19 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
     setInterModeState(mode);
     localStorage.setItem('flexibond_inter_mode', mode);
     onFilterChange({}); // re-fetch with the new interMode
+  };
+
+  // Global DD (own-depot) view — identical mechanism to INTER, but ⚠️ SUPER ADMIN ONLY. The five
+  // HYD/BLR/NGR/SRT/CHG warehouses look like ordinary clients but are the firm's own depots; their
+  // data is excluded from every figure unless a super admin asks for it here. The control simply
+  // isn't rendered for any other tier, and the server enforces the same rule (middleware/dd.js).
+  const showDd = canSeeDd(me);
+  const DD_ACCENT = '#8b5cf6'; // purple — same violet the chart palettes already use
+  const [ddMode, setDdModeState] = useState(() => getDdMode());
+  const setDd = (mode) => {
+    setDdModeState(mode);
+    setDdMode(mode);
+    onFilterChange({}); // re-fetch with the new ddMode
   };
 
   return (
@@ -248,6 +262,31 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
             </button>
           ))}
         </div>
+
+        {/* DD view — 3-way segmented control, mirroring INTER. ⚠️ Rendered for the SUPER ADMIN
+            only; every other tier never sees it and the server ignores the mode for them. */}
+        {showDd && (
+          <div
+            title="DD (own-depot) view — the HYD / BLR / NGR / SRT / CHG warehouses are the company's own stock points, not third-party clients. Visible to super admins only: include them alongside normal sales, show only the depots, or leave them out."
+            style={{ display: 'inline-flex', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}
+          >
+            {[['with', 'With DD'], ['only', 'Only DD'], ['exclude', 'No DD']].map(([m, label], i) => (
+              <button
+                key={m}
+                onClick={() => setDd(m)}
+                style={{
+                  padding: '9px 12px', border: 'none', borderLeft: i === 0 ? 'none' : '1px solid var(--border-color)',
+                  // Purple, not the app's primary blue — the DD control is a super-admin-only view
+                  // switch, so it reads as distinct from the INTER control sitting next to it.
+                  background: ddMode === m ? DD_ACCENT : '#fff', color: ddMode === m ? '#fff' : 'var(--text-primary)',
+                  fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <AppliedFilters filters={filters} onFilterChange={onFilterChange} />

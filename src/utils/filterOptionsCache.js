@@ -41,13 +41,24 @@ const save = (obj) => {
 
 // Merge freshly-fetched filter options with the persisted union. Grows the remembered union and
 // returns a display set where any key the fresh fetch left empty falls back to that union.
+// ⚠️ The own-depot ("dd-*") branches are NEVER written into the persisted union. The union is a
+// per-BROWSER store with no notion of who is logged in, so remembering them would surface depot
+// names in the Branch dropdown of whoever logs in next on that machine (via the empty-list
+// fallback). They also don't need the union's protection: it exists so a purge can't make a
+// dropdown vanish, and the DD feeds are live push feeds that are never purged. A super admin still
+// sees them — straight from the fresh fetch. See utils/ddMode.js.
+const isDdValue = (v) => /^dd-/i.test(String(v));
+
 export const mergeFilterOptions = (fresh = {}) => {
   const cache = load();
   const out = { ...fresh };
   for (const k of OPTION_KEYS) {
     const list = Array.isArray(fresh[k]) ? fresh[k] : [];
     const prev = Array.isArray(cache[k]) ? cache[k] : [];
-    const union = sortUnion(Array.from(new Set([...prev, ...list])));
+    const cacheable = k === 'branches' ? list.filter(v => !isDdValue(v))
+      : k === 'companies' ? list.filter(v => String(v).toUpperCase() !== 'DD')
+        : list;
+    const union = sortUnion(Array.from(new Set([...prev, ...cacheable])));
     cache[k] = union;
     out[k] = list.length ? list : union; // fall back to union only when the fresh list is empty
   }

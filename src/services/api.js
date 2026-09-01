@@ -85,8 +85,15 @@ api.interceptors.request.use(async (config) => {
   // Global "INTER" view (set by the FilterBar 3-way control, persisted in localStorage). Injected on
   // every GET so it applies universally with no per-page wiring: 'with' (default) = INTER included;
   // 'only' = just the INTER salesperson; 'exclude' = INTER removed.
+  // Global "DD" (own-depot) view — same mechanism as INTER. 'exclude' (default) = depot data hidden;
+  // 'only' = just the 5 DD warehouses; 'with' = normal sales plus them. ⚠️ Super admin only: the
+  // server forces 'exclude' for every other tier (middleware/dd.js), so sending it is harmless.
   if ((config.method || 'get').toLowerCase() === 'get') {
-    config.params = { ...(config.params || {}), interMode: localStorage.getItem('flexibond_inter_mode') || 'exclude' };
+    config.params = {
+      ...(config.params || {}),
+      interMode: localStorage.getItem('flexibond_inter_mode') || 'exclude',
+      ddMode: localStorage.getItem('flexibond_dd_mode') || 'exclude',
+    };
   }
   return config;
 });

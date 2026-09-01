@@ -40,6 +40,7 @@ export const clearGlobalFilters = () => {
   try {
     localStorage.removeItem(KEY);
     localStorage.setItem('flexibond_inter_mode', 'exclude'); // fresh session → default to "No INTER"
+    localStorage.setItem('flexibond_dd_mode', 'exclude');    // fresh session → default to "No DD"
   } catch {
     /* ignore */
   }

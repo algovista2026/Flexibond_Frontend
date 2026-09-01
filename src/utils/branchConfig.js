@@ -45,9 +45,29 @@ export const ALL_BRANCHES = BRANCH_GROUPS.flatMap((g) =>
   g.branches.map((b) => ({ ...b, company: g.company }))
 );
 
+// ── "DD" own-depot feeds (added 2026-09-02) ────────────────────────────────────────────────
+// The five HYD/BLR/NGR/SRT/CHG warehouses appear in the Clients section under other trading names
+// but are the firm's own stock points. They push through their own ingest URLs
+// (`/api/ingest/dd-hyd/entries`, …; backend config/ddBranches.js) and every row they produce is
+// flagged `dd: true`.
+// ⚠️ Deliberately NOT part of BRANCH_GROUPS or ALL_BRANCHES: those drive the Upload selector and the
+// Branch Analytics strip for EVERY account, and depot data is super-admin-only. Branch.jsx appends
+// this list itself, and only when a super admin has the DD view switched on. They are kept out of
+// the UFPL/UCPL/FDL companies too, so depot turnover can never land in a daughter-company total.
+export const DD_BRANCHES = [
+  { value: 'dd-hyd', label: 'DD Hyderabad', company: 'DD' },
+  { value: 'dd-blr', label: 'DD Bangalore', company: 'DD' },
+  { value: 'dd-ngr', label: 'DD Nagpur', company: 'DD' },
+  { value: 'dd-srt', label: 'DD Surat', company: 'DD' },
+  { value: 'dd-chg', label: 'DD Chandigarh', company: 'DD' },
+];
+
+// Everything we can name — the real branches plus the DD depots. Used for display lookups only.
+const NAMED_BRANCHES = [...ALL_BRANCHES, ...DD_BRANCHES];
+
 // value -> display label (falls back to the raw value for unknown/legacy branches).
 export const branchLabel = (value) => {
-  const found = ALL_BRANCHES.find((b) => b.value === value);
+  const found = NAMED_BRANCHES.find((b) => b.value === value);
   return found ? found.label : value;
 };
 
@@ -67,7 +87,7 @@ export const branchDisplay = (value) => {
 
 // value -> its daughter company code (or '' if unknown).
 export const companyOfBranch = (value) => {
-  const found = ALL_BRANCHES.find((b) => b.value === value);
+  const found = NAMED_BRANCHES.find((b) => b.value === value);
   return found ? found.company : '';
 };
 
@@ -78,6 +98,7 @@ export const COMPANY_ACCENTS = {
   UFPL: '#ec4899', // pink
   UCPL: '#f59e0b', // orange / amber
   FDL: '#10b981',  // green
+  DD: '#6366f1',   // indigo — the own-depot feeds, kept visually distinct from the 3 companies
 };
 
 export const branchAccent = (branchValue) => {
