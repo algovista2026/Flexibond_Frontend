@@ -579,7 +579,13 @@ const Salesperson = () => {
                   />
                 </ChartCard>
 
-                <ChartCard title={`${filters.category?.length ? `Products in ${filters.category.join(', ')}` : "Sub-Category Breakdown"}${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`} aiContext={details.categoryBreakdown} aiType={`Sub-Category Performance for ${selectedSP}`}>
+                {/* ⚠️ Fixed heading, like the Products sub-category donut — it used to switch to
+                    "Products in <every selected sub-category>". `category` is a universal filter, so
+                    a selection made on Products landed here too and wrapped the title. */}
+                <ChartCard
+                  title={`Sub-Category Breakdown${metric === 'revenue' ? ' (Excl. Taxes)' : ''}`}
+                  aiContext={details.categoryBreakdown} aiType={`Sub-Category Performance for ${selectedSP}`}
+                >
                   <div className="donut-container">
                     <div style={{ flex: '1', minWidth: 0, height: '100%' }}>
                       <Doughnut 

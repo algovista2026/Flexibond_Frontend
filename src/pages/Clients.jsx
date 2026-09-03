@@ -17,7 +17,7 @@ import { th } from '../utils/thHeader';
 const Clients = () => {
   const [filters, setFilters] = useState(seedFilters({
     startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-    colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: [], branch: []
+    colour: [], batch: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: [], branch: []
   }));
   const [filterOptions, setFilterOptions] = useState({});
   const [metric, setMetric] = useState('revenue');
@@ -85,7 +85,7 @@ const Clients = () => {
     if (clear) {
       const reset = {
         startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [], group: [],
-        colour: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: [], branch: []
+        colour: [], batch: [], thickness: [], format: '', product: '', dimensions: '', group1: [], master: [], company: [], branch: []
       };
       clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
       setFilters(reset);
@@ -204,7 +204,7 @@ const Clients = () => {
         </div>
       </div>
 
-      <FilterBar filters={filters} options={filterOptions} onFilterChange={handleFilterChange} showGroup />
+      <FilterBar showBatch filters={filters} options={filterOptions} onFilterChange={handleFilterChange} showGroup />
 
       {/* Horizontal client selector strip (like the Salesperson leaderboard) — multi-select. */}
       <div className="sp-leaderboard-strip">

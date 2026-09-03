@@ -457,11 +457,18 @@ const Products = () => {
         ) : null}
 
         {/* (2,2) Sub-Category doughnut — BLUE palette (reserved). Enlarged, scrollable legend
-            with full name on hover so long sub-category names aren't cut off. */}
+            with full name on hover so long sub-category names aren't cut off.
+            ⚠️ The heading is FIXED — it used to name the selected sub-categories, which produced a
+            four-line title that squashed the donut once a dozen were picked (client rejected the
+            pattern outright, 2026-09-03). The legend already shows which sub-categories are in
+            play; the title must not track the filters. */}
         {loading && !data.categories ? (
           <ChartSkeleton />
         ) : (
-          <ChartCard title={`${filters.category?.length ? `Sub-categories in ${filters.category.join(', ')}` : "Sub-categories in"}${titleTag}`} aiContext={data.categories} aiType="Product Sub-Categories">
+          <ChartCard
+            title={`Sub-Category Wise Distribution${titleTag}`}
+            aiContext={data.categories} aiType="Product Sub-Categories"
+          >
             <div className="donut-container">
               <div style={{ flex: '1 1 55%', minWidth: 0, height: '100%' }}>
                 <Doughnut
