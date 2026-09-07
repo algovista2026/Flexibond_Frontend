@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { FiInfo, FiX, FiCalendar } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
-import { branchDisplay } from '../utils/branchConfig';
-import { getDdMode, setDdMode, canSeeDd } from '../utils/ddMode';
+import { branchDisplay, DD_BRANCH_VALUES } from '../utils/branchConfig';
+import { setDdMode, canSeeDd, effectiveDdMode } from '../utils/ddMode';
 
 // A date field that keeps a text placeholder when empty, but has an explicit calendar
 // button that reliably opens the native date picker (showPicker) — the old focus-driven
@@ -41,6 +41,38 @@ const DateField = ({ name, value, placeholder, onChange }) => {
   );
 };
 
+// ── Month quick-select (added 2026-09-07) ───────────────────────────────────────────────────
+// The client reports monthly. Doing that with the two date fields means remembering that August
+// ends on the 31st and September on the 30th, every time. This dropdown does it for them.
+//
+// It is deliberately NOT a new filter: it just WRITES startDate/endDate, which are already
+// universal (UNIVERSAL_KEYS), so a month picked on the Dashboard carries to Products/Clients/
+// Financials with no extra persistence. For the same reason its displayed value is DERIVED from
+// the two dates rather than stored — hand-edit either date and it falls back to "(Custom range)"
+// on its own, so the control can never disagree with the window actually applied.
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+const monthLabel = (ym) => {
+  const [y, m] = String(ym).split('-');
+  return `${MONTH_NAMES[Number(m) - 1] || m} ${y}`;
+};
+
+// Last calendar day of a "YYYY-MM" → "YYYY-MM-DD". `new Date(y, m, 0)` with a 1-based month is
+// the last day of that month (JS rolls back a day from the 0th of the NEXT month).
+const monthEnd = (ym) => {
+  const [y, m] = String(ym).split('-').map(Number);
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+};
+
+// Which month, if any, the current date window exactly represents. "" = a custom range.
+const monthOfRange = (startDate, endDate) => {
+  const m = /^(\d{4})-(\d{2})-01$/.exec(String(startDate || ''));
+  if (!m) return '';
+  const ym = `${m[1]}-${m[2]}`;
+  return endDate === monthEnd(ym) ? ym : '';
+};
+
 const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, hideBranch = false, showBatch = false }) => {
   // Render a dropdown when it has options OR when it currently has a selection — so an
   // active filter is never hidden even if cascading momentarily empties its option list.
@@ -70,16 +102,58 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
   // isn't rendered for any other tier, and the server enforces the same rule (middleware/dd.js).
   const showDd = canSeeDd(me);
   const DD_ACCENT = '#8b5cf6'; // purple — same violet the chart palettes already use
-  const [ddMode, setDdModeState] = useState(() => getDdMode());
+
+  // ⚠️ Seeded from effectiveDdMode, NOT getDdMode: on a shared browser localStorage can still hold
+  // 'only' from a previous super-admin session, and that must not reshape a scoped login's branch
+  // dropdown. Non-super-admins always resolve to 'exclude'.
+  const [ddMode, setDdModeState] = useState(() => effectiveDdMode(me));
   const setDd = (mode) => {
     setDdModeState(mode);
     setDdMode(mode);
     onFilterChange({}); // re-fetch with the new ddMode
   };
 
+  // Branch dropdown, made DD-aware. `/dashboard/filters` derives its lists from the DATA, which
+  // leaves two gaps once the DD switch is on:
+  //   • 'with'/'only' before a depot has ever pushed → no dd-* value exists, so the depots are
+  //     invisible and un-selectable. We union the known depot keys in so they're always listable.
+  //   • 'only' with no depot data → the fresh list comes back EMPTY, and mergeFilterOptions then
+  //     falls back to the remembered union, i.e. EVERY NORMAL BRANCH. Replacing the list outright
+  //     in 'only' mode is what stops that wrong fallback showing.
+  // Non-super-admins are untouched: ddMode is pinned to 'exclude' for them.
+  const fetchedBranches = options?.branches || [];
+  const branchOptions =
+    ddMode === 'only' ? DD_BRANCH_VALUES
+      : ddMode === 'with' ? [...new Set([...fetchedBranches, ...DD_BRANCH_VALUES])]
+        : fetchedBranches.filter(b => !DD_BRANCH_VALUES.includes(b));
+
+  // Month quick-select: months that actually hold data, newest first. The currently-applied month
+  // is force-included so the dropdown can never show a blank for a window that IS a whole month.
+  const selectedMonth = monthOfRange(filters.startDate, filters.endDate);
+  const monthOptions = [...new Set([...(options?.months || []), ...(selectedMonth ? [selectedMonth] : [])])]
+    .sort().reverse();
+
   return (
     <>
       <div className="filter-bar">
+        {/* Month quick-select — sits before Start Date; writes both date fields. */}
+        {monthOptions.length > 0 && (
+          <select
+            title="Jump to a whole month — sets the start and end dates to that month's first and last day."
+            value={selectedMonth}
+            onChange={(e) => {
+              const ym = e.target.value;
+              onFilterChange(ym
+                ? { startDate: `${ym}-01`, endDate: monthEnd(ym) }
+                : { startDate: '', endDate: '' }); // "(Custom range)" clears the window
+            }}
+            style={{ height: '42px' }}
+          >
+            <option value="">Custom range</option>
+            {monthOptions.map(ym => <option key={ym} value={ym}>{monthLabel(ym)}</option>)}
+          </select>
+        )}
+
         <DateField
           name="startDate"
           value={filters.startDate}
@@ -106,11 +180,12 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         )}
 
         {/* Branch — physical branch/location (sits between Company and Master). Universal, like
-            the other dropdowns. Hidden on the Branch Analytics page (its strip is the selector). */}
-        {!hideBranch && show(options?.branches, filters.branch) && (
+            the other dropdowns. Hidden on the Branch Analytics page (its strip is the selector).
+            The list is DD-aware for super admins — see branchOptions above. */}
+        {!hideBranch && show(branchOptions, filters.branch) && (
           <MultiSelect
             label="Branch"
-            options={options.branches}
+            options={branchOptions}
             selected={filters.branch || []}
             formatOption={branchDisplay}
             onChange={(vals) => onFilterChange({ branch: vals })}

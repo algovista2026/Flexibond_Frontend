@@ -10,7 +10,7 @@ const KEY = 'flexibond_filter_options';
 
 const OPTION_KEYS = [
   'salespersons', 'cities', 'states', 'categories', 'products', 'thickness', 'dimensions',
-  'grades', 'zones', 'colours', 'groups', 'group1s', 'masters', 'companies', 'branches'
+  'grades', 'zones', 'colours', 'groups', 'group1s', 'masters', 'companies', 'branches', 'months'
 ];
 
 const NONE = '(None)';

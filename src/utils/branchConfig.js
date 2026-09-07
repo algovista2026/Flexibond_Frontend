@@ -51,16 +51,22 @@ export const ALL_BRANCHES = BRANCH_GROUPS.flatMap((g) =>
 // (`/api/ingest/dd-hyd/entries`, …; backend config/ddBranches.js) and every row they produce is
 // flagged `dd: true`.
 // ⚠️ Deliberately NOT part of BRANCH_GROUPS or ALL_BRANCHES: those drive the Upload selector and the
-// Branch Analytics strip for EVERY account, and depot data is super-admin-only. Branch.jsx appends
-// this list itself, and only when a super admin has the DD view switched on. They are kept out of
-// the UFPL/UCPL/FDL companies too, so depot turnover can never land in a daughter-company total.
+// Branch Analytics strip for EVERY account, and depot data is super-admin-only. Branch.jsx and the
+// FilterBar's branch dropdown append this list themselves, and only when a super admin has the DD
+// view switched on.
+// `company: 'UFPL'` — the depots are part of UFPL (client confirmation 2026-09-07), so they carry
+// the UFPL pink accent and their revenue lands in UFPL's slice. What keeps them separate is the
+// `dd` flag + the DD view switch, NOT the company code.
 export const DD_BRANCHES = [
-  { value: 'dd-hyd', label: 'DD Hyderabad', company: 'DD' },
-  { value: 'dd-blr', label: 'DD Bangalore', company: 'DD' },
-  { value: 'dd-ngr', label: 'DD Nagpur', company: 'DD' },
-  { value: 'dd-srt', label: 'DD Surat', company: 'DD' },
-  { value: 'dd-chg', label: 'DD Chandigarh', company: 'DD' },
+  { value: 'dd-hyd', label: 'DD Hyderabad', company: 'UFPL' },
+  { value: 'dd-blr', label: 'DD Bangalore', company: 'UFPL' },
+  { value: 'dd-ngr', label: 'DD Nagpur', company: 'UFPL' },
+  { value: 'dd-srt', label: 'DD Surat', company: 'UFPL' },
+  { value: 'dd-chg', label: 'DD Chandigarh', company: 'UFPL' },
 ];
+
+// Just the depot keys, for membership tests in the filter bar.
+export const DD_BRANCH_VALUES = DD_BRANCHES.map(b => b.value);
 
 // Everything we can name — the real branches plus the DD depots. Used for display lookups only.
 const NAMED_BRANCHES = [...ALL_BRANCHES, ...DD_BRANCHES];
@@ -98,7 +104,6 @@ export const COMPANY_ACCENTS = {
   UFPL: '#ec4899', // pink
   UCPL: '#f59e0b', // orange / amber
   FDL: '#10b981',  // green
-  DD: '#6366f1',   // indigo — the own-depot feeds, kept visually distinct from the 3 companies
 };
 
 export const branchAccent = (branchValue) => {
