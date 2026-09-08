@@ -1,8 +1,10 @@
-// Global "DD" (own-depot) view — added 2026-09-02.
+// Global "DD" view — REWIRED 2026-09-08.
 //
-// Five accounts that show up in the Clients section under other trading names are actually the
-// firm's own warehouses (HYD · BLR · NGR · SRT · CHG). They push through their own Kuber ingest
-// URLs and every row they produce is flagged `dd: true` on the backend.
+// ⚠️ DD is a SALESPERSON filter now, working exactly like INTER: `DISTRIBUTOR` is a special salesman
+// pulled out of the Salesperson dropdown and driven by this 3-way control instead.
+// ⚠️ It has NOTHING to do with the five `dd-*` depot branches. Those were what this switched between
+// 2026-09-02 and 2026-09-07; they are now ordinary UFPL branches in `branchConfig.BRANCH_GROUPS`
+// whose data counts in every total whether this is on or off. Shared prefix, unrelated things.
 //
 // ⚠️ SUPER ADMIN ONLY. The 3-way control lives in the FilterBar and only renders for `role:'admin'`;
 // the api interceptor sends the chosen mode on every GET. The real enforcement is server-side

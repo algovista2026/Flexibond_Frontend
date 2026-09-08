@@ -28,8 +28,7 @@ import {
 } from '../services/api';
 import { formatINR, formatINRShort, formatShort, ratePerFoot } from '../utils/numberFormat';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
-import { ALL_BRANCHES, DD_BRANCHES, branchLabel, branchAccent } from '../utils/branchConfig';
-import { effectiveDdMode } from '../utils/ddMode';
+import { ALL_BRANCHES, branchLabel, branchAccent } from '../utils/branchConfig';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
@@ -53,16 +52,12 @@ const Branch = () => {
   // DYNAMICALLY from the branch-performance data below (2026-08-06, replaces the hand-picked list),
   // so a sale in a brand new branch surfaces automatically.
   const isZonal = user.scopeType === 'zonal';
-  // The own-depot (DD) branches join the strip ONLY when a super admin has the FilterBar's DD
-  // control switched on — `effectiveDdMode` returns 'exclude' for every other tier, so no other
-  // account can ever see a depot card here. In 'only' mode the strip is the depots alone, matching
-  // what the charts below are showing.
-  const ddMode = effectiveDdMode(user);
+  // ⚠️ The five depots are ordinary UFPL entries in ALL_BRANCHES now (2026-09-08), so they list here
+  // like any other branch. The 2026-09-07 version appended them only when a super admin had the DD
+  // switch on, which is exactly why they kept disappearing.
   const knownBranches = scopeCompanies
     ? ALL_BRANCHES.filter(b => scopeCompanies.includes(String(b.company).toUpperCase()))
-    : ddMode === 'only' ? DD_BRANCHES
-      : ddMode === 'with' ? [...ALL_BRANCHES, ...DD_BRANCHES]
-        : ALL_BRANCHES;
+    : ALL_BRANCHES;
 
   const [filters, setFilters] = useState(seedFilters({ ...EMPTY_FILTERS }));
   const [filterOptions, setFilterOptions] = useState({});

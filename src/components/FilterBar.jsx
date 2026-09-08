@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { FiInfo, FiX, FiCalendar } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
-import { branchDisplay, DD_BRANCH_VALUES } from '../utils/branchConfig';
+import { branchDisplay } from '../utils/branchConfig';
 import { setDdMode, canSeeDd, effectiveDdMode } from '../utils/ddMode';
 
 // A date field that keeps a text placeholder when empty, but has an explicit calendar
@@ -73,6 +73,11 @@ const monthOfRange = (startDate, endDate) => {
   return endDate === monthEnd(ym) ? ym : '';
 };
 
+// Salespeople that never appear in the Salesperson dropdown because a dedicated 3-way control owns
+// them: INTER (inter-company) and DISTRIBUTOR (the "DD" button). Keep in sync with the backend's
+// utils/interFilter.js + utils/ddFilter.js.
+const HIDDEN_SALESPEOPLE = new Set(['INTER', 'DISTRIBUTOR']);
+
 const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, hideBranch = false, showBatch = false }) => {
   // Render a dropdown when it has options OR when it currently has a selection — so an
   // active filter is never hidden even if cascading momentarily empties its option list.
@@ -96,10 +101,13 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
     onFilterChange({}); // re-fetch with the new interMode
   };
 
-  // Global DD (own-depot) view — identical mechanism to INTER, but ⚠️ SUPER ADMIN ONLY. The five
-  // HYD/BLR/NGR/SRT/CHG warehouses look like ordinary clients but are the firm's own depots; their
-  // data is excluded from every figure unless a super admin asks for it here. The control simply
-  // isn't rendered for any other tier, and the server enforces the same rule (middleware/dd.js).
+  // Global DD view — ⚠️ REWIRED 2026-09-08 to work EXACTLY like INTER. `DISTRIBUTOR` is a special
+  // salesman: pulled out of the Salesperson dropdown below and driven by this 3-way control instead
+  // ('with' = shown alongside everyone / 'only' = just their sales / 'exclude' = removed).
+  // ⚠️ It has NOTHING to do with the five `dd-*` depot branches. Those are ordinary UFPL branches in
+  // BRANCH_GROUPS whose data counts whether this is on or off; the shared prefix is a coincidence.
+  // Still SUPER ADMIN ONLY (unchanged) — not rendered for any other tier, and middleware/dd.js
+  // enforces the same server-side.
   const showDd = canSeeDd(me);
   const DD_ACCENT = '#8b5cf6'; // purple — same violet the chart palettes already use
 
@@ -112,20 +120,6 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
     setDdMode(mode);
     onFilterChange({}); // re-fetch with the new ddMode
   };
-
-  // Branch dropdown, made DD-aware. `/dashboard/filters` derives its lists from the DATA, which
-  // leaves two gaps once the DD switch is on:
-  //   • 'with'/'only' before a depot has ever pushed → no dd-* value exists, so the depots are
-  //     invisible and un-selectable. We union the known depot keys in so they're always listable.
-  //   • 'only' with no depot data → the fresh list comes back EMPTY, and mergeFilterOptions then
-  //     falls back to the remembered union, i.e. EVERY NORMAL BRANCH. Replacing the list outright
-  //     in 'only' mode is what stops that wrong fallback showing.
-  // Non-super-admins are untouched: ddMode is pinned to 'exclude' for them.
-  const fetchedBranches = options?.branches || [];
-  const branchOptions =
-    ddMode === 'only' ? DD_BRANCH_VALUES
-      : ddMode === 'with' ? [...new Set([...fetchedBranches, ...DD_BRANCH_VALUES])]
-        : fetchedBranches.filter(b => !DD_BRANCH_VALUES.includes(b));
 
   // Month quick-select: months that actually hold data, newest first. The currently-applied month
   // is force-included so the dropdown can never show a blank for a window that IS a whole month.
@@ -149,7 +143,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
             }}
             style={{ height: '42px' }}
           >
-            <option value="">Custom range</option>
+            <option value="">Month</option>
             {monthOptions.map(ym => <option key={ym} value={ym}>{monthLabel(ym)}</option>)}
           </select>
         )}
@@ -181,11 +175,12 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
         {/* Branch — physical branch/location (sits between Company and Master). Universal, like
             the other dropdowns. Hidden on the Branch Analytics page (its strip is the selector).
-            The list is DD-aware for super admins — see branchOptions above. */}
-        {!hideBranch && show(branchOptions, filters.branch) && (
+            ⚠️ Plain data-driven list — the depots are ordinary branches and must ALWAYS be listable,
+            never gated on the DD switch (that gating was the 2026-09-07 bug). */}
+        {!hideBranch && show(options?.branches, filters.branch) && (
           <MultiSelect
             label="Branch"
-            options={branchOptions}
+            options={options.branches}
             selected={filters.branch || []}
             formatOption={branchDisplay}
             onChange={(vals) => onFilterChange({ branch: vals })}
@@ -297,10 +292,12 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           />
         )}
 
+        {/* Salesperson — INTER and DISTRIBUTOR are both driven by their own 3-way control, so
+            neither belongs in this list (DISTRIBUTOR added 2026-09-08). */}
         {!hideSalesperson && show(options?.salespersons, filters.salesperson) && (
           <MultiSelect
             label="Salesperson"
-            options={(options.salespersons || []).filter(o => String(typeof o === 'string' ? o : (o?.value ?? o?.label ?? '')).toUpperCase() !== 'INTER')}
+            options={(options.salespersons || []).filter(o => !HIDDEN_SALESPEOPLE.has(String(typeof o === 'string' ? o : (o?.value ?? o?.label ?? '')).toUpperCase()))}
             selected={filters.salesperson || []}
             onChange={(vals) => onFilterChange({ salesperson: vals })}
           />
@@ -342,7 +339,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
             only; every other tier never sees it and the server ignores the mode for them. */}
         {showDd && (
           <div
-            title="DD (own-depot) view — the HYD / BLR / NGR / SRT / CHG warehouses are the company's own stock points, not third-party clients. Visible to super admins only: include them alongside normal sales, show only the depots, or leave them out."
+            title="DISTRIBUTOR salesperson view — applies to every dashboard: include DISTRIBUTOR alongside everyone, show only their sales, or remove them. Super admins only."
             style={{ display: 'inline-flex', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}
           >
             {[['with', 'With DD'], ['only', 'Only DD'], ['exclude', 'No DD']].map(([m, label], i) => (

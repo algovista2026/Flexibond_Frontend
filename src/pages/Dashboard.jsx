@@ -633,34 +633,49 @@ const Dashboard = () => {
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Excl. Taxes)</div>
             <div className="kpi-value">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
-            {/* Product value only — freight/discount are their own cards, so the four compose as
+            {/* Product value only — freight/discount live on the next card, so they compose as
                 (Excl. + Freight − Discount) × 1.18 = Incl. */}
             <div className="kpi-sub">Assessable value · excl. freight</div>
           </div>
           {/* "Oth Amt" on the Kuber sales register — freight charges less discounts, both applied
-              to the assessable value BEFORE tax. Split into the net (2×1) plus each half (1×1). */}
+              to the assessable value BEFORE tax. ONE 2×1 card with three sections (Net · Discount ·
+              Freight) — merged 2026-09-08; they used to be three separate cards. */}
           <div className="kpi-card" style={{ gridColumn: 'span 2' }}>
-            <div className="kpi-label">Discount / Freight (Net)</div>
+            <div className="kpi-label">Discount / Freight</div>
             <div
-              className="kpi-value"
-              style={{ color: (data.summary.otherAmount || 0) < 0 ? 'var(--danger)' : undefined }}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '10px',
+                marginTop: '4px'
+              }}
             >
-              {formatCurrency(data.summary.otherAmount)}
+              <div>
+                <div className="kpi-label" style={{ fontSize: '0.68rem' }}>Net (Oth Amt)</div>
+                <div
+                  className="kpi-value"
+                  style={{ fontSize: '1.1rem', color: (data.summary.otherAmount || 0) < 0 ? 'var(--danger)' : undefined }}
+                >
+                  {formatCurrency(data.summary.otherAmount)}
+                </div>
+                <div className="kpi-sub" style={{ fontSize: '0.66rem' }}>Freight less discount</div>
+              </div>
+              {/* Discount always reads as a deduction, hence the forced negative sign. */}
+              <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '10px' }}>
+                <div className="kpi-label" style={{ fontSize: '0.68rem' }}>Discount</div>
+                <div className="kpi-value" style={{ fontSize: '1.1rem', color: 'var(--danger)' }}>
+                  {formatCurrency(-Math.abs(data.summary.discountAmount || 0))}
+                </div>
+                <div className="kpi-sub" style={{ fontSize: '0.66rem' }}>Deducted pre-tax</div>
+              </div>
+              <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '10px' }}>
+                <div className="kpi-label" style={{ fontSize: '0.68rem' }}>Freight</div>
+                <div className="kpi-value" style={{ fontSize: '1.1rem' }}>
+                  {formatCurrency(Math.abs(data.summary.freightAmount || 0))}
+                </div>
+                <div className="kpi-sub" style={{ fontSize: '0.66rem' }}>Added pre-tax</div>
+              </div>
             </div>
-            <div className="kpi-sub">Other amount · freight less discount (excl. taxes)</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-label">Discount</div>
-            {/* Always shown as a deduction, hence the forced negative sign. */}
-            <div className="kpi-value" style={{ color: 'var(--danger)' }}>
-              {formatCurrency(-Math.abs(data.summary.discountAmount || 0))}
-            </div>
-            <div className="kpi-sub">Deducted before taxes</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-label">Freight</div>
-            <div className="kpi-value">{formatCurrency(Math.abs(data.summary.freightAmount || 0))}</div>
-            <div className="kpi-sub">Added before taxes</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
@@ -908,7 +923,18 @@ const Dashboard = () => {
                 plugins: {
                   legend: { display: false },
                   averageLine: { formatter: (v) => metric === 'revenue' ? formatCurrency(v) : formatNumber(Math.round(v)) },
-                  tooltip: metricTooltip
+                  tooltip: metricTooltip,
+                  // Only the top 10 are drawn, but each bar's % must read as a share of ALL
+                  // filtered products. The summary totals ARE that denominator: excl-tax revenue
+                  // is Σ InvoiceItem.amount (= assessableAmount) and totalQty is Σ qty, i.e.
+                  // exactly what summing every product row would give — so no extra
+                  // limit:'all' fetch is needed here. Falls back to the dataset sum while the
+                  // summary is still loading (total 0).
+                  percentBar: {
+                    total: metric === 'revenue'
+                      ? (data.summary?.totalRevenueExclTax || 0)
+                      : (data.summary?.totalQty || 0)
+                  }
                 },
                 scales: {
                   x: { ticks: { callback: v => axisFmt(v) } },

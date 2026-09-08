@@ -418,7 +418,13 @@ const Products = () => {
               options={{
                 maintainAspectRatio: false,
                 indexAxis: 'y',
-                plugins: { legend: { display: false }, tooltip: metricTooltip },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: metricTooltip,
+                  // Only the top/bottom 15 are drawn, but each bar's % must read as a share of ALL
+                  // filtered products — pass the full-set total as the explicit denominator.
+                  percentBar: { total: metric === 'revenue' ? totalRevenueExcl : totalQtySold }
+                },
                 scales: {
                   x: { ticks: { callback: v => axisFmt(v) } },
                   y: {

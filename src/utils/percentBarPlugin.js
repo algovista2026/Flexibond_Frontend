@@ -6,7 +6,10 @@
  *   - only acts on bar charts (skips line/pie/doughnut),
  *   - skips stacked bar charts (per-segment share is ambiguous there),
  *   - computes each bar's % as |value| / sum(|dataset values|) * 100,
- *   - can be disabled per-chart via options.plugins.percentBar = false.
+ *   - can be disabled per-chart via options.plugins.percentBar = false,
+ *   - accepts an EXPLICIT denominator via options.plugins.percentBar = { total: N }, for charts
+ *     that only render a slice of the data (e.g. Products "Top 15") but should show each bar's
+ *     share of the WHOLE filtered set rather than of the 15 drawn.
  *
  * Works for vertical bars (label above the bar) and horizontal bars (label past the tip).
  */
@@ -29,7 +32,9 @@ export const percentBarPlugin = {
       if (meta.hidden || meta.type === 'line') return;
 
       const vals = (ds.data || []).map(v => (typeof v === 'number' && isFinite(v)) ? v : 0);
-      const total = vals.reduce((a, b) => a + Math.abs(b), 0);
+      // An explicit `total` wins so a top-N chart can show shares of the full population.
+      const override = (opts && typeof opts.total === 'number' && isFinite(opts.total)) ? Math.abs(opts.total) : 0;
+      const total = override > 0 ? override : vals.reduce((a, b) => a + Math.abs(b), 0);
       if (total <= 0) return;
 
       ctx.save();

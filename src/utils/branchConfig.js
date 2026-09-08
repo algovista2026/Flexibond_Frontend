@@ -21,6 +21,19 @@ export const BRANCH_GROUPS = [
       { value: 'uflp-guwahati', label: 'Guwahati' },
       { value: 'uflp-kolkata', label: 'Kolkata' },
       { value: 'uflp-delhi', label: 'Delhi' },
+      // The five depots (backend config/depotBranches.js). ORDINARY UFPL BRANCHES as of 2026-09-08:
+      // they belong in this list so they show in the Branch filter and the Branch Analytics strip
+      // for everyone the normal scoping allows, with data counted in every total.
+      // ⚠️ Between 2026-09-02 and 2026-09-07 they lived in a separate `DD_BRANCHES` export that
+      // Branch.jsx and the FilterBar appended only when a super admin had the "DD" switch on — which
+      // is exactly why they went missing from the Branch filter. That export is gone.
+      // ⚠️ The `dd-` key prefix is NOT related to the FilterBar's "DD" button (a DISTRIBUTOR
+      // salesperson filter). The keys are fixed: the vendor already pushes to those URLs.
+      { value: 'dd-hyd', label: 'DD Hyderabad' },
+      { value: 'dd-blr', label: 'DD Bangalore' },
+      { value: 'dd-ngr', label: 'DD Nagpur' },
+      { value: 'dd-srt', label: 'DD Surat' },
+      { value: 'dd-chg', label: 'DD Chandigarh' },
     ],
   },
   {
@@ -45,35 +58,9 @@ export const ALL_BRANCHES = BRANCH_GROUPS.flatMap((g) =>
   g.branches.map((b) => ({ ...b, company: g.company }))
 );
 
-// ── "DD" own-depot feeds (added 2026-09-02) ────────────────────────────────────────────────
-// The five HYD/BLR/NGR/SRT/CHG warehouses appear in the Clients section under other trading names
-// but are the firm's own stock points. They push through their own ingest URLs
-// (`/api/ingest/dd-hyd/entries`, …; backend config/ddBranches.js) and every row they produce is
-// flagged `dd: true`.
-// ⚠️ Deliberately NOT part of BRANCH_GROUPS or ALL_BRANCHES: those drive the Upload selector and the
-// Branch Analytics strip for EVERY account, and depot data is super-admin-only. Branch.jsx and the
-// FilterBar's branch dropdown append this list themselves, and only when a super admin has the DD
-// view switched on.
-// `company: 'UFPL'` — the depots are part of UFPL (client confirmation 2026-09-07), so they carry
-// the UFPL pink accent and their revenue lands in UFPL's slice. What keeps them separate is the
-// `dd` flag + the DD view switch, NOT the company code.
-export const DD_BRANCHES = [
-  { value: 'dd-hyd', label: 'DD Hyderabad', company: 'UFPL' },
-  { value: 'dd-blr', label: 'DD Bangalore', company: 'UFPL' },
-  { value: 'dd-ngr', label: 'DD Nagpur', company: 'UFPL' },
-  { value: 'dd-srt', label: 'DD Surat', company: 'UFPL' },
-  { value: 'dd-chg', label: 'DD Chandigarh', company: 'UFPL' },
-];
-
-// Just the depot keys, for membership tests in the filter bar.
-export const DD_BRANCH_VALUES = DD_BRANCHES.map(b => b.value);
-
-// Everything we can name — the real branches plus the DD depots. Used for display lookups only.
-const NAMED_BRANCHES = [...ALL_BRANCHES, ...DD_BRANCHES];
-
 // value -> display label (falls back to the raw value for unknown/legacy branches).
 export const branchLabel = (value) => {
-  const found = NAMED_BRANCHES.find((b) => b.value === value);
+  const found = ALL_BRANCHES.find((b) => b.value === value);
   return found ? found.label : value;
 };
 
@@ -93,7 +80,7 @@ export const branchDisplay = (value) => {
 
 // value -> its daughter company code (or '' if unknown).
 export const companyOfBranch = (value) => {
-  const found = NAMED_BRANCHES.find((b) => b.value === value);
+  const found = ALL_BRANCHES.find((b) => b.value === value);
   return found ? found.company : '';
 };
 
