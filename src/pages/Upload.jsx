@@ -7,10 +7,11 @@ import NotificationPanel from '../components/NotificationPanel';
 import { BRANCH_GROUPS, branchLabel } from '../utils/branchConfig';
 
 import { TableSkeleton } from '../components/Skeleton';
+import { isGlobalAdmin } from '../utils/roles';
 
 const Upload = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
-  const isAdmin = user.role === 'admin';
+  const isAdmin = isGlobalAdmin(user);
   const permissions = user.permissions || ['overview', 'products', 'salesperson', 'comparison', 'upload'];
   // Company accounts get a VIEW-ONLY Upload section (2026-08-06): history only, no upload / delete /
   // purge, and the history is limited server-side to their own company's branches.

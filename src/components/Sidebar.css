@@ -18,9 +18,16 @@
   overscroll-behavior: contain;
 }
 
+/* Pinned: the sidebar itself scrolls internally when the nav list is long (see `.sidebar`
+   overflow-y), which used to carry the logo off the top. Sticky keeps it in place while the
+   nav scrolls under it — the opaque background stops the nav items showing through. */
 .sidebar-header {
   padding: 22px 12px 30px;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--navy-900);
 }
 
 /* Flexibond brand logo — replaces the old "Flexibond / Analytics Hub" text. The transparent

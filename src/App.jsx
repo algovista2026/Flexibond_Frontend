@@ -26,6 +26,7 @@ import DataLogs from './pages/DataLogs';
 import SalespersonChange from './pages/SalespersonChange';
 import Financial from './pages/Financial';
 import Channel from './pages/Channel';
+import { isAnyAdmin } from './utils/roles';
 
 // No Access Page Component
 const NoAccessPage = () => (
@@ -38,8 +39,9 @@ const NoAccessPage = () => (
 // Protected View Wrapper
 const ProtectedView = ({ permission, children }) => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
-  // Both admin tiers bypass module permissions; their DATA is still bounded by their scope.
-  const isAdmin = user.role === 'admin' || user.role === 'companyadmin';
+  // All three admin tiers bypass module permissions; their DATA is still bounded by their scope
+  // (a company admin by its company, a sub admin by the depot exclusion).
+  const isAdmin = isAnyAdmin(user);
   const perms = user.permissions || [];
 
   // Company accounts always get the VIEW-ONLY Upload section (2026-08-06), even without the perm.
@@ -55,7 +57,7 @@ const ProtectedView = ({ permission, children }) => {
 const DefaultRedirect = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   if (!user || !user.role) return <Navigate to="/login" replace />;
-  if (user.role === 'admin' || user.role === 'companyadmin') return <Navigate to="/dashboard" replace />;
+  if (isAnyAdmin(user)) return <Navigate to="/dashboard" replace />;
 
   const perms = user.permissions || [];
   if (perms.includes('overview')) return <Navigate to="/dashboard" replace />;
@@ -95,8 +97,8 @@ const PrivateRoute = () => {
   // mouse / keyboard / touch / scroll activity, then bounces to the login screen. Only admin
   // accounts (e.g. the master "flexibond" login) are affected; viewers/scoped stay logged in.
   useEffect(() => {
-    // Both admin tiers hold master controls, so both get the idle auto-logout.
-    if (!token || !(user.role === 'admin' || user.role === 'companyadmin')) return;
+    // Every admin tier holds master controls, so all of them get the idle auto-logout.
+    if (!token || !isAnyAdmin(user)) return;
     const IDLE_MS = 600 * 1000;
     let timer;
     const logout = () => {

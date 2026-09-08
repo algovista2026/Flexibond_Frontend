@@ -37,6 +37,7 @@ import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
+import { isGlobalAdmin } from '../utils/roles';
 
 const Dashboard = () => {
   const location = useLocation();
@@ -60,7 +61,7 @@ const Dashboard = () => {
   // Per-company target inputs (admin, non-scoped). Keys match the 3 daughter-company buckets.
   const [companyTargetForm, setCompanyTargetForm] = useState({ FDL: '', UCPL: '', 'UFPL': '' });
   const [targetSaving, setTargetSaving] = useState(false);
-  const isAdmin = user.role === 'admin';
+  const isAdmin = isGlobalAdmin(user);
   // Scoped accounts (company / zonal head) see + edit THEIR OWN target instead of the
   // global company turnover; the middleware already scopes their revenue, so `achieved`
   // (data.summary.totalRevenue) is their own figure.
@@ -490,7 +491,7 @@ const Dashboard = () => {
         <div className="page-controls">
           <GlobalSearch onSearchSelect={(res) => setFilters(prev => ({ ...prev, ...res }))} />
           <ExportControls pageTitle="Overview_Dashboard" />
-          {user.role === 'admin' && <NotificationPanel />}
+          {isAdmin && <NotificationPanel />}
 
           <div className="metric-toggle">
             <button 
@@ -632,10 +633,10 @@ const Dashboard = () => {
           })()}
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Excl. Taxes)</div>
-            <div className="kpi-value">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
+            <div className="kpi-value kpi-value-lg">{formatCurrency(data.summary.totalRevenueExclTax)}</div>
             {/* Product value only — freight/discount live on the next card, so they compose as
                 (Excl. + Freight − Discount) × 1.18 = Incl. */}
-            <div className="kpi-sub">Assessable value · excl. freight</div>
+            <div className="kpi-sub">Assessable value</div>
           </div>
           {/* "Oth Amt" on the Kuber sales register — freight charges less discounts, both applied
               to the assessable value BEFORE tax. ONE 2×1 card with three sections (Net · Discount ·
@@ -653,8 +654,8 @@ const Dashboard = () => {
               <div>
                 <div className="kpi-label" style={{ fontSize: '0.68rem' }}>Net (Oth Amt)</div>
                 <div
-                  className="kpi-value"
-                  style={{ fontSize: '1.1rem', color: (data.summary.otherAmount || 0) < 0 ? 'var(--danger)' : undefined }}
+                  className="kpi-value kpi-value-sm"
+                  style={{ color: (data.summary.otherAmount || 0) < 0 ? 'var(--danger)' : undefined }}
                 >
                   {formatCurrency(data.summary.otherAmount)}
                 </div>
@@ -663,14 +664,14 @@ const Dashboard = () => {
               {/* Discount always reads as a deduction, hence the forced negative sign. */}
               <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '10px' }}>
                 <div className="kpi-label" style={{ fontSize: '0.68rem' }}>Discount</div>
-                <div className="kpi-value" style={{ fontSize: '1.1rem', color: 'var(--danger)' }}>
+                <div className="kpi-value kpi-value-sm" style={{ color: 'var(--danger)' }}>
                   {formatCurrency(-Math.abs(data.summary.discountAmount || 0))}
                 </div>
                 <div className="kpi-sub" style={{ fontSize: '0.66rem' }}>Deducted pre-tax</div>
               </div>
               <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '10px' }}>
                 <div className="kpi-label" style={{ fontSize: '0.68rem' }}>Freight</div>
-                <div className="kpi-value" style={{ fontSize: '1.1rem' }}>
+                <div className="kpi-value kpi-value-sm">
                   {formatCurrency(Math.abs(data.summary.freightAmount || 0))}
                 </div>
                 <div className="kpi-sub" style={{ fontSize: '0.66rem' }}>Added pre-tax</div>
@@ -679,12 +680,12 @@ const Dashboard = () => {
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Total Revenue (Incl. Taxes)</div>
-            <div className="kpi-value">{formatCurrency(data.summary.totalRevenue)}</div>
-            <div className="kpi-sub">Bill amount · (excl. + freight − discount) + GST</div>
+            <div className="kpi-value kpi-value-lg">{formatCurrency(data.summary.totalRevenue)}</div>
+            <div className="kpi-sub">Final bill amount</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Quantity Sold</div>
-            <div className="kpi-value">{formatNumber(data.summary.totalQty)}</div>
+            <div className="kpi-value kpi-value-lg">{formatNumber(data.summary.totalQty)}</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Top State by Revenue (Excl. Taxes)</div>

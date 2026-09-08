@@ -20,9 +20,11 @@ import { th } from '../utils/thHeader';
 const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#f59e0b'];
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
+import { isGlobalAdmin } from '../utils/roles';
 
 const Financial = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
+  const globalAdmin = isGlobalAdmin(user);
 
   const [filterOptions, setFilterOptions] = useState({});
   // Full shared-FilterBar filter set (arrays), persisted across pages. Financials is invoice-level;
@@ -306,7 +308,7 @@ const Financial = () => {
         </div>
         <div className="page-controls">
           <ExportControls pageTitle="Financials_Overview" />
-          {user.role === 'admin' && <NotificationPanel />}
+          {globalAdmin && <NotificationPanel />}
         </div>
       </div>
 

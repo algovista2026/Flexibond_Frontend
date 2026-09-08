@@ -5,6 +5,7 @@ import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
 import './Sidebar.css';
+import { isAnyAdmin, isGlobalAdmin } from '../utils/roles';
 
 const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   const navigate = useNavigate();
@@ -19,11 +20,11 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
     navigate('/login');
   };
 
-  // Tiers (2026-09-01): 'admin' = SUPER admin (Flexibond), 'companyadmin' = master control over ONE
-  // company. A company admin gets the admin section too, minus System Logs (global audit trail).
-  const isSuperAdmin = user.role === 'admin';
-  const isCompanyAdmin = user.role === 'companyadmin';
-  const isAdmin = isSuperAdmin || isCompanyAdmin; // "sees everything its scope allows"
+  // Tiers: 'admin' = SUPER admin (Flexibond) · 'subadmin' = SUB ADMIN, same admin surface but
+  // depot-blind (2026-09-08) · 'companyadmin' = master control over ONE company. A company admin
+  // gets the admin section too, minus System Logs (the global audit trail).
+  const isAdmin = isAnyAdmin(user); // "sees everything its scope allows"
+  const globalAdmin = isGlobalAdmin(user);
   const permissions = user.permissions || [
     'overview', 'products', 'salesperson', 'comparison', 'clients', 'branch', 'geographic',
     'financials', 'channel',
@@ -115,8 +116,8 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
               <FiUsers className="nav-icon" />
               <span>User Management</span>
             </NavLink>
-            {/* System Logs is the GLOBAL audit trail — super admin only. */}
-            {isSuperAdmin && (
+            {/* System Logs is the GLOBAL audit trail — both global admin tiers, not a company admin. */}
+            {globalAdmin && (
               <NavLink to="/logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <FiBarChart2 className="nav-icon" />
                 <span>System Logs</span>

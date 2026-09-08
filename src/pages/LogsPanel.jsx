@@ -3,9 +3,11 @@ import { FiList, FiRefreshCw, FiCalendar, FiClock, FiActivity } from 'react-icon
 import { adminGetLogs } from '../services/api';
 import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
+import { isGlobalAdmin } from '../utils/roles';
 
 const LogsPanel = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
+  const globalAdmin = isGlobalAdmin(user);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,7 +73,7 @@ const LogsPanel = () => {
           >
             <FiRefreshCw className={loading ? 'spin' : ''} /> Refresh Logs
           </button>
-          {user.role === 'admin' && <NotificationPanel />}
+          {globalAdmin && <NotificationPanel />}
         </div>
       </div>
 

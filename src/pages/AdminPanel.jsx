@@ -13,6 +13,10 @@ import {
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
+import {
+  isSuperAdmin as roleIsSuperAdmin, isSubAdmin as roleIsSubAdmin,
+  isCompanyAdmin as roleIsCompanyAdmin, ROLE_LABELS,
+} from '../utils/roles';
 
 const AdminPanel = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
@@ -28,10 +32,13 @@ const AdminPanel = () => {
   const [show2FASetup, setShow2FASetup] = useState(false);
   const [currentUserData, setCurrentUserData] = useState(null);
 
-  // Tier of the LOGGED-IN admin (2026-09-01). A company admin manages only its own company's
-  // ordinary accounts — the backend enforces this; the UI just hides what it can't do.
-  const isSuperAdmin = user.role === 'admin';
-  const isCompanyAdminUser = user.role === 'companyadmin';
+  // Tier of the LOGGED-IN admin (2026-09-01; sub admin added 2026-09-08). A company admin manages
+  // only its own company's ordinary accounts, and a SUB ADMIN manages everyone except super admins
+  // — the backend enforces both; the UI just hides what it can't do.
+  const isSuperAdmin = roleIsSuperAdmin(user);
+  const isSubAdminUser = roleIsSubAdmin(user);
+  const isGlobal = isSuperAdmin || isSubAdminUser; // global (cross-company) user management
+  const isCompanyAdminUser = roleIsCompanyAdmin(user);
   const myCompany = (Array.isArray(user.companies) && user.companies.length
     ? user.companies[0]
     : user.company) || null;
@@ -42,12 +49,22 @@ const AdminPanel = () => {
 
   // User form state
   const [username, setUsername] = useState('');
+  // The name the account had when the edit started. `username` is only sent on update when it
+  // DIFFERS from this, so an ordinary permission/password edit stays a no-op on the rename path and
+  // a sub admin (who may edit but not rename) never trips the super-admin guard by accident.
+  const [originalUsername, setOriginalUsername] = useState('');
+  // Renaming a login is SUPER-ADMIN-ONLY (2026-09-08) — see routes/auth.js for why it is not
+  // `isGlobalAdmin` like the rest of user management.
+  const canRename = isSuperAdmin;
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   // Account type drives role + scope.
-  //   'admin'        = SUPER admin (Flexibond, global)
+  //   'admin'        = SUPER admin (Flexibond, global) — everything, depots + DD included
+  //   'subadmin'     = SUB ADMIN (2026-09-08) — the same global admin surface as a super admin but
+  //                    depot-blind: never the five `dd-*` branches, never the DD/DISTRIBUTOR
+  //                    control, and it cannot see or create super admins. Unscoped.
   //   'companyadmin' = COMPANY ADMIN — master control over ONE company (max 1 per company)
   //   'company'      = ordinary company-scoped login
   //   'zonal'        = zonal head (selected salespeople)
@@ -151,7 +168,7 @@ const AdminPanel = () => {
 
   useEffect(() => {
     fetchUsers();
-    if (isSuperAdmin) {
+    if (isGlobal) {
       fetchSecurityData();   // device approvals + 2FA management are global
       fetchScopeProgress();
     } else if (isCompanyAdminUser) {
@@ -202,6 +219,7 @@ const AdminPanel = () => {
     }
     // A Company Admin is company-SCOPED and keeps its own role; every other scoped login is a viewer.
     const submitRole = accountType === 'admin' ? 'admin'
+      : accountType === 'subadmin' ? 'subadmin'
       : accountType === 'companyadmin' ? 'companyadmin'
       : 'viewer';
     // A company admin can only ever create/edit accounts on its OWN company (backend enforces too).
@@ -214,7 +232,16 @@ const AdminPanel = () => {
 
     try {
       if (isEditMode) {
-        await adminUpdateUser(editingUserId, { role: submitRole, permissions, password: password.trim() ? password : undefined, ...scopePayload });
+        await adminUpdateUser(editingUserId, {
+          role: submitRole,
+          permissions,
+          password: password.trim() ? password : undefined,
+          // Sent ONLY on an actual rename, so every other edit leaves the username path untouched.
+          ...(canRename && username.trim() && username.trim() !== originalUsername
+            ? { username: username.trim() }
+            : {}),
+          ...scopePayload,
+        });
         toast.success('User updated successfully');
       } else {
         await adminCreateUser({ username, password, role: submitRole, permissions, ...scopePayload });
@@ -223,6 +250,7 @@ const AdminPanel = () => {
 
       // Reset State
       setUsername('');
+      setOriginalUsername('');
       setPassword('');
       setConfirmPassword('');
       setShowPassword(false);
@@ -235,7 +263,7 @@ const AdminPanel = () => {
       setIsEditMode(false);
       setEditingUserId(null);
       fetchUsers();
-      if (isSuperAdmin || isCompanyAdminUser) fetchScopeProgress();
+      if (isGlobal || isCompanyAdminUser) fetchScopeProgress();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save user');
     }
@@ -245,12 +273,14 @@ const AdminPanel = () => {
     setIsEditMode(true);
     setEditingUserId(userObj._id);
     setUsername(userObj.username);
+    setOriginalUsername(userObj.username);
     setPassword('');
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
     // A Company Admin is role 'companyadmin' WITH a company scope, so check the role first.
     const at = userObj.role === 'admin' ? 'admin'
+      : userObj.role === 'subadmin' ? 'subadmin'
       : userObj.role === 'companyadmin' ? 'companyadmin'
       : (userObj.scopeType && userObj.scopeType !== 'none' ? userObj.scopeType : 'company');
     setAccountType(at);
@@ -269,6 +299,7 @@ const AdminPanel = () => {
     setIsEditMode(false);
     setEditingUserId(null);
     setUsername('');
+    setOriginalUsername('');
     setPassword('');
     setConfirmPassword('');
     setShowPassword(false);
@@ -452,8 +483,9 @@ const AdminPanel = () => {
             >
               Users
             </button>
-            {/* Device approvals + 2FA management are GLOBAL — super admin only (2026-09-01). */}
-            {isSuperAdmin && (
+            {/* Device approvals + 2FA management are GLOBAL — both global admin tiers, never a
+                company admin (2026-09-01, widened to the sub admin 2026-09-08). */}
+            {isGlobal && (
               <button 
                 className={activeTab === 'security' ? 'active' : ''} 
                 onClick={() => setActiveTab('security')}
@@ -493,10 +525,19 @@ const AdminPanel = () => {
                   type="text" 
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  disabled={isEditMode}
+                  disabled={isEditMode && !canRename}
                   placeholder="e.g. jignesh_view"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: isEditMode ? 'var(--bg-light)' : '#fff' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: (isEditMode && !canRename) ? 'var(--bg-light)' : '#fff' }}
                 />
+                {/* Lowercase, no spaces, cannot start with "_" — the backend enforces the same rules
+                    via `usernameError`, so the hint and the validation cannot drift. */}
+                {isEditMode && canRename && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    {username !== originalUsername
+                      ? <>Renaming <strong>{originalUsername}</strong> → <strong>{username || '…'}</strong>. The account keeps its password, permissions and history; earlier log entries stay under the old name.</>
+                      : <>Editable — lowercase, no spaces, cannot start with an underscore. The master <strong>flexibond</strong> login cannot be renamed.</>}
+                  </p>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
@@ -553,18 +594,20 @@ const AdminPanel = () => {
                     // Scoped accounts get the restricted permission default; a company admin gets
                     // everything for its own company.
                     if (at === 'company' || at === 'zonal') setPermissions(SCOPED_DEFAULT_PERMS);
-                    else if (at === 'companyadmin') setPermissions(ALL_PERMS);
-                    else if (at === 'admin') setPermissions(ALL_PERMS);
+                    else setPermissions(ALL_PERMS); // admin / subadmin / companyadmin
                   }}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', outline: 'none' }}
                 >
-                  {/* Only a super admin can mint admins of any kind. */}
-                  {isSuperAdmin && <option value="admin">Super Administrator (Flexibond, all companies)</option>}
-                  {isSuperAdmin && <option value="companyadmin">Company Admin (master control, one company)</option>}
+                  {/* Only a global admin can mint admins, and only a SUPER admin can mint another
+                      SUPER admin — a sub admin must not be able to escalate past its own tier
+                      (backend enforces this in routes/auth.js). */}
+                  {isSuperAdmin && <option value="admin">Super Administrator (Flexibond, everything)</option>}
+                  {isGlobal && <option value="subadmin">Sub Administrator (everything except the DD depots &amp; DISTRIBUTOR)</option>}
+                  {isGlobal && <option value="companyadmin">Company Admin (master control, one company)</option>}
                   <option value="company">Company (one company only)</option>
                   <option value="zonal">Zonal Head (selected salespeople)</option>
                 </select>
-                {!isSuperAdmin && (
+                {!isGlobal && (
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
                     Company accounts are fixed to <strong>{myCompany || 'your company'}</strong>. For a
                     Zonal Head you can pick from {myCompany || 'your company'}'s salespeople — if the
@@ -763,7 +806,9 @@ const AdminPanel = () => {
                 )}
               </div>
 
-              {accountType !== 'admin' && (
+              {/* Both global admin tiers bypass module permissions entirely, so the grid is
+                  meaningless for them (their data is bounded by scope / the depot rule instead). */}
+              {accountType !== 'admin' && accountType !== 'subadmin' && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>Module Access Permissions</label>
                   {(accountType === 'company' || accountType === 'zonal') && (
@@ -824,9 +869,9 @@ const AdminPanel = () => {
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                         <span style={{
                           fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 600,
-                          background: u.role === 'admin' ? '#fee2e2' : u.role === 'companyadmin' ? '#ede9fe' : '#dbeafe',
-                          color: u.role === 'admin' ? '#ef4444' : u.role === 'companyadmin' ? '#6d28d9' : '#2563eb',
-                        }}>{u.role === 'companyadmin' ? 'company admin' : u.role === 'admin' ? 'super admin' : u.role}</span>
+                          background: u.role === 'admin' ? '#fee2e2' : u.role === 'subadmin' ? '#ffedd5' : u.role === 'companyadmin' ? '#ede9fe' : '#dbeafe',
+                          color: u.role === 'admin' ? '#ef4444' : u.role === 'subadmin' ? '#c2410c' : u.role === 'companyadmin' ? '#6d28d9' : '#2563eb',
+                        }}>{ROLE_LABELS[u.role] || u.role}</span>
                         {scopeLabel && (
                           <span style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', fontWeight: 600 }}>{scopeLabel}</span>
                         )}
@@ -847,9 +892,9 @@ const AdminPanel = () => {
                           <FiTarget size={16} />
                         </button>
                       )}
-                      {/* Sticky notes are a super-admin tool (recipient targeting isn't
+                      {/* Sticky notes are a global-admin tool (recipient targeting isn't
                           company-filtered on the backend) — hidden for company admins. */}
-                      {isSuperAdmin && (
+                      {isGlobal && (
                         <button
                           onClick={() => openNoteModal(u)}
                           style={{ padding: '8px', background: 'transparent', border: 'none', color: '#b7962f', cursor: 'pointer', borderRadius: '6px' }}

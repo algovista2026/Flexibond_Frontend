@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiBell } from 'react-icons/fi';
 import { adminGetLogs } from '../services/api';
+import { isGlobalAdmin } from '../utils/roles';
 
 const NotificationPanel = ({ isDark = false }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,7 +12,7 @@ const NotificationPanel = ({ isDark = false }) => {
   const fetchRecentLogs = async () => {
     try {
       const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
-      if (user.role !== 'admin') return;
+      if (!isGlobalAdmin(user)) return;
 
       const res = await adminGetLogs();
       if (res.data && res.data.logs) {
@@ -53,7 +54,7 @@ const NotificationPanel = ({ isDark = false }) => {
   };
 
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
-  if (user.role !== 'admin') return null;
+  if (!isGlobalAdmin(user)) return null;
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative' }}>

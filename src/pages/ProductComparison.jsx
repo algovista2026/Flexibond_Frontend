@@ -15,11 +15,13 @@ import { mergeFilterOptions } from '../utils/filterOptionsCache';
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
 
 import { ChartSkeleton, Skeleton } from '../components/Skeleton';
+import { isGlobalAdmin } from '../utils/roles';
 
 const shorten = (l, n = 20) => (l && l.length > n ? l.substring(0, n - 2) + '…' : l);
 
 const ProductComparison = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
+  const globalAdmin = isGlobalAdmin(user);
   const [loading, setLoading] = useState(true);
   const [allProducts, setAllProducts] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -172,7 +174,7 @@ const ProductComparison = () => {
         <div className="page-controls">
           <GlobalSearch onSearchSelect={(res) => setFilters(prev => ({ ...prev, ...res }))} />
           <ExportControls pageTitle="Product_Comparison" />
-          {user.role === 'admin' && <NotificationPanel />}
+          {globalAdmin && <NotificationPanel />}
 
           <div className="metric-toggle">
             <button onClick={() => setMetric('revenue')} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: metric === 'revenue' ? '#fff' : 'transparent', boxShadow: metric === 'revenue' ? 'var(--shadow-sm)' : 'none', fontWeight: 600, cursor: 'pointer', color: metric === 'revenue' ? 'var(--primary-600)' : 'var(--text-secondary)' }}>Revenue</button>

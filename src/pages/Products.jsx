@@ -29,10 +29,12 @@ import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/glob
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
+import { isGlobalAdmin } from '../utils/roles';
 
 const Products = () => {
   const location = useLocation();
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
+  const globalAdmin = isGlobalAdmin(user);
   const [loading, setLoading] = useState(true);
   const [metric, setMetric] = useState('revenue');
   const [sortOrder, setSortOrder] = useState(-1); // -1 for Top, 1 for Bottom
@@ -342,7 +344,7 @@ const Products = () => {
         <div className="page-controls">
           <GlobalSearch onSearchSelect={(res) => setFilters(prev => ({ ...prev, ...res }))} />
           <ExportControls pageTitle="Product_Analytics" />
-          {user.role === 'admin' && <NotificationPanel />}
+          {globalAdmin && <NotificationPanel />}
 
           <div className="metric-toggle">
             <button onClick={() => setMetric('revenue')} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: metric === 'revenue' ? '#fff' : 'transparent', boxShadow: metric === 'revenue' ? 'var(--shadow-sm)' : 'none', fontWeight: 600, cursor: 'pointer', color: metric === 'revenue' ? 'var(--primary-600)' : 'var(--text-secondary)' }}>Revenue</button>

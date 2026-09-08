@@ -163,6 +163,12 @@ body {
   overflow-wrap: break-word;
   min-width: 0;
 }
+/* Per-card value sizes (client tweak 2026-09-08). Kept as CLASSES, not inline styles, so the
+   ≤480px `.kpi-value` override further down can still reach them — an inline font-size wins over
+   any stylesheet rule and would leave these stuck at desktop size on a phone. */
+.kpi-card .kpi-value.kpi-value-lg { font-size: 1.5rem; }
+.kpi-card .kpi-value.kpi-value-sm { font-size: 1.3rem; }
+
 .kpi-card .kpi-sub {
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -1267,7 +1273,9 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
 
   .kpi-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .kpi-card { padding: 14px; }
-  .kpi-card .kpi-value { font-size: 1.3rem; }
+  .kpi-card .kpi-value,
+  .kpi-card .kpi-value.kpi-value-lg,
+  .kpi-card .kpi-value.kpi-value-sm { font-size: 1.3rem; }
 
   .result-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 

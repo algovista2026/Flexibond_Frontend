@@ -28,10 +28,11 @@ import {
 } from '../services/api';
 import { formatINR, formatINRShort, formatShort, ratePerFoot } from '../utils/numberFormat';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
-import { ALL_BRANCHES, branchLabel, branchAccent } from '../utils/branchConfig';
+import { ALL_BRANCHES, branchLabel, branchAccent, isDepotBranch } from '../utils/branchConfig';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
+import { isGlobalAdmin, hidesDepots } from '../utils/roles';
 
 const EMPTY_FILTERS = {
   startDate: '', endDate: '', salesperson: [], category: [], state: [], grade: [], zone: [],
@@ -41,7 +42,7 @@ const EMPTY_FILTERS = {
 
 const Branch = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
-  const isAdmin = user.role === 'admin';
+  const isAdmin = isGlobalAdmin(user);
 
   // Company-scoped accounts only see branches within their own company.
   const scopeCompanies = user.scopeType === 'company'
@@ -55,9 +56,14 @@ const Branch = () => {
   // ⚠️ The five depots are ordinary UFPL entries in ALL_BRANCHES now (2026-09-08), so they list here
   // like any other branch. The 2026-09-07 version appended them only when a super admin had the DD
   // switch on, which is exactly why they kept disappearing.
+  // ⚠️ ONE exception: the SUB ADMIN tier is depot-blind, so they are dropped from this hard-coded
+  // strip list for it. The revenue rows themselves are already stripped server-side
+  // (middleware/depot.js), but ALL_BRANCHES is a static list the client owns, so without this the
+  // five depots would still render in the strip — at ₹0, which is worse than not showing them.
+  const branchPool = hidesDepots(user) ? ALL_BRANCHES.filter(b => !isDepotBranch(b.value)) : ALL_BRANCHES;
   const knownBranches = scopeCompanies
-    ? ALL_BRANCHES.filter(b => scopeCompanies.includes(String(b.company).toUpperCase()))
-    : ALL_BRANCHES;
+    ? branchPool.filter(b => scopeCompanies.includes(String(b.company).toUpperCase()))
+    : branchPool;
 
   const [filters, setFilters] = useState(seedFilters({ ...EMPTY_FILTERS }));
   const [filterOptions, setFilterOptions] = useState({});

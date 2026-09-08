@@ -21,6 +21,7 @@ import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/glob
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
+import { isGlobalAdmin } from '../utils/roles';
 
 const SalespersonListSkeleton = () => (
   <div className="sp-list-scroll-area">
@@ -170,7 +171,7 @@ const Salesperson = () => {
   const metricScaleY = { ticks: { callback: v => axisFmt(v) } };
   const metricTooltip = { callbacks: { label: (ctx) => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${metric === 'revenue' ? formatCurrency(ctx.raw) : formatCount(ctx.raw) + ' units'}` } };
 
-  const isAdmin = user.role === 'admin';
+  const isAdmin = isGlobalAdmin(user);
   const target = details?.target || null;
 
   // Per-daughter-company revenue for this salesperson → segmented (company-coloured) progress
@@ -235,7 +236,7 @@ const Salesperson = () => {
             }
           }} />
           <ExportControls pageTitle="Salesperson_Performance" />
-          {user.role === 'admin' && <NotificationPanel />}
+          {isAdmin && <NotificationPanel />}
 
           <div className="metric-toggle">
             <button 

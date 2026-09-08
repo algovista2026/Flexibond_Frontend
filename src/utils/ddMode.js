@@ -6,7 +6,10 @@
 // 2026-09-02 and 2026-09-07; they are now ordinary UFPL branches in `branchConfig.BRANCH_GROUPS`
 // whose data counts in every total whether this is on or off. Shared prefix, unrelated things.
 //
-// ⚠️ SUPER ADMIN ONLY. The 3-way control lives in the FilterBar and only renders for `role:'admin'`;
+// ⚠️ SUPER ADMIN ONLY — a SUB ADMIN does NOT get this control either (2026-09-08): "no DISTRIBUTOR,
+// no depot branches" is exactly what defines that tier, so this stays `role === 'admin'` rather than
+// `isGlobalAdmin`. See utils/roles.js and the backend's middleware/dd.js + middleware/depot.js.
+// The 3-way control lives in the FilterBar and only renders for `role:'admin'`;
 // the api interceptor sends the chosen mode on every GET. The real enforcement is server-side
 // (`middleware/dd.js` forces 'exclude' for every other tier), so this file is purely the UI half —
 // never treat it as the access control.
@@ -24,7 +27,7 @@ export const setDdMode = (mode) => {
   try { localStorage.setItem(DD_MODE_KEY, mode); } catch { /* ignore */ }
 };
 
-// Only the Flexibond super admin (`role: 'admin'` — NOT a Company Admin) may see depot data.
+// Only the Flexibond super admin (`role: 'admin'` — NOT a sub admin, NOT a Company Admin).
 export const canSeeDd = (user) => (user && user.role) === 'admin';
 
 // Convenience for pages: the effective mode for THIS login. A non-super-admin is always 'exclude',

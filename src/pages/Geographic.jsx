@@ -22,9 +22,11 @@ const INDIA_ZOOM = 4;
 const INDIA_GEOJSON_URL = 'https://raw.githubusercontent.com/HindustanTimesLabs/shapefiles/master/india/states/india_states.json';
 
 import { Skeleton } from '../components/Skeleton';
+import { isGlobalAdmin } from '../utils/roles';
 
 const Geographic = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
+  const globalAdmin = isGlobalAdmin(user);
   const [salespersons, setSalespersons] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNames, setSelectedNames] = useState([]);
@@ -311,7 +313,7 @@ const Geographic = () => {
           </div>
 
           <ExportControls pageTitle="Geographic_Analytics" />
-          {user.role === 'admin' && <NotificationPanel />}
+          {globalAdmin && <NotificationPanel />}
         </div>
       </div>
 

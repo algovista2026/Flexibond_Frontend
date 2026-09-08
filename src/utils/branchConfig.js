@@ -59,6 +59,14 @@ export const ALL_BRANCHES = BRANCH_GROUPS.flatMap((g) =>
 );
 
 // value -> display label (falls back to the raw value for unknown/legacy branches).
+// The five depot ingest keys. They are ORDINARY UFPL branches for everyone (2026-09-08) — this
+// list exists only so the SUB ADMIN tier, which is depot-blind, can be filtered out of the
+// hard-coded lists built here (the Branch strip, the Upload selector). Data-driven lists — the
+// Branch dropdown, every chart — are already stripped server-side by middleware/depot.js.
+// ⚠️ Keep in sync with the backend's `config/depotBranches.js`.
+export const DEPOT_BRANCH_VALUES = ['dd-hyd', 'dd-blr', 'dd-ngr', 'dd-srt', 'dd-chg'];
+export const isDepotBranch = (value) => DEPOT_BRANCH_VALUES.includes(String(value || '').toLowerCase());
+
 export const branchLabel = (value) => {
   const found = ALL_BRANCHES.find((b) => b.value === value);
   return found ? found.label : value;

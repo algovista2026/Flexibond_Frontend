@@ -16,9 +16,11 @@ const B2C_COLOR = '#10b981';
 import { KPISkeleton, ChartSkeleton, TableSkeleton, Skeleton } from '../components/Skeleton';
 import { formatINRShort } from '../utils/numberFormat';
 import { th } from '../utils/thHeader';
+import { isGlobalAdmin } from '../utils/roles';
 
 const Channel = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
+  const globalAdmin = isGlobalAdmin(user);
 
   const [filters, setFilters] = useState({ startDate: '', endDate: '' });
   const [applied, setApplied] = useState({});
@@ -140,7 +142,7 @@ const Channel = () => {
         </div>
         <div className="page-controls">
           <ExportControls pageTitle="Channel_Analytics" />
-          {user.role === 'admin' && <NotificationPanel />}
+          {globalAdmin && <NotificationPanel />}
         </div>
       </div>
 
