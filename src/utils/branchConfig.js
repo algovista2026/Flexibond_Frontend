@@ -27,7 +27,7 @@ export const BRANCH_GROUPS = [
       // ⚠️ Between 2026-09-02 and 2026-09-07 they lived in a separate `DD_BRANCHES` export that
       // Branch.jsx and the FilterBar appended only when a super admin had the "DD" switch on — which
       // is exactly why they went missing from the Branch filter. That export is gone.
-      // ⚠️ The `dd-` key prefix is NOT related to the FilterBar's "DD" button (a DISTRIBUTOR
+      // ⚠️ SUPER-ADMIN-ONLY DATA since 2026-09-09 — see DEPOT_BRANCH_VALUES below. (Was a
       // salesperson filter). The keys are fixed: the vendor already pushes to those URLs.
       { value: 'dd-hyd', label: 'DD Hyderabad' },
       { value: 'dd-blr', label: 'DD Bangalore' },
@@ -59,10 +59,12 @@ export const ALL_BRANCHES = BRANCH_GROUPS.flatMap((g) =>
 );
 
 // value -> display label (falls back to the raw value for unknown/legacy branches).
-// The five depot ingest keys. They are ORDINARY UFPL branches for everyone (2026-09-08) — this
-// list exists only so the SUB ADMIN tier, which is depot-blind, can be filtered out of the
-// hard-coded lists built here (the Branch strip, the Upload selector). Data-driven lists — the
-// Branch dropdown, every chart — are already stripped server-side by middleware/depot.js.
+// The five depot ingest keys. ⚠️ SUPER-ADMIN-ONLY DATA (2026-09-09): they carry LEVEL-2 sales —
+// the distributor selling on stock it bought at level 1 — so every tier below super admin has these
+// rows stripped server-side (middleware/depot.js). This list is what lets the client-built lists
+// agree: the Branch strip and the Upload selector drop them via `roles.hidesDepots`, and the Branch
+// dropdown unions them back in for a super admin (FilterBar `branchOptions`).
+// ⚠️ Which branches you may LIST depends on your TIER, never on the DD toggle — see FilterBar.
 // ⚠️ Keep in sync with the backend's `config/depotBranches.js`.
 export const DEPOT_BRANCH_VALUES = ['dd-hyd', 'dd-blr', 'dd-ngr', 'dd-srt', 'dd-chg'];
 export const isDepotBranch = (value) => DEPOT_BRANCH_VALUES.includes(String(value || '').toLowerCase());

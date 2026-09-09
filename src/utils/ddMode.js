@@ -1,20 +1,22 @@
-// Global "DD" view — REWIRED 2026-09-08.
+// Global "DD" view — ⚠️ REWIRED 2026-09-09: this is the DEPOT-BRANCH mode.
 //
-// ⚠️ DD is a SALESPERSON filter now, working exactly like INTER: `DISTRIBUTOR` is a special salesman
-// pulled out of the Salesperson dropdown and driven by this 3-way control instead.
-// ⚠️ It has NOTHING to do with the five `dd-*` depot branches. Those were what this switched between
-// 2026-09-02 and 2026-09-07; they are now ordinary UFPL branches in `branchConfig.BRANCH_GROUPS`
-// whose data counts in every total whether this is on or off. Shared prefix, unrelated things.
+// The firm sells twice over:
+//   LEVEL 1  company → distributor client. Salesperson `DISTRIBUTOR`, ₹3.37 Cr. **Ordinary
+//            revenue** — in every tier's figures and in the Salesperson dropdown like any other
+//            salesman. Nothing filters it. (Until 2026-09-09 this button filtered exactly that,
+//            excluding it by default for EVERYONE — the bug this rewiring fixes.)
+//   LEVEL 2  the distributor selling that stock on to end clients, booked out of the five `dd-*`
+//            depot branches. A resale of level 1, so counting both double-counts the goods.
+//            **SUPER ADMIN ONLY** — this control, and the data itself.
 //
-// ⚠️ SUPER ADMIN ONLY — a SUB ADMIN does NOT get this control either (2026-09-08): "no DISTRIBUTOR,
-// no depot branches" is exactly what defines that tier, so this stays `role === 'admin'` rather than
-// `isGlobalAdmin`. See utils/roles.js and the backend's middleware/dd.js + middleware/depot.js.
-// The 3-way control lives in the FilterBar and only renders for `role:'admin'`;
-// the api interceptor sends the chosen mode on every GET. The real enforcement is server-side
-// (`middleware/dd.js` forces 'exclude' for every other tier), so this file is purely the UI half —
-// never treat it as the access control.
+// Modes: 'exclude' (default — depots left out so the headline never double-counts) | 'only' (the
+// depot lens) | 'with' (depots alongside everything else).
 //
-// Modes mirror the INTER control: 'exclude' (default) | 'only' | 'with'.
+// ⚠️ SUPER ADMIN ONLY, and `middleware/depot.js` pins every other tier to 'exclude' server-side, so
+// this file is the UI half and never the access control.
+// ⚠️ NEVER shape an option list with this value. Which branches a login may LIST is a property of
+// its tier alone — gating the Branch dropdown's contents on this switch is the 2026-09-07 bug the
+// client hit ("data exist in those DD branches with or without DD"). See FilterBar's branchOptions.
 export const DD_MODE_KEY = 'flexibond_dd_mode';
 export const DD_DEFAULT_MODE = 'exclude';
 
@@ -27,10 +29,11 @@ export const setDdMode = (mode) => {
   try { localStorage.setItem(DD_MODE_KEY, mode); } catch { /* ignore */ }
 };
 
-// Only the Flexibond super admin (`role: 'admin'` — NOT a sub admin, NOT a Company Admin).
+// Only the Flexibond super admin (`role: 'admin'` — NOT a sub admin, NOT a Company Admin) may
+// see depot (level-2) data or this control.
 export const canSeeDd = (user) => (user && user.role) === 'admin';
 
 // Convenience for pages: the effective mode for THIS login. A non-super-admin is always 'exclude',
-// so a stale localStorage value from an earlier admin session on the same browser can never widen
-// what a subsequent scoped login renders.
+// so a stale localStorage value from an earlier super-admin session on the same browser can never
+// widen what a subsequent scoped login renders.
 export const effectiveDdMode = (user) => (canSeeDd(user) ? getDdMode() : DD_DEFAULT_MODE);

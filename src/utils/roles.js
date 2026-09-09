@@ -4,7 +4,8 @@
 //
 // The tiers, top to bottom:
 //   'admin'        SUPER ADMIN — everything, incl. the five `dd-*` depot branches and the
-//                  DISTRIBUTOR ("DD") salesman. Invisible to every tier below.
+//                  branches (level-2 depot sales) and the "DD" 3-way control that filters them.
+//                  Invisible to every tier below.
 //   'subadmin'     SUB ADMIN — same nav, same pages, same global admin surface as a super admin,
 //                  EXCEPT: no depot branches, no DD control, and super admins are invisible to it.
 //   'companyadmin' COMPANY ADMIN — master control over ONE company.
@@ -23,10 +24,12 @@ export const isGlobalAdmin = (user) => isSuperAdmin(user) || isSubAdmin(user);
 export const isCompanyAdmin = (user) => roleOf(user) === 'companyadmin';
 export const isAnyAdmin = (user) => isGlobalAdmin(user) || isCompanyAdmin(user);
 
-// A sub admin is depot-blind: hide the five `dd-*` branches from any list the client builds itself
-// (the Branch strip, the Upload branch selector). Anything data-driven — the Branch dropdown, every
-// chart — is already stripped by the server, so this only covers hard-coded lists.
-export const hidesDepots = (user) => isSubAdmin(user);
+// ⚠️ REWIRED 2026-09-09: EVERY tier below super admin is depot-blind, not just the sub admin. The
+// five `dd-*` depots carry LEVEL-2 sales (the distributor selling on stock it bought at level 1),
+// restricted to the super admin. Used to drop them from lists the client builds itself (the Branch
+// strip, the Upload selector); data-driven lists are already stripped server-side.
+// ⚠️ NOT about the `DISTRIBUTOR` salesperson — that is level-1 revenue, ordinary for every tier.
+export const hidesDepots = (user) => !isSuperAdmin(user);
 
 // Human label for the badge in Admin Panel → Users.
 export const ROLE_LABELS = {

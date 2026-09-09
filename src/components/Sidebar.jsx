@@ -5,7 +5,7 @@ import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
 import './Sidebar.css';
-import { isAnyAdmin, isGlobalAdmin } from '../utils/roles';
+import { isAnyAdmin } from '../utils/roles';
 
 const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   const navigate = useNavigate();
@@ -24,7 +24,6 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   // depot-blind (2026-09-08) · 'companyadmin' = master control over ONE company. A company admin
   // gets the admin section too, minus System Logs (the global audit trail).
   const isAdmin = isAnyAdmin(user); // "sees everything its scope allows"
-  const globalAdmin = isGlobalAdmin(user);
   const permissions = user.permissions || [
     'overview', 'products', 'salesperson', 'comparison', 'clients', 'branch', 'geographic',
     'financials', 'channel',
@@ -116,13 +115,14 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
               <FiUsers className="nav-icon" />
               <span>User Management</span>
             </NavLink>
-            {/* System Logs is the GLOBAL audit trail — both global admin tiers, not a company admin. */}
-            {globalAdmin && (
-              <NavLink to="/logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <FiBarChart2 className="nav-icon" />
-                <span>System Logs</span>
-              </NavLink>
-            )}
+            {/* System Logs is open to EVERY admin tier (2026-09-08), but each sees a different
+                slice — you never see the logins or changes of a tier above you, and a company admin
+                additionally sees only its own company's accounts. Enforced server-side in
+                `utils/logVisibility.js`; this nav entry is just discoverability. */}
+            <NavLink to="/logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <FiBarChart2 className="nav-icon" />
+              <span>System Logs</span>
+            </NavLink>
             <NavLink to="/data-logs" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <FiDatabase className="nav-icon" />
               <span>Data Logs</span>

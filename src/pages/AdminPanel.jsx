@@ -63,7 +63,7 @@ const AdminPanel = () => {
   // Account type drives role + scope.
   //   'admin'        = SUPER admin (Flexibond, global) — everything, depots + DD included
   //   'subadmin'     = SUB ADMIN (2026-09-08) — the same global admin surface as a super admin but
-  //                    depot-blind: never the five `dd-*` branches, never the DD/DISTRIBUTOR
+  //                    depot-blind like every tier below super admin: never the five `dd-*`
   //                    control, and it cannot see or create super admins. Unscoped.
   //   'companyadmin' = COMPANY ADMIN — master control over ONE company (max 1 per company)
   //   'company'      = ordinary company-scoped login
@@ -602,7 +602,7 @@ const AdminPanel = () => {
                       SUPER admin — a sub admin must not be able to escalate past its own tier
                       (backend enforces this in routes/auth.js). */}
                   {isSuperAdmin && <option value="admin">Super Administrator (Flexibond, everything)</option>}
-                  {isGlobal && <option value="subadmin">Sub Administrator (everything except the DD depots &amp; DISTRIBUTOR)</option>}
+                  {isGlobal && <option value="subadmin">Sub Administrator (everything except the DD depot branches)</option>}
                   {isGlobal && <option value="companyadmin">Company Admin (master control, one company)</option>}
                   <option value="company">Company (one company only)</option>
                   <option value="zonal">Zonal Head (selected salespeople)</option>

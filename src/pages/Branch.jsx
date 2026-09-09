@@ -60,6 +60,9 @@ const Branch = () => {
   // strip list for it. The revenue rows themselves are already stripped server-side
   // (middleware/depot.js), but ALL_BRANCHES is a static list the client owns, so without this the
   // five depots would still render in the strip — at ₹0, which is worse than not showing them.
+  // ⚠️ Listed by TIER, never by the DD mode — same rule as the Branch dropdown. A super admin
+  // always sees the five depot cards; in the default 'exclude' mode they read ₹0, which is the
+  // honest answer to "you filtered this data out" and keeps the card list stable as you toggle.
   const branchPool = hidesDepots(user) ? ALL_BRANCHES.filter(b => !isDepotBranch(b.value)) : ALL_BRANCHES;
   const knownBranches = scopeCompanies
     ? branchPool.filter(b => scopeCompanies.includes(String(b.company).toUpperCase()))

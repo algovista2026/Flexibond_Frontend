@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { FiInfo, FiX, FiCalendar } from 'react-icons/fi';
 import MultiSelect from './MultiSelect';
-import { branchDisplay } from '../utils/branchConfig';
+import { branchDisplay, DEPOT_BRANCH_VALUES, isDepotBranch } from '../utils/branchConfig';
 import { setDdMode, canSeeDd, effectiveDdMode } from '../utils/ddMode';
 
 // A date field that keeps a text placeholder when empty, but has an explicit calendar
@@ -74,9 +74,13 @@ const monthOfRange = (startDate, endDate) => {
 };
 
 // Salespeople that never appear in the Salesperson dropdown because a dedicated 3-way control owns
-// them: INTER (inter-company) and DISTRIBUTOR (the "DD" button). Keep in sync with the backend's
-// utils/interFilter.js + utils/ddFilter.js.
-const HIDDEN_SALESPEOPLE = new Set(['INTER', 'DISTRIBUTOR']);
+// them. Keep in sync with the backend's utils/interFilter.js.
+// ⚠️ `DISTRIBUTOR` was removed from this set on 2026-09-09. It is the LEVEL-1 sale (company →
+// distributor client), ordinary revenue of ₹3.37 Cr that belongs in every tier's figures and in this
+// dropdown like any other salesman. Hiding it behind the "DD" button excluded it by default for
+// EVERYONE, super admin included. The "DD" button now filters the five `dd-*` DEPOT BRANCHES
+// (level-2 sales) instead — a branch dimension, nothing to do with this list.
+const HIDDEN_SALESPEOPLE = new Set(['INTER']);
 
 const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, hideBranch = false, showBatch = false }) => {
   // Render a dropdown when it has options OR when it currently has a selection — so an
@@ -101,13 +105,14 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
     onFilterChange({}); // re-fetch with the new interMode
   };
 
-  // Global DD view — ⚠️ REWIRED 2026-09-08 to work EXACTLY like INTER. `DISTRIBUTOR` is a special
-  // salesman: pulled out of the Salesperson dropdown below and driven by this 3-way control instead
-  // ('with' = shown alongside everyone / 'only' = just their sales / 'exclude' = removed).
-  // ⚠️ It has NOTHING to do with the five `dd-*` depot branches. Those are ordinary UFPL branches in
-  // BRANCH_GROUPS whose data counts whether this is on or off; the shared prefix is a coincidence.
-  // Still SUPER ADMIN ONLY (unchanged) — not rendered for any other tier, and middleware/dd.js
-  // enforces the same server-side.
+  // Global DD view — ⚠️ REWIRED 2026-09-09: this filters the five `dd-*` DEPOT BRANCHES, which
+  // carry LEVEL-2 sales (the distributor selling on stock it bought at level 1). 'with' = depots
+  // included alongside everything / 'only' = just the depots / 'exclude' = depots removed (default,
+  // so the headline never double-counts a resale).
+  // ⚠️ It is NOT a salesperson filter any more. `DISTRIBUTOR` (level 1) is back in the Salesperson
+  // dropdown and filtered by nothing — see HIDDEN_SALESPEOPLE above.
+  // SUPER ADMIN ONLY, and middleware/depot.js pins every other tier to exclusion server-side, so
+  // this control is convenience and never the access boundary.
   const showDd = canSeeDd(me);
   const DD_ACCENT = '#8b5cf6'; // purple — same violet the chart palettes already use
 
@@ -115,6 +120,25 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
   // 'only' from a previous super-admin session, and that must not reshape a scoped login's branch
   // dropdown. Non-super-admins always resolve to 'exclude'.
   const [ddMode, setDdModeState] = useState(() => effectiveDdMode(me));
+  // ⚠️ THE BRANCH DROPDOWN'S CONTENTS DEPEND ON THE ACCOUNT'S TIER, NEVER ON `ddMode`.
+  // `/dashboard/filters` is data-driven and the server applies the depot filter to it, so in the
+  // default 'exclude' mode the depot branches are simply absent from the facet — which for a SUPER
+  // ADMIN would mean the five depots vanish from the dropdown until an unrelated toggle was flipped.
+  // That is precisely the bug the client reported on 2026-09-08 ("data exist in those DD branches
+  // with or without DD"), so the depot values are unioned back in for the super admin unconditionally
+  // — same list whatever the mode. For every other tier they are omitted, because that tier genuinely
+  // cannot see the data and a dropdown entry that returns nothing is worse than no entry.
+  // ⚠️ Also guards against a stale localStorage union: filterOptionsCache remembers every option
+  // ever seen per browser, so without this a scoped login on a shared machine could inherit depot
+  // values a super admin's session cached earlier.
+  const branchOptions = useMemo(() => {
+    const raw = options?.branches || [];
+    const valueOf = (o) => String(typeof o === 'string' ? o : (o?.value ?? o?.label ?? '')).toLowerCase();
+    if (!showDd) return raw.filter((o) => !isDepotBranch(valueOf(o)));
+    const present = new Set(raw.map(valueOf));
+    return [...raw, ...DEPOT_BRANCH_VALUES.filter((v) => !present.has(v))];
+  }, [options?.branches, showDd]);
+
   const setDd = (mode) => {
     setDdModeState(mode);
     setDdMode(mode);
@@ -175,12 +199,11 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
 
         {/* Branch — physical branch/location (sits between Company and Master). Universal, like
             the other dropdowns. Hidden on the Branch Analytics page (its strip is the selector).
-            ⚠️ Plain data-driven list — the depots are ordinary branches and must ALWAYS be listable,
-            never gated on the DD switch (that gating was the 2026-09-07 bug). */}
-        {!hideBranch && show(options?.branches, filters.branch) && (
+            ⚠️ The list is shaped by WHO YOU ARE and never by the DD switch — see `branchOptions`. */}
+        {!hideBranch && show(branchOptions, filters.branch) && (
           <MultiSelect
             label="Branch"
-            options={options.branches}
+            options={branchOptions}
             selected={filters.branch || []}
             formatOption={branchDisplay}
             onChange={(vals) => onFilterChange({ branch: vals })}
@@ -292,8 +315,8 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
           />
         )}
 
-        {/* Salesperson — INTER and DISTRIBUTOR are both driven by their own 3-way control, so
-            neither belongs in this list (DISTRIBUTOR added 2026-09-08). */}
+        {/* Salesperson — only INTER is withheld (its own 3-way control owns it). ⚠️ DISTRIBUTOR
+            IS listed here: it is the level-1 sale and ordinary revenue (2026-09-09). */}
         {!hideSalesperson && show(options?.salespersons, filters.salesperson) && (
           <MultiSelect
             label="Salesperson"
@@ -339,7 +362,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
             only; every other tier never sees it and the server ignores the mode for them. */}
         {showDd && (
           <div
-            title="DISTRIBUTOR salesperson view — applies to every dashboard: include DISTRIBUTOR alongside everyone, show only their sales, or remove them. Super admins only."
+            title="DD depot view — the five DD depot branches (HYD · BLR · NGR · SRT · CHG) carry the distributor's onward sales to end clients. Include them alongside everything, show only them, or leave them out. Excluded by default so the headline doesn't count the same goods twice. Super admins only — no other tier can see this data. The DISTRIBUTOR salesman itself is ordinary revenue and is in the Salesperson dropdown."
             style={{ display: 'inline-flex', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}
           >
             {[['with', 'With DD'], ['only', 'Only DD'], ['exclude', 'No DD']].map(([m, label], i) => (

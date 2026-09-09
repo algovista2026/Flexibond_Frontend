@@ -3,12 +3,15 @@ import { FiList, FiRefreshCw, FiCalendar, FiClock, FiActivity } from 'react-icon
 import { adminGetLogs } from '../services/api';
 import { toast } from 'react-toastify';
 import NotificationPanel from '../components/NotificationPanel';
-import { isGlobalAdmin } from '../utils/roles';
+import { isGlobalAdmin, isCompanyAdmin } from '../utils/roles';
 
 const LogsPanel = () => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
   const globalAdmin = isGlobalAdmin(user);
   const [logs, setLogs] = useState([]);
+  // The API tells us when it served a restricted slice, so the page can say so out loud instead of
+  // looking like the audit trail is missing entries (2026-09-08).
+  const [filtered, setFiltered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -18,6 +21,7 @@ const LogsPanel = () => {
       const res = await adminGetLogs();
       if (res.data && res.data.logs) {
         setLogs(res.data.logs);
+        setFiltered(!!res.data.filtered);
       }
     } catch (err) {
       toast.error('Failed to load system access logs');
@@ -92,6 +96,18 @@ const LogsPanel = () => {
             />
           </div>
         </div>
+
+        {/* Never let a restricted view read as a broken one — an admin who can't see the tier above
+            them should know that is the rule, not a bug. */}
+        {filtered && !loading && (
+          <p style={{
+            margin: '0 0 16px', padding: '10px 14px', borderRadius: '8px', background: '#fff7ed',
+            border: '1px solid #fed7aa', color: '#9a3412', fontSize: '0.8rem',
+          }}>
+            You are seeing a restricted view: activity by admin tiers above your own is hidden
+            {isCompanyAdmin(user) ? ", and only your own company's accounts are listed" : ''}.
+          </p>
+        )}
 
         {loading ? (
           <p style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Fetching stream audit data...</p>

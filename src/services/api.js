@@ -92,7 +92,9 @@ api.interceptors.request.use(async (config) => {
     config.params = {
       ...(config.params || {}),
       interMode: localStorage.getItem('flexibond_inter_mode') || 'exclude',
-      ddMode: localStorage.getItem('flexibond_dd_mode') || 'exclude',
+      // The "DD" depot mode (see utils/ddMode.js). Sent on every GET; middleware/depot.js
+      // overwrites it for any tier below super admin, so a stale localStorage value is harmless.
+      depotMode: localStorage.getItem('flexibond_dd_mode') || 'exclude',
     };
   }
   return config;
