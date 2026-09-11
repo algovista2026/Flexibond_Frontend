@@ -82,19 +82,19 @@ api.interceptors.request.use(async (config) => {
     config.headers['x-device-id'] = currentId;
   }
 
-  // Global "INTER" view (set by the FilterBar 3-way control, persisted in localStorage). Injected on
-  // every GET so it applies universally with no per-page wiring: 'with' (default) = INTER included;
-  // 'only' = just the INTER salesperson; 'exclude' = INTER removed.
-  // Global "DD" (own-depot) view — same mechanism as INTER. 'exclude' (default) = depot data hidden;
-  // 'only' = just the 5 DD warehouses; 'with' = normal sales plus them. ⚠️ Super admin only: the
-  // server forces 'exclude' for every other tier (middleware/dd.js), so sending it is harmless.
+  // Two universal 3-way salesperson views, both set by the FilterBar and persisted in localStorage,
+  // injected on every GET so they apply with no per-page wiring:
+  //   interMode — the INTER salesman.       'exclude' (default) | 'only' | 'with'
+  //   ddMode    — the DISTRIBUTOR salesman. 'exclude' (default) | 'only' | 'with'
+  // ⚠️ `ddMode` is honoured for the MAINBOARD only; middleware/dd.js pins every other tier to 'with'
+  // (no filtering), so a stale localStorage value can never strip revenue from a scoped login.
+  // ⚠️ `depotMode` is deliberately NOT sent — depot-branch visibility is a property of the ACCOUNT,
+  // derived server-side from the role by middleware/depot.js, never something the browser asks for.
   if ((config.method || 'get').toLowerCase() === 'get') {
     config.params = {
       ...(config.params || {}),
       interMode: localStorage.getItem('flexibond_inter_mode') || 'exclude',
-      // The "DD" depot mode (see utils/ddMode.js). Sent on every GET; middleware/depot.js
-      // overwrites it for any tier below super admin, so a stale localStorage value is harmless.
-      depotMode: localStorage.getItem('flexibond_dd_mode') || 'exclude',
+      ddMode: localStorage.getItem('flexibond_dd_mode') || 'exclude',
     };
   }
   return config;

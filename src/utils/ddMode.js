@@ -1,22 +1,16 @@
-// Global "DD" view — ⚠️ REWIRED 2026-09-09: this is the DEPOT-BRANCH mode.
+// Global "DD" view — ⚠️ REWIRED 2026-09-11.
 //
-// The firm sells twice over:
-//   LEVEL 1  company → distributor client. Salesperson `DISTRIBUTOR`, ₹3.37 Cr. **Ordinary
-//            revenue** — in every tier's figures and in the Salesperson dropdown like any other
-//            salesman. Nothing filters it. (Until 2026-09-09 this button filtered exactly that,
-//            excluding it by default for EVERYONE — the bug this rewiring fixes.)
-//   LEVEL 2  the distributor selling that stock on to end clients, booked out of the five `dd-*`
-//            depot branches. A resale of level 1, so counting both double-counts the goods.
-//            **SUPER ADMIN ONLY** — this control, and the data itself.
+// The 3-way control filters the `DISTRIBUTOR` SALESPERSON, exactly like INTER: 'exclude' (default,
+// the "No DD" resting state) | 'only' | 'with'. Sent as `ddMode` on every GET by services/api.js.
 //
-// Modes: 'exclude' (default — depots left out so the headline never double-counts) | 'only' (the
-// depot lens) | 'with' (depots alongside everything else).
+// ⚠️ NOT the five `dd-*` depot branches. Those are a BRANCH dimension decided server-side from the
+// account's role (middleware/depot.js); the mainboard always sees them and there is no UI control.
+// The two were conflated between 2026-09-02 and 2026-09-10 and the client corrected it twice — they
+// are disjoint sets in the data (overlap exactly 0). The shared `dd` prefix is a naming accident.
 //
-// ⚠️ SUPER ADMIN ONLY, and `middleware/depot.js` pins every other tier to 'exclude' server-side, so
-// this file is the UI half and never the access control.
-// ⚠️ NEVER shape an option list with this value. Which branches a login may LIST is a property of
-// its tier alone — gating the Branch dropdown's contents on this switch is the 2026-09-07 bug the
-// client hit ("data exist in those DD branches with or without DD"). See FilterBar's branchOptions.
+// ⚠️ MAINBOARD ONLY. The control renders only for `role:'admin'`, and middleware/dd.js pins every
+// other tier to **'with'** — unfiltered — so their figures stay exactly as they are. This file is
+// the UI half only; never treat it as the access boundary.
 export const DD_MODE_KEY = 'flexibond_dd_mode';
 export const DD_DEFAULT_MODE = 'exclude';
 

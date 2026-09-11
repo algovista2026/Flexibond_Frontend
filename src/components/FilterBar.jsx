@@ -73,14 +73,16 @@ const monthOfRange = (startDate, endDate) => {
   return endDate === monthEnd(ym) ? ym : '';
 };
 
-// Salespeople that never appear in the Salesperson dropdown because a dedicated 3-way control owns
-// them. Keep in sync with the backend's utils/interFilter.js.
-// ⚠️ `DISTRIBUTOR` was removed from this set on 2026-09-09. It is the LEVEL-1 sale (company →
-// distributor client), ordinary revenue of ₹3.37 Cr that belongs in every tier's figures and in this
-// dropdown like any other salesman. Hiding it behind the "DD" button excluded it by default for
-// EVERYONE, super admin included. The "DD" button now filters the five `dd-*` DEPOT BRANCHES
-// (level-2 sales) instead — a branch dimension, nothing to do with this list.
-const HIDDEN_SALESPEOPLE = new Set(['INTER']);
+// Salespeople hidden from the Salesperson dropdown because a dedicated 3-way control owns them.
+// Keep in sync with the backend's utils/interFilter.js + utils/ddFilter.js.
+//
+// ⚠️ INTER is hidden for EVERY account — every account has the INTER control.
+// ⚠️ DISTRIBUTOR is hidden for the MAINBOARD ONLY (2026-09-11), because only the mainboard has the
+// "DD" button. Hiding it from a tier that has no button would leave that tier unable to select a
+// salesman whose revenue they can still see — the dropdown would silently disagree with the data.
+const HIDDEN_ALWAYS = ['INTER'];
+const hiddenSalespeople = (hasDdControl) =>
+  new Set(hasDdControl ? [...HIDDEN_ALWAYS, 'DISTRIBUTOR'] : HIDDEN_ALWAYS);
 
 const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, hideBranch = false, showBatch = false }) => {
   // Render a dropdown when it has options OR when it currently has a selection — so an
@@ -105,14 +107,14 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
     onFilterChange({}); // re-fetch with the new interMode
   };
 
-  // Global DD view — ⚠️ REWIRED 2026-09-09: this filters the five `dd-*` DEPOT BRANCHES, which
-  // carry LEVEL-2 sales (the distributor selling on stock it bought at level 1). 'with' = depots
-  // included alongside everything / 'only' = just the depots / 'exclude' = depots removed (default,
-  // so the headline never double-counts a resale).
-  // ⚠️ It is NOT a salesperson filter any more. `DISTRIBUTOR` (level 1) is back in the Salesperson
-  // dropdown and filtered by nothing — see HIDDEN_SALESPEOPLE above.
-  // SUPER ADMIN ONLY, and middleware/depot.js pins every other tier to exclusion server-side, so
-  // this control is convenience and never the access boundary.
+  // Global DD view — ⚠️ REWIRED 2026-09-11: this filters the `DISTRIBUTOR` SALESPERSON, exactly like
+  // the INTER control beside it. 'with' = DISTRIBUTOR shown alongside everyone / 'only' = just their
+  // sales / 'exclude' = removed (the resting "No DD" default).
+  // ⚠️ It is NOT a branch filter. The five `dd-*` DEPOT branches are a separate dimension handled
+  // entirely server-side by middleware/depot.js — the mainboard always sees them, no control needed.
+  // The two were conflated twice and the client corrected it both times; they are disjoint sets.
+  // MAINBOARD ONLY: not rendered for any other tier, and middleware/dd.js pins those tiers to 'with'
+  // (unfiltered) so their figures are untouched.
   const showDd = canSeeDd(me);
   const DD_ACCENT = '#8b5cf6'; // purple — same violet the chart palettes already use
 
@@ -320,7 +322,7 @@ const FilterBar = ({ filters, options, onFilterChange, hideSalesperson = false, 
         {!hideSalesperson && show(options?.salespersons, filters.salesperson) && (
           <MultiSelect
             label="Salesperson"
-            options={(options.salespersons || []).filter(o => !HIDDEN_SALESPEOPLE.has(String(typeof o === 'string' ? o : (o?.value ?? o?.label ?? '')).toUpperCase()))}
+            options={(options.salespersons || []).filter(o => !hiddenSalespeople(showDd).has(String(typeof o === 'string' ? o : (o?.value ?? o?.label ?? '')).toUpperCase()))}
             selected={filters.salesperson || []}
             onChange={(vals) => onFilterChange({ salesperson: vals })}
           />
