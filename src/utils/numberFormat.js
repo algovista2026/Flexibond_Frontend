@@ -12,14 +12,45 @@ export const formatINR = (v) => inrFull.format(Number(v) || 0);
 // Plain grouped integer, e.g. 1,22,26,739
 export const formatCount = (v) => countFmt.format(Number(v) || 0);
 
-// Rate-per-square-foot for ACP sheets ONLY. ACP rates are quoted per square
-// metre; ÷10.764 converts to per square foot. Shown to 2 decimal places (client
-// request 2026-08-06). Non-ACP masters have no per-foot meaning, so they render a
-// dash. `master` is matched case-insensitively.
+// ── Square-metre → square-foot, for ACP sheets ONLY ─────────────────────────
+// ⚠️ THE `qty` UNIT IS NOT UNIFORM ACROSS MASTERS — checked against live data 2026-09-24:
+//     ACP           qty ÷ sheet area = exact whole sheet counts  → SQUARE METRES
+//     PVC / WPC     qty 64, 640, 320 on a "4x8" board            → PIECES
+//     SOFFIT        qty 5, 3, 6 on a 342x3050 panel              → PIECES
+//     PVC LAMINATE  qty 5, 5, 10                                 → PIECES
+// The Products table's Quantity header reads "(Sq. Meters)" per the client's request, which is
+// right for the 70 ACP products but NOT for the other 155 — five soffit panels are 5 pieces, not
+// 5 m². If that becomes a problem the honest header is "Quantity (Sq. Meters — ACP)" or a
+// per-master unit column. Flagged to the client 2026-09-24.
+// ACP is sold by area: `qty` is in square METRES (verified 2026-09-24 — qty ÷ sheet area gives
+// exact whole sheet counts) and `rate` is per square metre. Non-ACP masters have no per-foot
+// meaning, so both helpers render a dash. `master` is matched case-insensitively.
+//
+// ⚠️ TWO CONSTANTS, deliberately, and they are NOT the same number:
+//   RATE_PER_FOOT_DIVISOR = 10.764   — divides the RATE (per m² → per ft²). Unchanged since
+//                                      2026-08-06; the client has been reading these figures for
+//                                      months and exporting them.
+//   SQ_M_TO_SQ_FT         = 10.7639  — multiplies the QUANTITY (m² → ft²). Client-specified
+//                                      2026-09-24.
+// The true value is 10.76391042, so 10.7639 is the more accurate of the two. Unifying on it would
+// be tidier BUT shifts 5 of 73 ACP products' displayed rate by ₹0.01, which would not reconcile
+// against exports the client already holds — so the existing column was left alone. The cost of
+// the split is that rate/ft² × qty/ft² differs from the revenue by 0.0009 %; if that ever matters,
+// unify on 10.7639 and re-check those 5 rows.
 export const RATE_PER_FOOT_DIVISOR = 10.764;
+export const SQ_M_TO_SQ_FT = 10.7639;
+
 export const ratePerFoot = (avgRate, master) =>
   String(master || '').trim().toUpperCase() === 'ACP'
     ? inr2dp.format((Number(avgRate) || 0) / RATE_PER_FOOT_DIVISOR)
+    : '—';
+
+// Quantity in square feet, for ACP only. 2 dp and Indian grouping, matching the rate column's
+// treatment — a bare integer would hide that these are fractional areas, not sheet counts.
+const qty2dp = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const qtyInSqFt = (qty, master) =>
+  String(master || '').trim().toUpperCase() === 'ACP'
+    ? qty2dp.format((Number(qty) || 0) * SQ_M_TO_SQ_FT)
     : '—';
 
 // Compact Indian short form for chart axes / tight spaces.

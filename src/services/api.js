@@ -205,6 +205,9 @@ export const getDashboardSummary = (params) => api.get('dashboard/summary', { pa
 export const getRevenueTrend = (params) => api.get('dashboard/revenue-trend', { params });
 export const getRevenueTrendByCompany = (params) => api.get('dashboard/revenue-trend-by-company', { params });
 export const getTopProducts = (params) => api.get('dashboard/top-products', { params });
+// Per-client rate breakdown for ONE product — the Products "All Products" drill-down.
+export const getProductClients = (product, params) =>
+  api.get('dashboard/product-clients', { params: { ...params, product } });
 export const getTopCustomers = (params) => api.get('dashboard/top-customers', { params });
 export const getCategoryBreakdown = (params) => api.get('dashboard/category-breakdown', { params });
 export const getGradeBreakdown = (params) => api.get('dashboard/grade-breakdown', { params });

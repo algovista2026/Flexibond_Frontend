@@ -865,7 +865,10 @@ const AdminPanel = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>{u.username}</span>
+                      {/* ⚠️ No textTransform here: usernames are validated lowercase-only
+                          (routes/auth.js `usernameError`), so title-casing them showed a name that
+                          cannot be typed at the login screen. Render them verbatim. */}
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.username}</span>
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                         <span style={{
                           fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 600,
@@ -1106,7 +1109,7 @@ const AdminPanel = () => {
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#d97706', marginBottom: '4px' }}>
               <FiTarget /> Set Target
             </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px', textTransform: 'capitalize' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
               {targetModalUser.username} · {targetModalUser.scopeType === 'company' ? `Company ${(targetModalUser.companies && targetModalUser.companies.length ? targetModalUser.companies.join(', ') : targetModalUser.company) || ''}` : 'Zonal Head'}
             </p>
 
@@ -1174,7 +1177,7 @@ const AdminPanel = () => {
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#b7962f', marginBottom: '4px' }}>
               <FiMessageSquare /> Notes
             </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'capitalize' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
               To: {noteModalUser.username}
             </p>
 

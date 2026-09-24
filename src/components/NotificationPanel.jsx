@@ -130,7 +130,7 @@ const NotificationPanel = ({ isDark = false }) => {
                     {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <div style={{ color: 'var(--text-secondary)', textTransform: 'capitalize', fontWeight: 600 }}>By: {log.username}</div>
+                <div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>By: {log.username}</div>
                 <div style={{ color: 'var(--text-muted)', marginTop: '4px', wordBreak: 'break-all' }}>{log.details}</div>
               </div>
             ))

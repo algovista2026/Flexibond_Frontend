@@ -13,6 +13,7 @@ import ScrollColumnChart from '../components/ScrollColumnChart';
 import ScrollRowChart from '../components/ScrollRowChart';
 import {
   getTopProducts,
+  getProductClients,
   getCategoryBreakdown,
   getColourAnalysis,
   getSizeAnalysis,
@@ -24,7 +25,7 @@ import {
 } from '../services/api';
 
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
-import { formatINRShort, formatShort, ratePerFoot } from '../utils/numberFormat';
+import { formatINRShort, formatShort, ratePerFoot, qtyInSqFt, RATE_PER_FOOT_DIVISOR } from '../utils/numberFormat';
 import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/globalFilters';
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
@@ -58,6 +59,13 @@ const Products = () => {
   });
   // Search box for the full "All Products" table (client-side filter over allProducts).
   const [tableSearch, setTableSearch] = useState('');
+  // Per-product drill-down (2026-09-24): which CLIENTS are pulling a product's average rate down.
+  // ⚠️ Named `clientRates*`, NOT `drill*` — this page already has three unrelated drill-downs
+  // (group pie, colour pie, and now this), and a bare `drillLoading` already belongs to the group
+  // pie a few lines below.
+  const [drillProduct, setDrillProduct] = useState(null);
+  const [clientRates, setClientRates] = useState(null);
+  const [clientRatesLoading, setClientRatesLoading] = useState(false);
   // Drill-down pie: which group is expanded, and its per-product distribution.
   const [drillGroup, setDrillGroup] = useState(null);
   const [drillData, setDrillData] = useState(null);
@@ -119,6 +127,18 @@ const Products = () => {
   }, [location.state]);
 
   useEffect(() => { fetchData(); }, [filters, metric, sortOrder]);
+
+  // Fetch the per-client breakdown for the expanded product. Re-runs on `filters` too, so the
+  // drill-down always agrees with the row above it rather than going stale behind a filter change.
+  useEffect(() => {
+    if (!drillProduct) { setClientRates(null); setClientRatesLoading(false); return; }
+    let cancelled = false;
+    setClientRatesLoading(true);
+    getProductClients(drillProduct, filters)
+      .then(res => { if (!cancelled) { setClientRates(res.data.data || null); setClientRatesLoading(false); } })
+      .catch(() => { if (!cancelled) { setClientRates(null); setClientRatesLoading(false); } });
+    return () => { cancelled = true; };
+  }, [drillProduct, filters]);
 
   const handleFilterChange = (newFilters, clear = false) => {
     if (clear) {
@@ -762,7 +782,8 @@ const Products = () => {
                       'Product Name': p._id,
                       'Category': p.group || '',
                       'Sub-Category': p.category || '',
-                      'Quantity': p.totalQty,
+                      'Quantity (Sq. Meters)': p.totalQty,
+                      'Quantity (Sq.Feet)': qtyInSqFt(p.totalQty, p.master),
                       'Avg. Rate (Excl. Taxes)': p.avgRate,
                       'Avg. Rate / Sq.Ft (Excl. Taxes)': ratePerFoot(p.avgRate, p.master),
                       'Revenue (Excl. Taxes)': p.totalAmount,
@@ -784,22 +805,31 @@ const Products = () => {
               {/* Fixed layout + colgroup so the extra Category / dual-revenue columns fit without
                   a horizontal scrollbar; headers wrap (taller header row), long names ellipsise. */}
               <table className="data-table" style={{ tableLayout: 'fixed' }}>
+                {/* 9 columns since 2026-09-24 (Quantity Sq.Feet added). Re-proportioned to sum to
+                    100% — the name/category columns gave up the width, since they ellipsise with a
+                    title tooltip whereas a clipped number is unreadable. */}
                 <colgroup>
-                  <col style={{ width: '20%' }} />{/* Product Name */}
-                  <col style={{ width: '11%' }} />{/* Category */}
-                  <col style={{ width: '13%' }} />{/* Sub-Category */}
+                  <col style={{ width: '19%' }} />{/* Product Name */}
+                  <col style={{ width: '10%' }} />{/* Category */}
+                  <col style={{ width: '11%' }} />{/* Sub-Category */}
                   <col style={{ width: '8%' }} />{/* Quantity */}
-                  <col style={{ width: '12%' }} />{/* Avg Rate */}
-                  <col style={{ width: '12%' }} />{/* Avg Rate / Sq.Ft */}
-                  <col style={{ width: '12%' }} />{/* Revenue excl */}
-                  <col style={{ width: '12%' }} />{/* Revenue incl */}
+                  <col style={{ width: '10%' }} />{/* Quantity (Sq.Feet) */}
+                  <col style={{ width: '11%' }} />{/* Avg Rate */}
+                  <col style={{ width: '11%' }} />{/* Avg Rate / Sq.Ft */}
+                  <col style={{ width: '10%' }} />{/* Revenue excl */}
+                  <col style={{ width: '10%' }} />{/* Revenue incl */}
                 </colgroup>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Product Name</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Category</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Sub-Category</th>
-                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Quantity</th>
+                    {/* Both quantity headers go through th(), which drops the bracketed unit onto
+                        its own second line — so they align with the Revenue / Avg. Rate headers
+                        beside them instead of being the only single-line ones in the row.
+                        ⚠️ "(Sq. Meters)" is accurate for ACP only; see the note in numberFormat.js. */}
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Quantity (Sq. Meters)')}</th>
+                    <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Quantity (Sq.Feet)')}</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Avg. Rate / Sq.Ft (Excl. Taxes)')}</th>
                     <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Revenue (Excl. Taxes)')}</th>
@@ -809,12 +839,39 @@ const Products = () => {
                 <tbody>
                   {tableProducts.map((p, i) => {
                     const clip = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+                    const isOpen = drillProduct === p._id;
                     return (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 500, ...clip }} title={p._id}>{p._id}</td>
+                      // ⚠️ The ROW is not the control — only the Product Name cell is (client
+                      // request 2026-09-24). The row keeps the open-state highlight so you can see
+                      // which product is expanded, but carries no handler, so selecting text in the
+                      // revenue columns or tapping a figure no longer toggles the panel.
+                      <tr
+                        key={i}
+                        style={{
+                          background: isOpen ? 'var(--primary-50, #eff6ff)' : undefined,
+                          boxShadow: isOpen ? 'inset 3px 0 0 var(--primary-600)' : undefined,
+                        }}
+                      >
+                        <td
+                          className="product-drill-cell"
+                          onClick={() => setDrillProduct(isOpen ? null : p._id)}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isOpen}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrillProduct(isOpen ? null : p._id); }
+                          }}
+                          title={`${isOpen ? 'Hide' : 'Show'} the per-client rate breakdown for ${p._id}`}
+                          style={{ fontWeight: isOpen ? 700 : 500, cursor: 'pointer', ...clip }}
+                        >
+                          <span style={{ color: 'var(--primary-600)', marginRight: '6px', fontSize: '0.7rem' }}>{isOpen ? '\u25BC' : '\u25B6'}</span>
+                          {p._id}
+                        </td>
                         <td style={clip} title={p.group || '—'}>{p.group || '—'}</td>
                         <td style={clip} title={p.category || '—'}>{p.category || '—'}</td>
                         <td>{formatNumber(p.totalQty)}</td>
+                        {/* ACP only — qty is in m² for ACP sheets; other masters aren't area-sold. */}
+                        <td>{qtyInSqFt(p.totalQty, p.master)}</td>
                         <td>{formatCurrency(p.avgRate)}</td>
                         <td>{ratePerFoot(p.avgRate, p.master)}</td>
                         <td style={{ fontWeight: 600, color: 'var(--primary-600)', ...clip }}>{formatCurrency(p.totalAmount)}</td>
@@ -823,13 +880,112 @@ const Products = () => {
                     );
                   })}
                   {tableProducts.length === 0 && (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
+                    <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
                       {tableSearch.trim() ? 'No products match your search.' : 'No products for the current filters.'}
                     </td></tr>
                   )}
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* ── Per-client rate drill-down (2026-09-24) ────────────────────────────────────────
+            Which customers are dragging the selected product's average selling rate down.
+            Ascending by rate, so the worst offenders are the top rows. Rendered as its own card
+            BELOW the All Products table rather than as an expanded row: the table above lives in a
+            460px scroll box with `tableLayout: fixed`, so an inline panel would either be trapped
+            inside that scroll area or forced into the parent's 8 fixed column widths. */}
+        {drillProduct && (
+          <div className="data-table-wrapper" style={{ gridColumn: '1 / -1' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ minWidth: 0 }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Client Rates — {drillProduct}
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {clientRatesLoading
+                    ? 'Loading…'
+                    : clientRates
+                      ? <>
+                          {clientRates.clients.length} client{clientRates.clients.length === 1 ? '' : 's'} · lowest rate first ·
+                          {' '}product average {formatCurrency(clientRates.overall.avgRate)}
+                          {ratePerFoot(clientRates.overall.avgRate, clientRates.overall.master) !== '\u2014'
+                            ? ` (${ratePerFoot(clientRates.overall.avgRate, clientRates.overall.master)} / sq.ft)`
+                            : ''}
+                        </>
+                      : 'No data'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrillProduct(null)}
+                style={{ height: '38px', padding: '0 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                Close
+              </button>
+            </div>
+
+            {clientRatesLoading ? (
+              <TableSkeleton />
+            ) : (
+              <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                <table className="data-table" style={{ tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '34%' }} />{/* Client */}
+                    <col style={{ width: '11%' }} />{/* Orders */}
+                    <col style={{ width: '13%' }} />{/* Quantity */}
+                    <col style={{ width: '14%' }} />{/* Avg Rate */}
+                    <col style={{ width: '14%' }} />{/* Avg Rate / Sq.Ft */}
+                    <col style={{ width: '14%' }} />{/* vs product avg */}
+                  </colgroup>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                    <tr>
+                      <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Client</th>
+                      <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Orders</th>
+                      <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>Quantity</th>
+                      <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Avg. Rate (Excl. Taxes)')}</th>
+                      <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>{th('Avg. Rate / Sq.Ft (Excl. Taxes)')}</th>
+                      <th style={{ whiteSpace: 'normal', verticalAlign: 'bottom' }}>vs Product Avg.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(clientRates?.clients || []).map((c, i) => {
+                      const clip = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+                      const avg = clientRates.overall.avgRate || 0;
+                      // ⚠️ A client with zero NET quantity (bought then fully returned) has no
+                      // rate at all — the API sends null rather than 0 precisely so it is not
+                      // rendered as the cheapest buyer on the page. Show dashes and no verdict.
+                      const hasRate = c.avgRate !== null && c.avgRate !== undefined;
+                      const diff = hasRate ? c.avgRate - avg : 0;
+                      // Guard the divide: a product whose overall average is 0 has no meaningful
+                      // percentage to show, and would otherwise render Infinity / NaN.
+                      const pct = hasRate && avg ? (diff / avg) * 100 : null;
+                      const below = diff < 0;
+                      const dash = <span style={{ color: 'var(--text-muted)' }}>—</span>;
+                      return (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 500, ...clip }} title={c._id}>{c._id}</td>
+                          <td>{formatNumber(c.orderCount)}</td>
+                          <td>{formatNumber(Math.round(c.totalQty))}</td>
+                          <td>{hasRate ? formatCurrency(c.avgRate) : dash}</td>
+                          <td>{hasRate ? ratePerFoot(c.avgRate, c.master || clientRates.overall.master) : dash}</td>
+                          <td style={{ fontWeight: 700, color: pct === null ? undefined : (below ? '#dc2626' : '#16a34a'), ...clip }}
+                              title={hasRate ? undefined : 'Net quantity is zero — bought and fully returned, so there is no realised rate'}>
+                            {pct === null ? dash : `${below ? '' : '+'}${pct.toFixed(1)}%`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {!clientRatesLoading && (!clientRates || clientRates.clients.length === 0) && (
+                      <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
+                        No client data for this product under the current filters.
+                      </td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

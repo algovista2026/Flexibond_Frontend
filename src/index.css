@@ -1114,6 +1114,70 @@ body.is-exporting .flip-card.is-flipped .flip-card-back {
   .result-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* ── Client Analytics revenue-range filter (2026-09-24) ──────────────────────
+   Desktop: the two dropdowns sit inline beside the search box at a fixed comfortable width.
+   The extra left margin (on top of the row's own 12px gap) separates the band control from the
+   search box, so they read as two distinct tools rather than one run-on cluster. */
+/* Sizes re-balanced 2026-09-24 (client): the search box shed a third of its width and the two
+   dropdowns doubled, so the revenue band — the tool with the longer labels ("No minimum",
+   "₹1.25 Cr") — is the one that gets the room. ⚠️ Desktop only; the ≤768px block below overrides
+   both with flex sizing, so the phone layout is untouched by these numbers. */
+.rev-range-side { width: 300px; }
+.rev-range { margin-left: 24px; }
+/* ⚠️ Extra breathing room between From and To specifically — NOT a bigger container `gap`, which
+   would also spread the "Revenue" label and the Clear button away from the pair they belong to.
+   The adjacent-sibling selector only ever matches the second dropdown. */
+.rev-range-side + .rev-range-side { margin-left: 8px; }
+/* The search box grows into the free space on wide screens, which carries the Revenue group
+   rightwards so it sits over the client cards rather than crowding the search box. Capped so it
+   doesn't stretch absurdly on an ultrawide monitor. */
+.clients-search { flex: 1 1 200px !important; max-width: 308px; }
+
+/* Only the Product Name cell opens the per-client drill-down (2026-09-24), so it — not the row —
+   carries the affordance: the name turns blue on hover and shows a focus ring when tabbed to. */
+.product-drill-cell { transition: color 0.12s ease; }
+.product-drill-cell:hover { color: var(--primary-600); text-decoration: underline; }
+.product-drill-cell:focus-visible { outline: 2px solid var(--primary-600); outline-offset: -2px; }
+
+@media (max-width: 768px) {
+  /* The strip header is a flex-wrap row, so on a phone the search box and the range control each
+     take a full line rather than being squeezed to unusable widths. */
+  .clients-search { flex: 1 1 100% !important; min-width: 0 !important; max-width: none; }
+  /* ⚠️ Margin reset: on a phone the control is a full-width block on its own line, so the desktop
+     separator margin would just push it out of alignment with the search box above it. */
+  .rev-range { width: 100%; margin-left: 0; }
+  /* From / To share the row and grow; "Revenue" and Clear keep their intrinsic width. */
+  .rev-range-side { flex: 1 1 0; width: auto; min-width: 0; }
+  /* ⚠️ On a phone the popover becomes a full-width sheet under the WHOLE control row, not a panel
+     hanging off its button. Anchoring it to the button (position:relative on .rev-range-side) put
+     the "To" popover's left edge at the right-hand button and pushed 200px of it off-screen, where
+     it could not be reached or scrolled to — verified in headless Chrome at 390px.
+     Making .rev-range-side static hands the containing block to .rev-range, so left/right:0 span
+     the row and top:100% drops it cleanly below both buttons. */
+  .rev-range { position: relative; }
+  .rev-range-side { position: static !important; }
+  .rev-range-pop {
+    width: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: calc(100% + 6px) !important;
+  }
+}
+
+/* ⚠️ 600, not 380. At 390px — iPhone 12/13/14/15, the single most common phone width — the
+   "Revenue" label and the Clear button share the row with both dropdowns, leaving them ~89px each
+   and truncating their values to "From ₹2." / "To No m". Verified in a 390px iframe. Giving the
+   label its own line frees the full row for the two dropdowns. */
+@media (max-width: 600px) {
+  .rev-range-label { flex: 1 1 100%; }
+  .rev-range-side { flex: 1 1 calc(50% - 4px); }
+}
+
+@media (max-width: 400px) {
+  /* Narrower than this, half a row can't hold "From ₹2.00 L" — stack them instead. */
+  .rev-range-side { flex: 1 1 100%; }
+}
+
 @media (max-width: 768px) {
   /* Prevent page-level horizontal scroll */
   body { overflow-x: hidden; }

@@ -120,7 +120,8 @@ const LogsPanel = () => {
                     <td style={{ padding: '12px 16px', fontWeight: 700, color: getActionColor(log.action), whiteSpace: 'nowrap' }}>
                       {log.action}
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-primary)', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+                    {/* Verbatim — usernames are lowercase-only by validation (see AdminPanel). */}
+                    <td style={{ padding: '12px 16px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                       {log.username}
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', maxWidth: '260px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

@@ -13,6 +13,7 @@ import { seedFilters, setGlobalFilters, clearGlobalFilters } from '../utils/glob
 import { mergeFilterOptions } from '../utils/filterOptionsCache';
 import { PALETTES, ACCENTS, pieColors } from '../utils/chartPalettes';
 import { th } from '../utils/thHeader';
+import RevenueRangeFilter from '../components/RevenueRangeFilter';
 
 const Clients = () => {
   const [filters, setFilters] = useState(seedFilters({
@@ -24,7 +25,16 @@ const Clients = () => {
 
   const [clients, setClients] = useState(null);
   const [search, setSearch] = useState('');
+  // Revenue band for the client list. null on a side = UNBOUNDED there ("no minimum" / "and
+  // above"), which is NOT the same as 0 — some clients have negative revenue (net returns).
+  // ⚠️ Sent to the SERVER, not applied to the fetched array: the list is capped at the top 500 by
+  // revenue and there are 794 clients, so a browser-side filter would only ever search the richest
+  // 500 and would miss 294 of the 597 clients under ₹2 L. See routes/clients.js.
+  const [revRange, setRevRange] = useState({ min: null, max: null });
   const [listLoading, setListLoading] = useState(true);
+  // Server-reported match count. Differs from `clients.length` only if the API cap (2000) binds,
+  // which it does not at today's 1,054 clients — carried so a future overflow is never silent.
+  const [clientTotal, setClientTotal] = useState(null);
 
   const [selected, setSelected] = useState([]);          // array of client names (multi-select)
   const [orders, setOrders] = useState(null);
@@ -48,11 +58,16 @@ const Clients = () => {
 
   useEffect(() => {
     setListLoading(true);
-    getClients(filters)
-      .then(res => setClients(res.data.data || []))
-      .catch(() => setClients([]))
+    // Omit an unbounded side entirely — the API treats a missing bound as "no limit" and a 0 as a
+    // real floor, so these must not be coerced into numbers.
+    const params = { ...filters };
+    if (revRange.min !== null) params.minRevenue = revRange.min;
+    if (revRange.max !== null) params.maxRevenue = revRange.max;
+    getClients(params)
+      .then(res => { setClients(res.data.data || []); setClientTotal(res.data.total ?? null); })
+      .catch(() => { setClients([]); setClientTotal(null); })
       .finally(() => setListLoading(false));
-  }, [filters]);
+  }, [filters, revRange]);
 
   // Orders list for all selected clients (aggregated) via the ?names= list. Deliberately NOT
   // keyed on `selectedInvoice` — picking an order only re-scopes the analytics above, the order
@@ -89,6 +104,7 @@ const Clients = () => {
       };
       clearGlobalFilters(); // filters are universal — clearing here clears them everywhere.
       setFilters(reset);
+      setRevRange({ min: null, max: null }); // page-local, so the FilterBar's Clear must reset it too
     } else {
       setFilters(prev => {
         const next = { ...prev, ...newFilters };
@@ -209,13 +225,26 @@ const Clients = () => {
       {/* Horizontal client selector strip (like the Salesperson leaderboard) — multi-select. */}
       <div className="sp-leaderboard-strip">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Clients {clients ? `(${visibleClients.length})` : ''}</h3>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, whiteSpace: 'nowrap' }}>
+            Clients {clients ? `(${visibleClients.length})` : ''}
+            {/* Only ever shown if the API cap binds — otherwise the two numbers are equal and a
+                "of N" would just be noise. */}
+            {clients && clientTotal !== null && clientTotal > clients.length && (
+              <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}> of {clientTotal}</span>
+            )}
+          </h3>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search clients…"
+            className="clients-search"
             style={{ height: '38px', minWidth: '220px', flex: '0 1 300px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}
+          />
+          <RevenueRangeFilter
+            min={revRange.min}
+            max={revRange.max}
+            onChange={setRevRange}
           />
           {selected.length > 0 && (
             <button

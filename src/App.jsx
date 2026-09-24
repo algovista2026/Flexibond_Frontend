@@ -26,7 +26,7 @@ import DataLogs from './pages/DataLogs';
 import SalespersonChange from './pages/SalespersonChange';
 import Financial from './pages/Financial';
 import Channel from './pages/Channel';
-import { isAnyAdmin } from './utils/roles';
+import { isAnyAdmin, isGlobalAdmin } from './utils/roles';
 
 // No Access Page Component
 const NoAccessPage = () => (
@@ -93,13 +93,14 @@ const PrivateRoute = () => {
       });
   }, [token]);
 
-  // Admin inactivity auto-logout (2026-08-06): an admin session ends after 1 minute with no
-  // mouse / keyboard / touch / scroll activity, then bounces to the login screen. Only admin
-  // accounts (e.g. the master "flexibond" login) are affected; viewers/scoped stay logged in.
+  // Idle auto-logout (2026-08-06; retimed 2026-09-24): the session ends after 2 minutes with no
+  // mouse / keyboard / touch / scroll activity, then bounces to the login screen.
+  // ⚠️ GLOBAL admins only — super admin + sub admin, the two tiers holding the org-wide surface.
+  // Company admins were included until 2026-09-24 and are now exempt, as are viewers/scoped logins;
+  // they stay logged in until the 24h JWT expires or the tab closes.
   useEffect(() => {
-    // Every admin tier holds master controls, so all of them get the idle auto-logout.
-    if (!token || !isAnyAdmin(user)) return;
-    const IDLE_MS = 600 * 1000;
+    if (!token || !isGlobalAdmin(user)) return;
+    const IDLE_MS = 120 * 1000;
     let timer;
     const logout = () => {
       sessionStorage.removeItem('flexibond_token');
