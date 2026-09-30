@@ -31,6 +31,11 @@ export const isAnyAdmin = (user) => isGlobalAdmin(user) || isCompanyAdmin(user);
 // ⚠️ NOT about the `DISTRIBUTOR` salesperson — that is level-1 revenue, ordinary for every tier.
 export const hidesDepots = (user) => !isSuperAdmin(user);
 
+// Accounting module (2026-10-01) — a named-login allowlist, not a tier (mainboard / flexibond /
+// rajesh). The flag is computed server-side (config/accounting.js) and shipped on login + /auth/me;
+// the API enforces it independently (middleware/accounting.js), so this only drives the nav.
+export const canSeeAccounting = (user) => !!(user && user.canAccessAccounting);
+
 // Human label for the badge in Admin Panel → Users.
 export const ROLE_LABELS = {
   admin: 'super admin',

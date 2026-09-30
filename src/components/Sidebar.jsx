@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase, FiDatabase, FiUserCheck } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase, FiDatabase, FiUserCheck, FiBookOpen } from 'react-icons/fi';
 import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
 import './Sidebar.css';
-import { isAnyAdmin } from '../utils/roles';
+import { isAnyAdmin, canSeeAccounting } from '../utils/roles';
 
 const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   const navigate = useNavigate();
@@ -96,6 +96,13 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           <NavLink to="/channel" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiGitBranch className="nav-icon" />
             <span>Channel</span>
+          </NavLink>
+        )}
+        {/* Accounting (demo skeleton, 2026-10-01) — named logins only, see utils/roles.js. */}
+        {canSeeAccounting(user) && (
+          <NavLink to="/accounting" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiBookOpen className="nav-icon" />
+            <span>Accounting</span>
           </NavLink>
         )}
         

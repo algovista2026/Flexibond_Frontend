@@ -1,0 +1,197 @@
+/* Accounting module (demo skeleton, 2026-10-01) */
+
+.acc-demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  border: 1px solid #fde68a;
+  background: var(--warning-bg);
+  color: #92400e;
+  font-size: 0.85rem;
+}
+.acc-demo-banner svg { flex-shrink: 0; }
+
+.acc-controls { margin-bottom: 24px; gap: 12px; flex-wrap: wrap; align-items: center; }
+.acc-asof {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.acc-asof input {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: #fff;
+}
+
+.acc-progress {
+  margin-top: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-light);
+  overflow: hidden;
+}
+.acc-progress > div { height: 100%; background: var(--success); border-radius: 999px; }
+
+.acc-legend {
+  flex: 0 0 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.acc-legend-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.acc-legend-row span { display: flex; align-items: center; gap: 8px; }
+.acc-legend-row i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.acc-legend-row strong { color: var(--text-primary); }
+
+/* Table header strip */
+.acc-table-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.acc-table-head h3 { margin: 0; font-size: 1.05rem; color: var(--text-primary); }
+.acc-table-head p { margin: 2px 0 0; font-size: 0.82rem; color: var(--text-muted); }
+.acc-table-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.acc-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-muted);
+}
+.acc-search input { border: none; outline: none; font-size: 0.85rem; min-width: 200px; background: transparent; }
+
+.acc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.acc-btn:hover:not(:disabled) { border-color: var(--primary-400); color: var(--primary-600); }
+.acc-btn:disabled { opacity: 0.5; cursor: default; }
+
+.acc-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-light);
+}
+.acc-seg button {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.acc-seg button.on { background: #fff; color: var(--primary-600); font-weight: 600; box-shadow: var(--shadow-sm); }
+
+/* Tables */
+.acc-table-wrap { margin-bottom: 28px; }
+.acc-table { min-width: 900px; table-layout: auto !important; }
+.acc-table:not(.acc-ledger) td:first-child, .acc-table:not(.acc-ledger) th:first-child { min-width: 190px; }
+.acc-ledger td:nth-child(2) { min-width: 240px; }
+.acc-ledger td:first-child, .acc-table td:first-child:not(:has(.acc-client)) { white-space: nowrap; }
+.acc-table th.num, .acc-table td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.acc-table td.strong { font-weight: 600; }
+.acc-table td.muted { color: var(--text-secondary); }
+.acc-table td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; white-space: nowrap; }
+.acc-table th.acc-sort { cursor: pointer; user-select: none; }
+.acc-table th, .acc-table td { padding-left: 10px; padding-right: 10px; }
+.acc-table td.num { font-size: 0.82rem; }
+.acc-table th.acc-sort:hover { color: var(--primary-600); }
+.acc-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.acc-row { cursor: pointer; }
+.acc-row:hover .acc-client { color: var(--primary-600); text-decoration: underline; }
+.acc-client { font-weight: 600; }
+.acc-client-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.acc-cr { color: var(--success); font-weight: 600; }
+.acc-table tfoot td {
+  font-weight: 700;
+  background: var(--bg-light);
+  border-top: 2px solid var(--border-color);
+  font-variant-numeric: tabular-nums;
+}
+.acc-ledger tfoot tr + tr td { border-top: 1px solid var(--border-color); }
+.acc-closing td { background: #fff !important; }
+.acc-side { display: inline-block; min-width: 20px; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+.acc-vch { font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+
+.acc-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.acc-status.s-paid { background: var(--success-bg); color: #047857; }
+.acc-status.s-partpaid { background: var(--primary-100); color: var(--primary-600); }
+.acc-status.s-open { background: var(--bg-light); color: var(--text-secondary); }
+.acc-status.s-overdue { background: var(--danger-bg); color: #b91c1c; }
+
+/* Ledger view */
+.acc-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary-600);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.acc-letterhead {
+  text-align: center;
+  padding: 18px 16px;
+  margin-bottom: 24px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.acc-lh-co { font-weight: 700; font-size: 1.05rem; color: var(--text-primary); }
+.acc-lh-client { font-weight: 700; font-size: 1.25rem; color: var(--primary-600); margin: 6px 0 4px; }
+.acc-lh-meta { font-size: 0.82rem; color: var(--text-muted); }
+.acc-empty { padding: 40px; text-align: center; color: var(--text-muted); }
+
+@media (max-width: 600px) {
+  .acc-asof { width: 100%; white-space: nowrap; }
+  .filter-bar .acc-asof input { flex: 1 1 0 !important; min-width: 0; width: auto !important; }
+  .acc-search input { min-width: 0; width: 100%; }
+  .acc-search, .acc-table-tools { width: 100%; }
+  .acc-legend { flex-basis: 130px; font-size: 0.8rem; }
+}

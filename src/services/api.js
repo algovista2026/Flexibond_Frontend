@@ -297,4 +297,9 @@ export const spChangeApply = (invoiceNo, salesperson) =>
 export const spChangeHistory = (params) => api.get('salesperson-change/history', { params });
 export const spChangeUndo = (id) => api.delete(`salesperson-change/${id}`);
 
+// Accounting (DEMO skeleton, 2026-10-01) — mainboard / flexibond / rajesh only (server-enforced).
+export const getAccountingOutstandings = (params) => api.get('accounting/outstandings', { params });
+export const getAccountingLedger = (name, params) =>
+  api.get(`accounting/clients/${encodeURIComponent(name)}/ledger`, { params });
+
 export default api;
