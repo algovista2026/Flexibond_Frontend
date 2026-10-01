@@ -121,6 +121,8 @@
 .acc-table { min-width: 900px; table-layout: auto !important; }
 .acc-table:not(.acc-ledger) td:first-child, .acc-table:not(.acc-ledger) th:first-child { min-width: 190px; }
 .acc-ledger td:nth-child(2) { min-width: 240px; }
+.acc-ledger td:nth-child(2):has(.acc-alloc) { min-width: 300px; }
+.acc-vchno { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; }
 .acc-ledger td:first-child, .acc-table td:first-child:not(:has(.acc-client)) { white-space: nowrap; }
 .acc-table th.num, .acc-table td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .acc-table td.strong { font-weight: 600; }
@@ -187,6 +189,72 @@
 .acc-lh-client { font-weight: 700; font-size: 1.25rem; color: var(--primary-600); margin: 6px 0 4px; }
 .acc-lh-meta { font-size: 0.82rem; color: var(--text-muted); }
 .acc-empty { padding: 40px; text-align: center; color: var(--text-muted); }
+
+/* Accounting 2 (Tally) */
+.acc-source-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  border: 1px solid #a7f3d0;
+  background: var(--success-bg);
+  color: #065f46;
+  font-size: 0.85rem;
+}
+.acc-source-banner svg { flex-shrink: 0; }
+.acc-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--warning-bg);
+  color: #92400e;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.acc-kuber {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg-light);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.acc-kuber.ok { background: var(--success-bg); color: #047857; }
+.acc-kuber.bad { background: var(--danger-bg); color: #b91c1c; }
+.acc-alloc { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 0 26px; white-space: nowrap; }
+.acc-bucket { display: inline-flex; align-items: center; font-size: 0.78rem; white-space: nowrap; }
+
+.acc-recon { margin-top: 8px; }
+.acc-recon-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+.acc-recon-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--primary-400);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  font-size: 0.85rem;
+}
+.acc-recon-card.ok { border-left-color: var(--success); }
+.acc-recon-card.warn { border-left-color: var(--warning); }
+.acc-recon-title { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+.acc-recon-big { font-size: 1.6rem; font-weight: 700; color: var(--success); }
+.acc-recon-card p { margin: 6px 0; color: var(--text-secondary); }
+.acc-recon-line { padding: 6px 0; border-top: 1px dashed var(--border-color); color: var(--text-primary); }
+.acc-recon-line:first-of-type { border-top: none; }
+.acc-recon-line.warn { color: #b91c1c; }
+.acc-recon .muted, .acc-recon-line.muted { color: var(--text-muted); font-size: 0.8rem; }
+.acc-recon-note { font-size: 0.78rem; color: var(--text-muted) !important; }
+
+@media (max-width: 900px) {
+  .acc-recon-grid { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 600px) {
   .acc-asof { width: 100%; white-space: nowrap; }

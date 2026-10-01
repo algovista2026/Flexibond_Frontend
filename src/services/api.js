@@ -302,4 +302,8 @@ export const getAccountingOutstandings = (params) => api.get('accounting/outstan
 export const getAccountingLedger = (name, params) =>
   api.get(`accounting/clients/${encodeURIComponent(name)}/ledger`, { params });
 
+// Accounting 2 (2026-10-01) — REAL Tally receivables for Guwahati, same allowlist.
+export const getAccounting2Outstandings = (params) => api.get('accounting2/outstandings', { params });
+export const getAccounting2Ledger = (name) => api.get(`accounting2/clients/${encodeURIComponent(name)}/ledger`);
+
 export default api;

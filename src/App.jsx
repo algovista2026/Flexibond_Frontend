@@ -27,6 +27,7 @@ import SalespersonChange from './pages/SalespersonChange';
 import Financial from './pages/Financial';
 import Channel from './pages/Channel';
 import Accounting from './pages/Accounting';
+import Accounting2 from './pages/Accounting2';
 import { isAnyAdmin, isGlobalAdmin, canSeeAccounting } from './utils/roles';
 
 // No Access Page Component
@@ -187,6 +188,7 @@ const App = () => {
           <Route path="/financial" element={<ProtectedView permission="financials"><Financial /></ProtectedView>} />
           <Route path="/channel" element={<ProtectedView permission="channel"><Channel /></ProtectedView>} />
           <Route path="/accounting" element={<AccountingView><Accounting /></AccountingView>} />
+          <Route path="/accounting-2" element={<AccountingView><Accounting2 /></AccountingView>} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/logs" element={<LogsPanel />} />
           <Route path="/data-logs" element={<DataLogs />} />

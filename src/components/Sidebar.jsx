@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase, FiDatabase, FiUserCheck, FiBookOpen } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase, FiDatabase, FiUserCheck, FiBookOpen, FiBook } from 'react-icons/fi';
 import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
@@ -103,6 +103,13 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           <NavLink to="/accounting" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiBookOpen className="nav-icon" />
             <span>Accounting</span>
+          </NavLink>
+        )}
+        {/* Accounting 2 (2026-10-01) — real Tally data, Guwahati only. Same allowlist. */}
+        {canSeeAccounting(user) && (
+          <NavLink to="/accounting-2" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiBook className="nav-icon" />
+            <span>Accounting 2 · Guwahati</span>
           </NavLink>
         )}
         
