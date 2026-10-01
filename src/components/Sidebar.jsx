@@ -5,7 +5,7 @@ import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
 import './Sidebar.css';
-import { isAnyAdmin, canSeeAccounting } from '../utils/roles';
+import { isAnyAdmin, canSeeAccounting, canSeeAccounting2 } from '../utils/roles';
 
 const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   const navigate = useNavigate();
@@ -105,8 +105,8 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
             <span>Accounting</span>
           </NavLink>
         )}
-        {/* Accounting 2 (2026-10-01) — real Tally data, Guwahati only. Same allowlist. */}
-        {canSeeAccounting(user) && (
+        {/* Accounting 2 (2026-10-01) — real Tally data, Guwahati only. Own allowlist (+ accufpl). */}
+        {canSeeAccounting2(user) && (
           <NavLink to="/accounting-2" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiBook className="nav-icon" />
             <span>Accounting 2 · Guwahati</span>

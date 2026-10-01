@@ -28,7 +28,7 @@ import Financial from './pages/Financial';
 import Channel from './pages/Channel';
 import Accounting from './pages/Accounting';
 import Accounting2 from './pages/Accounting2';
-import { isAnyAdmin, isGlobalAdmin, canSeeAccounting } from './utils/roles';
+import { isAnyAdmin, isGlobalAdmin, canSeeAccounting, canSeeAccounting2 } from './utils/roles';
 
 // No Access Page Component
 const NoAccessPage = () => (
@@ -56,9 +56,9 @@ const ProtectedView = ({ permission, children }) => {
 };
 
 // Accounting is gated on a named-login flag, not a module permission (2026-10-01).
-const AccountingView = ({ children }) => {
+const AccountingView = ({ allowed = canSeeAccounting, children }) => {
   const user = JSON.parse(sessionStorage.getItem('flexibond_user') || '{}');
-  return canSeeAccounting(user) ? children : <Navigate to="/no-access" replace />;
+  return allowed(user) ? children : <Navigate to="/no-access" replace />;
 };
 
 // Default Route Calculator
@@ -188,7 +188,7 @@ const App = () => {
           <Route path="/financial" element={<ProtectedView permission="financials"><Financial /></ProtectedView>} />
           <Route path="/channel" element={<ProtectedView permission="channel"><Channel /></ProtectedView>} />
           <Route path="/accounting" element={<AccountingView><Accounting /></AccountingView>} />
-          <Route path="/accounting-2" element={<AccountingView><Accounting2 /></AccountingView>} />
+          <Route path="/accounting-2" element={<AccountingView allowed={canSeeAccounting2}><Accounting2 /></AccountingView>} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/logs" element={<LogsPanel />} />
           <Route path="/data-logs" element={<DataLogs />} />

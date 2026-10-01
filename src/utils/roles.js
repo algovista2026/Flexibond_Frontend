@@ -35,6 +35,8 @@ export const hidesDepots = (user) => !isSuperAdmin(user);
 // rajesh). The flag is computed server-side (config/accounting.js) and shipped on login + /auth/me;
 // the API enforces it independently (middleware/accounting.js), so this only drives the nav.
 export const canSeeAccounting = (user) => !!(user && user.canAccessAccounting);
+// Accounting 2 · Guwahati has its OWN list (adds `accufpl`) — flag `canAccessAccounting2`.
+export const canSeeAccounting2 = (user) => !!(user && user.canAccessAccounting2);
 
 // Human label for the badge in Admin Panel → Users.
 export const ROLE_LABELS = {
