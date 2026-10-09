@@ -14,12 +14,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { FiArrowLeft, FiSearch, FiDownload, FiInfo } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 import ChartCard from '../components/ChartCard';
+import AgeingSummary from '../components/AgeingSummary';
+import DaysRangeFilter, { ageInRange } from '../components/DaysRangeFilter';
+import LedgerActions from '../components/LedgerActions';
 import ExportControls from '../components/ExportControls';
 import { KPISkeleton, ChartSkeleton, TableSkeleton } from '../components/Skeleton';
 import { getAccountingOutstandings, getAccountingLedger } from '../services/api';
 import { formatINR } from '../utils/numberFormat';
 import { isGlobalAdmin } from '../utils/roles';
+import { buildLedgerPdf, ledgerFileName, ledgerMessage, shareLedgerOnWhatsApp } from '../utils/accountingPdf';
 import './Accounting.css';
 
 import {
@@ -43,6 +48,9 @@ const Outstandings = ({ onOpen }) => {
   const [salesperson, setSalesperson] = useState('');
   const [asOf, setAsOf] = useState(todayISO());
   const [search, setSearch] = useState('');
+  // Bill-age band: a client matches when ANY of its pending bills is aged within it (null = open).
+  const [age, setAge] = useState({ min: null, max: null });
+  const ageActive = age.min !== null || age.max !== null;
   const [sort, setSort] = useState({ key: 'name', dir: 1 });
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -60,17 +68,21 @@ const Outstandings = ({ onOpen }) => {
   const rows = useMemo(() => {
     if (!data) return [];
     const q = search.trim().toLowerCase();
-    const list = q ? data.rows.filter(r => r.name.toLowerCase().includes(q) || (r.city || '').toLowerCase().includes(q)) : data.rows;
+    let list = q ? data.rows.filter(r => r.name.toLowerCase().includes(q) || (r.city || '').toLowerCase().includes(q)) : data.rows;
+    list = list.map(r => ({ ...r, inRange: r.pendingBills.filter(b => ageInRange(b.age, age.min, age.max)).reduce((a, b) => a + b.amount, 0) }));
+    if (ageActive) list = list.filter(r => r.pendingBills.some(b => ageInRange(b.age, age.min, age.max)));
     return [...list].sort((a, b) => {
       const av = a[sort.key], bv = b[sort.key];
       return (typeof av === 'string' ? av.localeCompare(bv) : av - bv) * sort.dir;
     });
-  }, [data, search, sort]);
+  }, [data, search, sort, age, ageActive]);
 
   const shownTotal = useMemo(() => rows.reduce((t, r) => {
-    ['total', ...BUCKET_KEYS].forEach(k => { t[k] += r[k]; });
+    ['total', 'inRange', ...BUCKET_KEYS].forEach(k => { t[k] += r[k]; });
     return t;
-  }, { total: 0, b0: 0, b30: 0, b45: 0, b60: 0, b90: 0 }), [rows]);
+  }, { total: 0, inRange: 0, b0: 0, b30: 0, b45: 0, b60: 0, b90: 0 }), [rows]);
+  const ageText = age.min !== null && age.max !== null ? `${age.min}–${age.max} days`
+    : age.min !== null ? `${age.min}+ days` : `up to ${age.max} days`;
 
   const toggleSort = (key) => setSort(s => (s.key === key ? { key, dir: -s.dir } : { key, dir: key === 'name' ? 1 : -1 }));
   const arrow = (key) => (sort.key === key ? (sort.dir > 0 ? ' ▲' : ' ▼') : '');
@@ -164,6 +176,15 @@ const Outstandings = ({ onOpen }) => {
         </div>
       )}
 
+      {data && (
+        <AgeingSummary
+          subtitle={`${salesperson || 'All groups'} · as on ${fmtDate(data.asOf)} · % of total outstanding`}
+          amounts={data.grand}
+          bills={data.rows.flatMap(r => r.pendingBills.map(b => ({ ...b, client: `${r.company}|${r.name}` })))}
+          showClients
+        />
+      )}
+
       {loading && !data ? (
         <div className="charts-grid"><ChartSkeleton /><ChartSkeleton /></div>
       ) : data && (
@@ -253,13 +274,14 @@ const Outstandings = ({ onOpen }) => {
       <div className="acc-table-head">
         <div>
           <h3>{data?.companyName || 'Group Outstandings'}</h3>
-          <p>{salesperson || 'All groups'} · Group Outstandings · {data ? `${fmtDate(data.periodStart)} to ${fmtDate(data.asOf)}` : ''}</p>
+          <p>{salesperson || 'All groups'} · Group Outstandings · {data ? `${fmtDate(data.periodStart)} to ${fmtDate(data.asOf)}` : ''}{ageActive ? ` · clients with a bill aged ${ageText}` : ''}</p>
         </div>
         <div className="acc-table-tools">
           <div className="acc-search">
             <FiSearch />
             <input placeholder="Search client or city…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
+          <DaysRangeFilter min={age.min} max={age.max} onChange={setAge} />
           <button className="acc-btn" onClick={exportTable} disabled={!rows.length}><FiDownload /> Excel</button>
         </div>
       </div>
@@ -271,6 +293,7 @@ const Outstandings = ({ onOpen }) => {
               <tr>
                 <th onClick={() => toggleSort('name')} className="acc-sort">Particulars{arrow('name')}</th>
                 <th onClick={() => toggleSort('total')} className="acc-sort num">Pending Bills{arrow('total')}</th>
+                {ageActive && <th onClick={() => toggleSort('inRange')} className="acc-sort num acc-inrange">In range ({ageText}){arrow('inRange')}</th>}
                 {BUCKET_KEYS.map(b => (
                   <th key={b} onClick={() => toggleSort(b)} className="acc-sort num">
                     <i className="acc-dot" style={{ background: BUCKET_COLORS[b] }} />{BUCKET_LABELS[b]}{arrow(b)}
@@ -286,6 +309,7 @@ const Outstandings = ({ onOpen }) => {
                     <div className="acc-client-sub">{[!company && globalAdmin ? r.company : null, r.city, r.salesperson].filter(Boolean).join(' · ')}</div>
                   </td>
                   <td className="num strong">{drCr(r.total)}</td>
+                  {ageActive && <td className="num acc-inrange strong">{drCr(r.inRange)}</td>}
                   {BUCKET_KEYS.map(b => (
                     <td key={b} className={`num ${r[b] < 0 ? 'acc-cr' : ''}`} style={r[b] > 0 ? { background: `${BUCKET_COLORS[b]}${r[b] > 2500000 ? '26' : '12'}` } : undefined}>
                       {drCr(r[b])}
@@ -294,14 +318,15 @@ const Outstandings = ({ onOpen }) => {
                 </tr>
               ))}
               {!rows.length && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '28px' }}>No clients with pending bills.</td></tr>
+                <tr><td colSpan={ageActive ? 8 : 7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '28px' }}>{ageActive ? `No client has a pending bill aged ${ageText}.` : 'No clients with pending bills.'}</td></tr>
               )}
             </tbody>
             {rows.length > 0 && (
               <tfoot>
                 <tr>
-                  <td>Grand Total{search ? ` (${rows.length} shown)` : ''}</td>
+                  <td>Grand Total{search || ageActive ? ` (${rows.length} shown)` : ''}</td>
                   <td className="num">{drCr(shownTotal.total)}</td>
+                  {ageActive && <td className="num acc-inrange">{drCr(shownTotal.inRange)}</td>}
                   {BUCKET_KEYS.map(b => <td key={b} className="num">{drCr(shownTotal[b])}</td>)}
                 </tr>
               </tfoot>
@@ -347,6 +372,27 @@ const Ledger = ({ name, company, asOf, onBack }) => {
   const c = data?.client;
   const t = data?.totals;
 
+  const period = data ? `${fmtDate(data.periodStart)} to ${fmtDate(data.asOf)}` : '';
+  const pdfInput = () => ({
+    companyName: data.companyName, partyName: c.name, demo: true,
+    partyLines: [[c.city, c.state].filter(Boolean).join(', '), c.gstin ? `GSTIN ${c.gstin}` : '', `Salesperson: ${c.salesperson || '—'}`],
+    period, asOf: data.asOf, entries: data.entries, totals: t, bills: data.bills,
+  });
+  const downloadPdf = () => {
+    try { buildLedgerPdf(pdfInput()).save(ledgerFileName(c.name, data.asOf)); } catch (e) { toast.error(e.message); }
+  };
+  const sendWhatsApp = async () => {
+    try {
+      const how = await shareLedgerOnWhatsApp({
+        doc: buildLedgerPdf(pdfInput()),
+        fileName: ledgerFileName(c.name, data.asOf),
+        phone: null, // demo data carries no phone numbers
+        message: ledgerMessage({ partyName: c.name, companyName: data.companyName, period, asOf: data.asOf, closing: t.closing, pendingBills: t.pendingBills, oldestDays: t.oldestDays }),
+      });
+      if (how === 'web') toast.info('PDF downloaded — pick the contact in WhatsApp, drag the PDF into the chat and press Send.', { autoClose: 8000 });
+    } catch (e) { toast.error(e.message); }
+  };
+
   const exportLedger = () => downloadSheet(
     data.entries.map(e => ({
       Date: fmtDate(e.date), Particulars: `${e.side} ${e.particulars}`, 'Vch Type': e.vchType, 'Vch No.': e.vchNo,
@@ -364,6 +410,7 @@ const Ledger = ({ name, company, asOf, onBack }) => {
           <p>Ledger Account{c ? ` · ${[c.city, c.state].filter(Boolean).join(', ')}` : ''}</p>
         </div>
         <div className="page-controls">
+          {data && <LedgerActions onPdf={downloadPdf} onWhatsApp={sendWhatsApp} hasPhone={false} />}
           <ExportControls pageTitle={`Ledger_${name}`} />
         </div>
       </div>
@@ -412,6 +459,12 @@ const Ledger = ({ name, company, asOf, onBack }) => {
               <div className="kpi-sub">On fully settled bills</div>
             </div>
           </div>
+
+          <AgeingSummary
+            subtitle={`Pending bills of ${c.name} · as on ${fmtDate(data.asOf)}`}
+            amounts={data.ageing}
+            bills={data.bills.filter(b => b.pending > 0).map(b => ({ age: b.daysOld, amount: b.pending, bucket: b.bucket }))}
+          />
 
           <div className="charts-grid">
             <ChartCard title="Ageing of Pending Bills">

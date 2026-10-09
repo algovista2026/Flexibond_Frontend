@@ -190,6 +190,38 @@
 .acc-lh-meta { font-size: 0.82rem; color: var(--text-muted); }
 .acc-empty { padding: 40px; text-align: center; color: var(--text-muted); }
 
+/* Ageing Summary box (2026-10-09) — rows after the Dashboard per-company target table, with
+   colour RECTANGLES (not squares) leading each line. */
+.acc-summary { height: auto; margin-bottom: 28px; }
+.acc-summary-head h3 { margin: 0; font-size: 1rem; color: var(--text-primary); }
+.acc-summary-head p { margin: 2px 0 12px; font-size: 0.8rem; color: var(--text-muted); }
+.acc-summary-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.acc-summary-table th {
+  text-align: left; font-weight: 500; color: var(--text-muted); font-size: 0.85rem;
+  padding: 6px 10px; border-bottom: 1px solid var(--border-color);
+}
+.acc-summary-table td { padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); font-weight: 600; }
+.acc-summary-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.acc-summary-table td.num { font-weight: 500; color: var(--text-secondary); }
+.acc-summary-table td.num.strong { font-weight: 700; color: var(--text-primary); }
+.acc-summary-table tr.is-empty td { color: var(--text-muted); font-weight: 500; }
+.acc-summary-table tfoot td { border-bottom: none; border-top: 2px solid var(--border-color); font-weight: 700; color: var(--text-primary); }
+.acc-rect {
+  display: inline-block; width: 22px; height: 10px; border-radius: 3px;
+  margin-right: 10px; vertical-align: middle;
+}
+.acc-rect-total { background: transparent; }
+
+/* Days filter + "In range" column */
+.acc-table-tools .days-range { margin-left: 0; }
+.acc-table-tools .days-range-side { width: 170px; }
+.acc-table th.acc-inrange, .acc-table td.acc-inrange { background: rgba(14, 165, 233, 0.07); color: #0369a1; }
+
+/* Ledger PDF + WhatsApp */
+.acc-ledger-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.acc-btn.acc-wa { background: #25d366; border-color: #25d366; color: #fff; }
+.acc-btn.acc-wa:hover:not(:disabled) { background: #1ebe5a; border-color: #1ebe5a; color: #fff; }
+
 /* Accounting 2 (Tally) */
 .acc-source-banner {
   display: flex;
@@ -257,6 +289,11 @@
 }
 
 @media (max-width: 600px) {
+  .acc-table-tools .days-range-side { width: auto; }
+  .acc-table-tools .days-range-side + .days-range-side { margin-left: 0; }
+  .acc-summary-table { font-size: 0.82rem; }
+  .acc-summary-table th, .acc-summary-table td { padding: 8px 6px; }
+  .acc-rect { width: 16px; margin-right: 6px; }
   .acc-asof { width: 100%; white-space: nowrap; }
   .filter-bar .acc-asof input { flex: 1 1 0 !important; min-width: 0; width: auto !important; }
   .acc-search input { min-width: 0; width: 100%; }
