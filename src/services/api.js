@@ -305,5 +305,10 @@ export const getAccountingLedger = (name, params) =>
 // Accounting 2 (2026-10-01) — REAL Tally receivables for Guwahati, same allowlist.
 export const getAccounting2Outstandings = (params) => api.get('accounting2/outstandings', { params });
 export const getAccounting2Ledger = (name) => api.get(`accounting2/clients/${encodeURIComponent(name)}/ledger`);
+// Accounting · Tally API (Test) — books built from Tally pushes (2026-10-14).
+export const getAccountingTallySources = () => api.get('accounting-tally/sources');
+export const getAccountingTallyOutstandings = (source, params) => api.get(`accounting-tally/${encodeURIComponent(source)}/outstandings`, { params });
+export const getAccountingTallyLedger = (source, name) => api.get(`accounting-tally/${encodeURIComponent(source)}/clients/${encodeURIComponent(name)}/ledger`);
+export const getAccountingTallyStatus = (source) => api.get(`accounting-tally/${encodeURIComponent(source)}/status`);
 
 export default api;

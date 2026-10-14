@@ -28,7 +28,8 @@ import Financial from './pages/Financial';
 import Channel from './pages/Channel';
 import Accounting from './pages/Accounting';
 import Accounting2 from './pages/Accounting2';
-import { isAnyAdmin, isGlobalAdmin, canSeeAccounting, canSeeAccounting2 } from './utils/roles';
+import AccountingTally from './pages/AccountingTally';
+import { isAnyAdmin, isGlobalAdmin, canSeeAccounting, canSeeAccounting2, canSeeAccountingTest } from './utils/roles';
 
 // No Access Page Component
 const NoAccessPage = () => (
@@ -189,6 +190,7 @@ const App = () => {
           <Route path="/channel" element={<ProtectedView permission="channel"><Channel /></ProtectedView>} />
           <Route path="/accounting" element={<AccountingView><Accounting /></AccountingView>} />
           <Route path="/accounting-2" element={<AccountingView allowed={canSeeAccounting2}><Accounting2 /></AccountingView>} />
+          <Route path="/accounting-tally" element={<AccountingView allowed={canSeeAccountingTest}><AccountingTally /></AccountingView>} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/logs" element={<LogsPanel />} />
           <Route path="/data-logs" element={<DataLogs />} />

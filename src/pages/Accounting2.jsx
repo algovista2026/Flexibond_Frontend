@@ -109,7 +109,7 @@ const Reconciliation = ({ recon }) => {
 };
 
 /* ═════════════════════════════ Outstandings view ═════════════════════════════ */
-const Outstandings = ({ onOpen }) => {
+const Outstandings = ({ onOpen, cfg }) => {
   const [salesperson, setSalesperson] = useState('');
   const [search, setSearch] = useState('');
   // Bill-age band: a party matches when ANY of its pending bills is aged within it (null = open).
@@ -123,12 +123,12 @@ const Outstandings = ({ onOpen }) => {
   useEffect(() => {
     let live = true;
     setLoading(true);
-    getAccounting2Outstandings({ salesperson: salesperson || undefined })
+    cfg.fetchOutstandings({ salesperson: salesperson || undefined })
       .then(res => { if (live) { setData(res.data); setError(''); } })
       .catch(err => { if (live) setError(err.response?.data?.message || 'Could not load Tally data'); })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [salesperson]);
+  }, [salesperson, cfg]);
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -160,7 +160,7 @@ const Outstandings = ({ onOpen }) => {
       Particulars: r.name, 'Kuber name': r.kuberName || '', City: r.city, Salesperson: r.salesperson, 'Pending Bills': r.total,
       '< 30 days': r.b0, '30 to 45 days': r.b30, '45 to 60 days': r.b45, '60 to 90 days': r.b60, '> 90 days': r.b90,
     })),
-    'Group Outstandings', 'Guwahati_Group_Outstandings_30-Sep-26.xlsx',
+    'Group Outstandings', `${cfg.filePrefix}_Group_Outstandings_${fmtDate(data?.asOf)}.xlsx`,
   );
 
   if (error) return <div className="acc-empty">{error}</div>;
@@ -169,15 +169,18 @@ const Outstandings = ({ onOpen }) => {
     <>
       <div className="page-header">
         <div>
-          <h1>Accounting 2 · Guwahati</h1>
-          <p>Receivables from Tally — group outstandings, ageing and party ledgers</p>
+          <h1>{cfg.title}</h1>
+          <p>{cfg.subtitle}</p>
         </div>
         <div className="page-controls">
-          <ExportControls pageTitle="Accounting2_Guwahati" />
+          {cfg.headerExtra}
+          <ExportControls pageTitle={cfg.exportTitle} />
         </div>
       </div>
 
-      <SourceBanner data={data} />
+      <cfg.Banner data={data} />
+
+      {data?.empty ? <cfg.Panel data={data} /> : (<>
 
       <div className="filter-bar acc-controls">
         <select value={salesperson} onChange={e => setSalesperson(e.target.value)}>
@@ -372,13 +375,14 @@ const Outstandings = ({ onOpen }) => {
         </div>
       )}
 
-      {data && <Reconciliation recon={data.recon} />}
+      {data && <cfg.Panel data={data} />}
+      </>)}
     </>
   );
 };
 
 /* ═════════════════════════════ Ledger view ═════════════════════════════ */
-const Ledger = ({ name, onBack }) => {
+const Ledger = ({ name, onBack, cfg }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -387,12 +391,12 @@ const Ledger = ({ name, onBack }) => {
   useEffect(() => {
     let live = true;
     setLoading(true); setError('');
-    getAccounting2Ledger(name)
+    cfg.fetchLedger(name)
       .then(res => { if (live) setData(res.data); })
       .catch(err => { if (live) setError(err.response?.data?.message || 'Could not load ledger'); })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [name]);
+  }, [name, cfg]);
 
   const bills = useMemo(() => {
     if (!data) return [];
@@ -437,7 +441,7 @@ const Ledger = ({ name, onBack }) => {
       { Date: fmtDate(e.date), Particulars: `${e.side} ${e.particulars}`, 'Vch Type': e.vchType, 'Vch No.': e.vchNo, Debit: e.debit || '', Credit: e.credit || '', Balance: drCr(e.balance) },
       ...e.allocations.map(a => ({ Date: '', Particulars: `   ${a.type} ${a.ref}`, 'Vch Type': a.terms, 'Vch No.': '', Debit: a.side === 'Dr' ? a.amount : '', Credit: a.side === 'Cr' ? a.amount : '', Balance: '' })),
     ]),
-    'Ledger', `Ledger_${name.replace(/[^\w]+/g, '_')}_30-Sep-26.xlsx`,
+    'Ledger', `Ledger_${name.replace(/[^\w]+/g, '_')}_${fmtDate(data.asOf)}.xlsx`,
   );
 
   return (
@@ -446,7 +450,7 @@ const Ledger = ({ name, onBack }) => {
         <div>
           <button className="acc-back" onClick={onBack}><FiArrowLeft /> Back to outstandings</button>
           <h1>{name}</h1>
-          <p>Ledger Account · Guwahati{c?.city ? ` · ${c.city}` : ''}</p>
+          <p>Ledger Account · {cfg.ledgerPlace}{c?.city ? ` · ${c.city}` : ''}</p>
         </div>
         <div className="page-controls">
           {data && <LedgerActions onPdf={downloadPdf} onWhatsApp={sendWhatsApp} hasPhone={!!phoneFromContact(c?.contact)} />}
@@ -454,7 +458,7 @@ const Ledger = ({ name, onBack }) => {
         </div>
       </div>
 
-      <SourceBanner data={data} />
+      <cfg.Banner data={data} />
 
       {loading && !data ? <KPISkeleton /> : data && (
         <>
@@ -549,7 +553,7 @@ const Ledger = ({ name, onBack }) => {
                     <td className="num strong">{money2(b.pending)}</td>
                     <td className="num">{b.pending > 0 && <span title={BUCKET_LABELS[b.bucket]}><i className="acc-dot" style={{ background: BUCKET_COLORS[b.bucket] }} />{b.ageDays} d</span>}</td>
                     <td><span className={`acc-status s-${b.status.replace(/\s/g, '').toLowerCase()}`}>{b.status}</span></td>
-                    <td>{b.inKuber ? <span className="acc-kuber ok" title="Same bill number and amount in Kuber">✓ linked</span> : <span className="acc-kuber" title="Before the Kuber feed started (1-Aug-26)">pre-feed</span>}</td>
+                    <td>{b.inKuber ? <span className="acc-kuber ok" title="Same bill number and amount in Kuber">✓ linked</span> : <span className="acc-kuber" title={cfg.unlinked.title}>{cfg.unlinked.label}</span>}</td>
                   </tr>
                 ))}
                 {!bills.length && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>No pending bills — account is settled.</td></tr>}
@@ -628,16 +632,35 @@ const Ledger = ({ name, onBack }) => {
 };
 
 /* ═════════════════════════════ Page ═════════════════════════════ */
-const Accounting2 = () => {
+// The same book on any source: `cfg` supplies the title, the two fetchers, the banner and the
+// panel under the outstandings table. Accounting 2 = the Guwahati Excel exports (below); the Tally
+// API test module (pages/AccountingTally.jsx) passes its own. Keep cfg STABLE (module-level or
+// useMemo) — it is an effect dependency.
+const GUWAHATI = {
+  title: 'Accounting 2 · Guwahati',
+  subtitle: 'Receivables from Tally — group outstandings, ageing and party ledgers',
+  exportTitle: 'Accounting2_Guwahati',
+  filePrefix: 'Guwahati',
+  ledgerPlace: 'Guwahati',
+  fetchOutstandings: getAccounting2Outstandings,
+  fetchLedger: getAccounting2Ledger,
+  Banner: SourceBanner,
+  Panel: ({ data }) => <Reconciliation recon={data.recon} />,
+  unlinked: { label: 'pre-feed', title: 'Before the Kuber feed started (1-Aug-26)' },
+};
+
+export const AccountingBook = ({ cfg }) => {
   const [params, setParams] = useSearchParams();
   const client = params.get('client');
   const open = (name) => { setParams({ client: name }); window.scrollTo({ top: 0 }); };
   const back = () => { setParams({}); window.scrollTo({ top: 0 }); };
   return (
     <div className="page-content accounting-page">
-      {client ? <Ledger key={client} name={client} onBack={back} /> : <Outstandings onOpen={open} />}
+      {client ? <Ledger key={client} name={client} onBack={back} cfg={cfg} /> : <Outstandings onOpen={open} cfg={cfg} />}
     </div>
   );
 };
+
+const Accounting2 = () => <AccountingBook cfg={GUWAHATI} />;
 
 export default Accounting2;

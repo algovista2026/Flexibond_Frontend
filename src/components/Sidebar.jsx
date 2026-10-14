@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase, FiDatabase, FiUserCheck, FiBookOpen, FiBook } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiUsers, FiLogOut, FiBox, FiBarChart2, FiDollarSign, FiGitBranch, FiMap, FiMapPin, FiLayers, FiBriefcase, FiDatabase, FiUserCheck, FiBookOpen, FiBook, FiZap } from 'react-icons/fi';
 import { MANUAL_UPLOAD_ENABLED } from '../config';
 import NotificationPanel from './NotificationPanel';
 import { clearGlobalFilters } from '../utils/globalFilters';
 import './Sidebar.css';
-import { isAnyAdmin, canSeeAccounting, canSeeAccounting2 } from '../utils/roles';
+import { isAnyAdmin, canSeeAccounting, canSeeAccounting2, canSeeAccountingTest } from '../utils/roles';
 
 const Sidebar = ({ isOpen, onClose, user: propUser }) => {
   const navigate = useNavigate();
@@ -110,6 +110,13 @@ const Sidebar = ({ isOpen, onClose, user: propUser }) => {
           <NavLink to="/accounting-2" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FiBook className="nav-icon" />
             <span>Accounting 2 · Guwahati</span>
+          </NavLink>
+        )}
+        {/* Accounting · Tally API (2026-10-14) — the book the Tally vendor's pushes build. Test. */}
+        {canSeeAccountingTest(user) && (
+          <NavLink to="/accounting-tally" onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FiZap className="nav-icon" />
+            <span>Accounting · Tally API</span>
           </NavLink>
         )}
         

@@ -300,3 +300,20 @@
   .acc-search, .acc-table-tools { width: 100%; }
   .acc-legend { flex-basis: 130px; font-size: 0.8rem; }
 }
+
+/* ── Accounting · Tally API (Test), 2026-10-14 ─────────────────────────────── */
+.acc-api-banner { border-color: #c7d2fe; background: #eef2ff; color: #3730a3; }
+.acc-api-empty {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 18px 20px; margin-bottom: 16px; border-radius: 12px;
+  border: 1px dashed #a5b4fc; background: var(--bg-card, #fff);
+}
+.acc-api-empty > svg { font-size: 1.5rem; color: #6366f1; flex-shrink: 0; margin-top: 2px; }
+.acc-api-empty p { margin: 6px 0; color: var(--text-secondary); }
+.acc-api-url { font-size: 0.8rem; padding: 3px 0; word-break: break-all; color: var(--text-primary); }
+.acc-recon-unit { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+.acc-ok { color: var(--success); vertical-align: -2px; }
+.acc-warn { color: #b45309; vertical-align: -2px; }
+.acc-push-bad td { background: rgba(239, 68, 68, 0.06); }
+.acc-push-err { max-width: 380px; font-size: 0.78rem; color: #b91c1c; white-space: normal; }
+.acc-source-pick { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); }

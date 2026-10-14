@@ -37,6 +37,8 @@ export const hidesDepots = (user) => !isSuperAdmin(user);
 export const canSeeAccounting = (user) => !!(user && user.canAccessAccounting);
 // Accounting 2 · Guwahati has its OWN list (adds `accufpl`) — flag `canAccessAccounting2`.
 export const canSeeAccounting2 = (user) => !!(user && user.canAccessAccounting2);
+// Accounting · Tally API (Test) — the book built from Tally pushes (2026-10-14). Flag `canAccessAccountingTest`.
+export const canSeeAccountingTest = (user) => !!(user && user.canAccessAccountingTest);
 
 // Human label for the badge in Admin Panel → Users.
 export const ROLE_LABELS = {
