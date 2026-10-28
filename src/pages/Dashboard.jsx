@@ -424,10 +424,14 @@ const Dashboard = () => {
     // line items, so any assessable value on invoices WITHOUT company-tagged line items (or under
     // a blank/unmapped company) isn't in the named series. Surface that remainder as an "Other"
     // segment so the split total equals the revenue card instead of coming up short.
+    // ⚠️ Since 2026-08-14 ingest_build makes the two equal BY CONSTRUCTION, so a remainder here is
+    // never a real company — it means invoice lines are missing (23–29 Oct 2026: the database hit its
+    // storage quota and the rebuild dropped ₹3.66 Cr of lines). It is shown RED as "Unreconciled"
+    // with a warning, not as a grey company called "Other" that looks like normal data.
     const headline = data.summary?.totalRevenueExclTax || 0;
     const namedSum = named.reduce((a, seg) => a + seg.value, 0);
     const other = headline - namedSum;
-    if (other > 1) named.push({ label: 'Other', value: other, color: '#94a3b8' });
+    if (other > 1) named.push({ label: 'Unreconciled', value: other, color: '#ef4444', unreconciled: true });
     return named;
   })();
   const companySplitTotal = companySegments.reduce((a, seg) => a + seg.value, 0);
@@ -466,6 +470,11 @@ const Dashboard = () => {
           {seg.label}{showAmount ? <strong style={{ color: 'var(--text-primary)', marginLeft: '2px' }}>{formatCurrency(seg.value)}</strong> : ''}
         </span>
       ))}
+      {companySegments.some(seg => seg.unreconciled) && (
+        <div style={{ flexBasis: '100%', fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>
+          ⚠ {formatCurrency(companySegments.find(seg => seg.unreconciled).value)} of revenue has no product lines yet — company figures are understated. See Data Logs → Pipeline Health.
+        </div>
+      )}
     </div>
   );
 

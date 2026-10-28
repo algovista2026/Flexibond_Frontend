@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { FiRefreshCw, FiDownloadCloud, FiDatabase, FiCheck } from 'react-icons/fi';
+import { FiRefreshCw, FiDownloadCloud, FiDatabase, FiCheck, FiAlertTriangle } from 'react-icons/fi';
 import { getDataLogs, triggerDataSync } from '../services/api';
 import { branchLabel, companyOfBranch } from '../utils/branchConfig';
 
@@ -23,6 +23,55 @@ function Kpi({ label, value, sub }) {
       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
       <div style={{ fontSize: '1.55rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>{value}</div>
       {sub && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{sub}</div>}
+    </div>
+  );
+}
+
+const inr2 = (v) => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Pipeline health (global admins only; added 2026-10-29). On 23-Oct-2026 the free Atlas cluster hit
+// its 512 MB quota and every rebuild silently dropped its newest line items for six days — this
+// panel makes that kind of failure visible here instead of as a grey "Other" on the Dashboard.
+function HealthPanel({ health }) {
+  if (!health) return null;
+  const st = health.storage || {};
+  const rc = health.reconcile || {};
+  const storageLevel = st.pct >= 85 ? 'bad' : st.pct >= 70 ? 'warn' : 'ok';
+  const colour = { ok: '#10b981', warn: '#f59e0b', bad: '#ef4444' };
+  const problems = [
+    health.lastError && `Last rebuild failed: ${health.lastError}`,
+    rc.ok === false && `Invoices and line items do not reconcile: invoices ${inr2(rc.invoiceValue)} vs lines ${inr2(rc.lineValue)} (Δ ${inr2(rc.diff)}), ${rc.invoicesWithoutLines} invoice(s) with no lines`,
+    storageLevel !== 'ok' && `Database storage at ${st.pct}% of the ${st.quotaMB} MB free-tier quota — rebuilds start failing near 100 %`,
+  ].filter(Boolean);
+  return (
+    <div style={{ ...card, marginBottom: '18px', borderColor: problems.length ? '#ef4444' : 'var(--border-color)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+        {problems.length ? <FiAlertTriangle color="#ef4444" /> : <FiCheck color="#10b981" />}
+        <h3 style={{ margin: 0, fontSize: '1rem' }}>Pipeline Health</h3>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', fontSize: '0.85rem' }}>
+        <div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase' }}>Database storage</div>
+          {st.error ? <div>unavailable ({st.error})</div> : (
+            <>
+              <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{st.usedMB} / {st.quotaMB} MB · {st.pct}%</div>
+              <div style={{ height: 8, borderRadius: 4, background: 'var(--border-color)', marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, st.pct || 0)}%`, height: '100%', background: colour[storageLevel] }} />
+              </div>
+            </>
+          )}
+        </div>
+        <div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase' }}>Invoices vs line items (excl. taxes)</div>
+          <div style={{ fontWeight: 700, fontSize: '1.1rem', color: rc.ok ? 'inherit' : '#ef4444' }}>{rc.ok ? 'Reconciled to the paisa' : `Δ ${inr2(rc.diff)}`}</div>
+          <div style={{ color: 'var(--text-muted)' }}>{inr2(rc.lineValue)} across all line items</div>
+        </div>
+        <div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase' }}>Last rebuild</div>
+          <div style={{ fontWeight: 700, fontSize: '1.1rem', color: health.lastError ? '#ef4444' : 'inherit' }}>{health.lastError ? 'Refused / failed' : 'OK — complete and verified'}</div>
+        </div>
+      </div>
+      {problems.map((p) => <div key={p} style={{ marginTop: 10, color: '#ef4444', fontSize: '0.82rem' }}>⚠ {p}</div>)}
     </div>
   );
 }
@@ -81,7 +130,7 @@ export default function DataLogs() {
   if (loading) return <div className="page-content"><p>Loading data logs…</p></div>;
   if (!data) return <div className="page-content"><p>No data available.</p></div>;
 
-  const { branches = [], days = [], totals = {} } = data;
+  const { branches = [], days = [], totals = {}, health = null } = data;
 
   return (
     <div className="page-content">
@@ -113,6 +162,8 @@ export default function DataLogs() {
         <Kpi label="Total Pushes" value={n(totals.pushes)} />
         <Kpi label="Last Rebuild" value={relTime(totals.lastSync)} sub={totals.lastSync ? new Date(totals.lastSync).toLocaleString('en-IN') : ''} />
       </div>
+
+      <HealthPanel health={health} />
 
       {/* Per-branch table */}
       <div style={{ ...card, padding: 0, marginBottom: '18px', overflow: 'hidden' }}>
